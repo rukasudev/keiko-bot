@@ -104,6 +104,7 @@ ViewsHook = Callable[[], Iterable[Any]]
 ItemsHook = Callable[[], Iterable[type[Any]]]
 ReminderHandler = Callable[[Reminder], None]
 WebhookHandler = Callable[[WebhookEvent], WebhookReply]
+ScheduleHandler = Callable[[Sequence[Mapping[str, Any]]], Awaitable[None]]
 Opener = Callable[[Any, str], Awaitable[None]]
 
 
@@ -133,8 +134,9 @@ class Text(BaseModel):
     )
 
     def get(self, locale: str) -> str:
-        """The text for `locale`, English when the locale is not Portuguese."""
-        return self.pt_br if locale == "pt-br" else self.en_us
+        """The text for `locale` in any spelling (`pt-br`, Discord's `pt-BR`), English
+        when the locale is not Portuguese."""
+        return self.pt_br if str(locale).lower().startswith("pt") else self.en_us
 
 
 COPY_FILE = "copy.yml"
@@ -174,6 +176,7 @@ class Command:
     hooks: Hooks = field(default_factory=Hooks)
     reminders: Mapping[str, ReminderHandler] = field(default_factory=dict)
     webhooks: Mapping[str, WebhookHandler] = field(default_factory=dict)
+    schedules: Mapping[str, ScheduleHandler] = field(default_factory=dict)
     opens: Opener | None = None
     group: ParentGroup | Literal[""] = ""
     on_setup: bool = False
@@ -204,6 +207,7 @@ def commands() -> tuple[Command, ...]:
     _placed(listed)
     _owned("reminder title", _reminders(listed))
     _owned("webhook event", _webhooks(listed))
+    _owned("schedule kind", _schedules(listed))
     return listed
 
 
@@ -545,6 +549,11 @@ def webhook_handlers() -> Mapping[str, WebhookHandler]:
     return _owned("webhook event", _webhooks(commands()))
 
 
+def schedule_handlers() -> Mapping[str, ScheduleHandler]:
+    """The handler of every schedule kind, each kind owned by one command."""
+    return _owned("schedule kind", _schedules(commands()))
+
+
 def _reminders(
     listed: Iterable[Command],
 ) -> Iterable[tuple[str, ReminderHandler]]:
@@ -560,6 +569,14 @@ def _webhooks(listed: Iterable[Command]) -> Iterable[tuple[str, WebhookHandler]]
         (name, handler)
         for command in listed
         for name, handler in command.webhooks.items()
+    )
+
+
+def _schedules(listed: Iterable[Command]) -> Iterable[tuple[str, ScheduleHandler]]:
+    return (
+        (kind, handler)
+        for command in listed
+        for kind, handler in command.schedules.items()
     )
 
 

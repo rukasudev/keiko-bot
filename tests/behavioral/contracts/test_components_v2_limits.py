@@ -86,7 +86,9 @@ MANAGER_SEEDS = (
     "default_roles",
     "welcome_messages",
     "notifications_twitch",
+    "notifications_kick",
     "notifications_youtube_video",
+    "notifications_youtube_live",
     "stream_elements_commands",
 )
 
@@ -356,7 +358,22 @@ LARGEST_CARDS = {
         "mention": "roles",
         "mention_roles": ["1", "2"],
     },
+    ("notifications_kick", "notification"): {
+        "channel": "1",
+        "streamer": "xqcow",
+        "notification_messages": ["a" * 100, "b" * 100, "c" * 100],
+        "mention": "roles",
+        "mention_roles": ["1", "2"],
+    },
     ("notifications_youtube_video", "notification"): {
+        "channel": "1",
+        "youtuber": "pewdiepie",
+        "youtuber_avatar": "https://cdn.example/avatar.png",
+        "notification_messages": ["a" * 100, "b" * 100, "c" * 100],
+        "mention": "roles",
+        "mention_roles": ["1", "2"],
+    },
+    ("notifications_youtube_live", "notification"): {
         "channel": "1",
         "youtuber": "pewdiepie",
         "youtuber_avatar": "https://cdn.example/avatar.png",
@@ -513,7 +530,15 @@ def test_the_block_links_card_and_its_exceptions_screen_fit_in_each_mode(
         print(f"block_links {name} {mode} {locale}: {drawn} components")
 
 
-@pytest.mark.parametrize("form", ["notifications_twitch", "notifications_youtube_video"])
+@pytest.mark.parametrize(
+    "form",
+    [
+        "notifications_twitch",
+        "notifications_kick",
+        "notifications_youtube_video",
+        "notifications_youtube_live",
+    ],
+)
 async def test_a_full_notification_panel_with_its_item_buttons_is_within_discord_limits(
     scenario_factory, deps, form
 ):

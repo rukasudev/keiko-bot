@@ -7,10 +7,11 @@ admin (the variables a step explains, a modal's placeholder) and writes its own
 defaults with them (a card's `defaults`, a copy's `ui.announcement.defaults`), and a
 form's preview and fills name them again (`preview.tokens`, `fills.tokens`). Each
 command fills one kind of template, so every `{name}` its copy and form write is
-checked against the names its own `fill_placeholders` calls pass, read from the
-syntax tree of its folder. A default is the admin's own text once saved: Keiko fills
-nothing in it after it loads, so it writes no token but what the loader writes in (a
-command or a group of `${context...}`, a `${ref...}`).
+checked, as they load with each `${ref...}` written in, against the names its own
+`fill_placeholders` calls pass, read from the syntax tree of its folder. A default is
+the admin's own text once saved: Keiko fills nothing in it after it loads, so once the
+loader has written in a command or a group of `${context...}` and a `${ref...}`, it
+holds no token.
 """
 
 import re
@@ -21,13 +22,20 @@ from typing import Any, Iterator, Mapping, Set
 import pytest
 
 from app.core.commands import copy_files, form_files, strict_yaml
-from app.core.facts import context_entry, written_texts
+from app.core.facts import with_context, written_texts
 from app.core.tokens import did_you_mean, plain, tokens
+from app.forms.form.form_yaml import (
+    Vocabulary,
+    shared_vocabulary,
+    vocabulary_from,
+    written_out,
+)
 from tests.helpers.templates import filled_names
 
 pytestmark = pytest.mark.unit
 
 ROOT = Path(__file__).resolve().parents[1]
+VOCABULARY = ROOT / "app" / "forms" / "vocabulary.yml"
 BRACED = re.compile(r"\{([A-Za-z_][\w-]*)\}")
 
 
@@ -99,9 +107,6 @@ def problems(path: str, document: Any, filled: Set[str]) -> Iterator[Problem]:
     for where, block in defaults(document):
         for text_where, words in written_texts(block, where):
             for token in tokens(words):
-                entry = context_entry(token.name) if token.kind == "context" else None
-                if token.kind == "ref" or (entry is not None and entry.each):
-                    continue
                 yield Problem(
                     path,
                     text_where,
@@ -110,11 +115,28 @@ def problems(path: str, document: Any, filled: Set[str]) -> Iterator[Problem]:
                 )
 
 
-def _documents() -> Iterator[tuple[str, Path, Mapping[str, Any]]]:
-    for files in (copy_files(), form_files()):
+def _copy_written_out(
+    key: str, raw: Mapping[str, Any], vocabulary: Vocabulary
+) -> Mapping[str, Any]:
+    return with_context(raw, key, vocabulary.texts)
+
+
+def _documents(
+    vocabulary: Vocabulary | None = None,
+    folder: str = "",
+    typed: tuple[str, str] | None = None,
+) -> Iterator[tuple[str, Path, Mapping[str, Any]]]:
+    shared = vocabulary if vocabulary is not None else shared_vocabulary()
+    for files, loaded in (
+        (copy_files(), _copy_written_out),
+        (form_files(), written_out),
+    ):
         for key, path in sorted(files.items()):
-            loaded = strict_yaml(path.read_text(encoding="utf-8"), str(path)) or {}
-            yield key, path, loaded
+            text = path.read_text(encoding="utf-8")
+            if typed is not None and path.parent.name == folder:
+                text = text.replace(*typed, 1)
+            raw = strict_yaml(text, str(path)) or {}
+            yield key, path, loaded(key, raw, shared)
 
 
 def test_every_admin_variable_keiko_writes_is_one_its_command_fills():
@@ -158,7 +180,7 @@ def test_the_check_reads_the_variables_each_command_fills():
             "did you mean {user}?",
         ),
         (
-            "twitch",
+            "youtube_live",
             "is live! {stream_link}",
             "is live! $count",
             "$count: a default is the admin's template",
@@ -177,15 +199,41 @@ def test_a_wrong_variable_in_a_template_keiko_writes_is_caught(
 ):
     """Probes of the syntax study: `{youtubr}` and `{usr}` in a default compiled and
     showed as typed to every member the template greeted."""
-    found = []
-    for _key, path, document in _documents():
-        text = path.read_text(encoding="utf-8")
-        if path.parent.name != folder or written not in text:
-            continue
-        typed = strict_yaml(text.replace(written, typo, 1), str(path))
-        found += [
-            str(problem)
-            for problem in problems(path.name, typed, filled_names(path.parent))
-        ]
+    found = [
+        str(problem)
+        for _key, path, document in _documents(folder=folder, typed=(written, typo))
+        if path.parent.name == folder
+        for problem in problems(path.name, document, filled_names(path.parent))
+    ]
 
     assert any(message in problem for problem in found), found
+
+
+@pytest.mark.parametrize("folder", ["twitch", "kick"])
+def test_a_wrong_variable_in_the_shared_live_notice_is_caught_in_each_command(
+    folder, tmp_path
+):
+    """Broke as: the check read each form as written and skipped its `${ref...}`, so
+    a `{streamr}` in the live notice Twitch and Kick both default to passed, and every
+    server that kept the default would have posted it as typed.
+
+    Guaranteed: a wrong variable in a shared default fails in each command whose
+    form names it."""
+    source = VOCABULARY.read_text(encoding="utf-8")
+    written = "{streamer} is live!"
+    assert written in source
+    typed = tmp_path / VOCABULARY.name
+    typed.write_text(source.replace(written, "{streamr} is live!", 1), encoding="utf-8")
+
+    found = [
+        str(problem)
+        for _key, path, document in _documents(vocabulary_from(typed))
+        if path.parent.name == folder
+        for problem in problems(path.name, document, filled_names(path.parent))
+    ]
+
+    assert any(
+        "{streamr} is no variable the code fills here" in problem
+        and "did you mean {streamer}?" in problem
+        for problem in found
+    ), found

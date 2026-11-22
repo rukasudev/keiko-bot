@@ -3,6 +3,7 @@ the language its settings saved, every text resolves to its own words and never 
 key, and the wording rules (Keiko in the masculine, the team's ticket in English).
 """
 import ast
+import json
 import re
 from collections import Counter
 from pathlib import Path
@@ -20,6 +21,8 @@ from app.core.commands import form_files
 from app.core.servers import guess_server_settings
 from app.core.utils import ml
 from app.integrations.stream_elements import StreamElementsClient
+from tests.behavioral.harness.copy_keys import copy_text
+from tests.behavioral.flows import kick, twitch, youtube_live
 from tests.behavioral.flows import report as reports
 from tests.behavioral.flows import welcome
 from tests.behavioral.harness.locators import walk_items
@@ -55,7 +58,7 @@ STREAM_ELEMENTS = "stream_elements_commands"
 
 def opening(key, language):
     """The words a copy starts with, before its first placeholder."""
-    return re.split(r"[$\{]", ml(key, language))[0]
+    return re.split(r"[$\{]", copy_text(key, language))[0]
 
 
 @pytest.fixture
@@ -98,23 +101,25 @@ def twitch_notice(guild):
 
 
 async def twitch_live(deps, guild):
-    from app.commands.twitch.service import announce_live
+    from app.commands.twitch.service import LIVES, live_of
+    from app.core.lives import announce_live
 
-    channel, *notice = twitch_notice(guild)
-    await announce_live(*notice)
+    channel, guild_data, notification, stream_info, user_info = twitch_notice(guild)
+    await announce_live(LIVES, live_of(stream_info, user_info), guild_data, notification)
     return channel.get_last_embed().fields[0].name, (
         "notifications_twitch.ui.announcement.fields.game"
     )
 
 
 async def twitch_status(deps, guild):
-    from app.commands.twitch.service import announce_live, show_status
+    from app.commands.twitch.service import LIVES, live_of
+    from app.core.lives import announce_live, show_status
 
     channel, guild_data, notification, stream_info, user_info = twitch_notice(guild)
-    await announce_live(guild_data, notification, stream_info, user_info)
-    await show_status(guild_data, notification, "gaules", "offline", "2h")
+    await announce_live(LIVES, live_of(stream_info, user_info), guild_data, notification)
+    await show_status(LIVES, guild_data, notification, "gaules", "offline", "2h")
     return channel.get_last_embed().footer.text, (
-        "notifications_twitch.ui.announcement.states.offline"
+        "commands.live_notice.overrides.0.footer"
     )
 
 
@@ -317,12 +322,12 @@ GREETING = {
     "pt-br": {
         "buttons": ["Configurar", "Ajuda"],
         "language": "🇧🇷 Português",
-        "category": "🔔 **Notificações:** Twitch Lives, YouTube Vídeos e Lembretes de Aniversário.",
+        "category": "🔔 **Notificações:** Twitch Lives, Kick Lives, YouTube Vídeos, Lembretes de Aniversário e YouTube Lives.",
     },
     "en-us": {
         "buttons": ["Setup", "Help"],
         "language": "🇺🇸 English",
-        "category": "🔔 **Notifications:** Twitch Lives, YouTube Videos and Birthday Reminders.",
+        "category": "🔔 **Notifications:** Twitch Lives, Kick Lives, YouTube Videos, Birthday Reminders and YouTube Lives.",
     },
 }
 
@@ -689,3 +694,34 @@ async def test_the_ticket_reads_in_english_whatever_the_authors_language(
     ]
     assert [field.value for field in ticket.fields][:3] == [text, text, reports.OTHER]
     assert ticket.fields[-1].value == "No attachment"
+
+
+@pytest.mark.parametrize("flow", [twitch, youtube_live, kick], ids=lambda flow: flow.FORM)
+async def test_a_live_preview_shows_its_status_in_the_servers_language(scenario_factory, deps, flow):
+    """The status line under a live notice's preview reads in the server's language.
+
+    Broke as: PR12 made the line one text with overrides on a fact, read through
+    `Text.get`, which matched only "pt-br"; the preview passes the interaction's
+    locale, which `speak` sets to Discord's `pt-BR`, so a Portuguese server previewed
+    "🟢 Online" while its real notices said "🟢 Ao vivo" (s11 and s24 on the PR12 test
+    page).
+
+    Shared behaviour: `Text.get` (`app/core/commands.py`), which every copy file's
+    node goes through, and `lives.send_preview` (`app/core/lives.py`). Consumers: the
+    previews of Twitch, YouTube and Kick lives, and every text read by a locale.
+
+    Guaranteed: a Portuguese server's preview says "Ao vivo", never "Online".
+    """
+    flow.seed(deps)
+    scenario = await scenario_factory(locale="pt-br").start_command(flow.FORM)
+
+    await scenario.click("aside:preview:notifications$0")
+
+    sent = " ".join(
+        json.dumps(event, ensure_ascii=False)
+        for event in scenario.outputs
+        if event.get("kind") == "followup_send"
+    )
+    assert "🟢 Ao vivo" in sent
+    assert "🟢 Online" not in sent
+    await scenario.finish()

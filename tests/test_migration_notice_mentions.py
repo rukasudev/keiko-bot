@@ -21,20 +21,16 @@ half runs against a throwaway replica set (MONGO_TEST_URL), like the runner's.
 
 import copy
 import importlib
-import io
-import os
-from contextlib import contextmanager
 from types import SimpleNamespace
 
 import pytest
 
-from app.constants import Migrations
 from app.forms.form.form_yaml import shared_vocabulary
-from app.migrations import runner
+from tests.helpers.migrations import migrate as migrated
+from tests.helpers.migrations import run_offline, throwaway_mongo
 from tests.mocks.database import MockMongoClient
 
 MIGRATION = importlib.import_module("app.migrations.data.0008_notice_mentions")
-MARKER = "keiko_migrations_test"
 
 
 def messages(value):
@@ -131,27 +127,6 @@ MEMBER = {
 }
 
 
-class OfflineTransaction:
-    """The `tx` a data file writes through, over the Mongo fake, counting and listing
-    as the runner does."""
-
-    def __init__(self, client):
-        self._client = client
-        self.counts = {}
-        self.notes = {}
-
-    def __getattr__(self, database):
-        return self._client[database]
-
-    def count(self, name, amount=1):
-        self.counts[name] = self.counts.get(name, 0) + int(amount)
-
-    def note(self, name, value):
-        listed = self.notes.setdefault(name, [])
-        if str(value) not in listed:
-            listed.append(str(value))
-
-
 def production_shaped():
     client = MockMongoClient()
     client.guild.cogs.insert_many(copy.deepcopy([TWITCH, YOUTUBE, *BIRTHDAYS]))
@@ -165,16 +140,7 @@ def production_shaped():
 
 @pytest.fixture
 def offline(monkeypatch):
-    runs = []
-
-    @contextmanager
-    def begin(client):
-        transaction = OfflineTransaction(client)
-        yield transaction
-        runs.append(transaction)
-
-    monkeypatch.setattr(MIGRATION, "begin", begin)
-    return runs
+    return run_offline(monkeypatch, MIGRATION)
 
 
 def options(client, cog_id):
@@ -479,33 +445,13 @@ def test_an_envelope_with_no_value_is_still_refused():
 
 @pytest.fixture
 def server():
-    if not os.getenv("MONGO_TEST_URL"):
-        pytest.skip("MONGO_TEST_URL names no throwaway Mongo")
-    from pymongo import MongoClient
-
-    client = MongoClient(os.environ["MONGO_TEST_URL"], serverSelectionTimeoutMS=5000)
-    names = set(client.list_database_names()) - Migrations.SYSTEM_DATABASES
-    if names and MARKER not in names:
-        pytest.exit(
-            f"MONGO_TEST_URL holds {sorted(names)} and no {MARKER}: not a throwaway server",
-            returncode=3,
-        )
-    client[MARKER].owner.replace_one(
-        {"_id": "owner"}, {"_id": "owner", "suite": __name__}, upsert=True
-    )
-    for name in set(client.list_database_names()) - Migrations.SYSTEM_DATABASES - {MARKER}:
-        client.drop_database(name)
+    client = throwaway_mongo(__name__)
     yield client
     client.close()
 
 
 def migrate(client):
-    versions, problems = runner.read_versions()
-    out = io.StringIO()
-    assert not problems and runner.migrate(client, versions, runner.Report(out)), (
-        out.getvalue()
-    )
-    return client.migrations.changelog.find_one({"_id": "data/0008"})["counts"]
+    return migrated(client, "data/0008")
 
 
 @pytest.mark.mongo

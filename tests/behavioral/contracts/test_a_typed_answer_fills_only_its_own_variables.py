@@ -37,11 +37,16 @@ import pytest
 from app.commands.birthdays.celebration import celebrate_in_guild
 from app.commands.birthdays.service import find_birthdays_on
 from app.commands.block_links.service import check_message
-from app.commands.twitch.service import announce_live, notices_of
+from app.commands.kick.service import LIVES as KICK_LIVES
+from app.commands.kick.service import live_of as kick_live_of
+from app.commands.twitch.service import LIVES, live_of
 from app.commands.welcome.service import send_welcome_message
 from app.commands.youtube.service import VideoAnnouncement, deliver_video
+from app.commands.youtube_live.service import LIVES as YOUTUBE_LIVES
+from app.commands.youtube_live.service import LiveVideo, live_notice
 from app.core.commands import form_file, form_files
 from app.core.dates import format_mm_dd_label
+from app.core.lives import announce_live, notices_of
 from app.core.utils import ml, split_messages
 from app.forms.form.form_yaml import (
     CardStep,
@@ -82,10 +87,18 @@ VARIABLES: Mapping[tuple[str, str], frozenset[str]] = {
         {"streamer", "stream_link"}
     ),
     ("notifications_twitch", "streamer"): frozenset(),
+    ("notifications_kick", "notification_messages"): frozenset(
+        {"streamer", "stream_link"}
+    ),
+    ("notifications_kick", "streamer"): frozenset(),
     ("notifications_youtube_video", "notification_messages"): frozenset(
         {"youtuber", "video_link"}
     ),
     ("notifications_youtube_video", "youtuber"): frozenset(),
+    ("notifications_youtube_live", "notification_messages"): frozenset(
+        {"youtuber", "stream_link"}
+    ),
+    ("notifications_youtube_live", "youtuber"): frozenset(),
     ("reminders_birthday", "custom_message_content"): frozenset(
         {"user", "server", "date"}
     ),
@@ -607,12 +620,37 @@ class Twitch(Subscription):
 
     async def sent(self, run: Run) -> None:
         run.deps.bot.get_guild = lambda _guild_id: run.guild
-        notices = notices_of([dict(run.saved())], self.account)
+        notices = notices_of(LIVES, [dict(run.saved())], self.account)
         guild_data, notification = notices[0]
         messages = split_messages(notification["notification_messages"]["value"])
         user = {"login": self.account, "id": "181077473", "profile_image_url": ""}
         for _index in each_message(len(messages)):
-            await announce_live(guild_data, notification, {"title": "Live"}, user)
+            live = live_of({"title": "Live"}, user)
+            await announce_live(LIVES, live, guild_data, notification)
+        channel = run.guild.get_channel(100)
+        run.check("live sent", self.preview_values(run), channel_texts(channel))
+
+
+class Kick(Subscription):
+    form = "notifications_kick"
+    account = "xqcow"
+    account_key = "streamer"
+    link_name = "stream_link"
+
+    def known(self, run: Run) -> None:
+        run.deps.kick.add_channel("xqcow", 676)
+
+    def link(self) -> str:
+        return "https://kick.com/xqcow"
+
+    async def sent(self, run: Run) -> None:
+        run.deps.bot.get_guild = lambda _guild_id: run.guild
+        notices = notices_of(KICK_LIVES, [dict(run.saved())], self.account)
+        guild_data, notification = notices[0]
+        messages = split_messages(notification["notification_messages"]["value"])
+        for _index in each_message(len(messages)):
+            live = kick_live_of(self.account, {"title": "Live"}, {})
+            await announce_live(KICK_LIVES, live, guild_data, notification)
         channel = run.guild.get_channel(100)
         run.check("live sent", self.preview_values(run), channel_texts(channel))
 
@@ -651,6 +689,40 @@ class YouTube(Subscription):
         values = {name: everything[name] for name in run.typed.supported}
         channel = run.guild.get_channel(100)
         run.check("video sent", values, channel_texts(channel))
+
+
+class YouTubeLives(Subscription):
+    form = "notifications_youtube_live"
+    account = "pewdiepie"
+    account_key = "youtuber"
+    link_name = "stream_link"
+
+    def known(self, run: Run) -> None:
+        run.deps.youtube.add_channel(
+            "UC-lHJZR3Gqxm24_Vd_AJ5Yw", "PewDiePie", custom_url="@pewdiepie"
+        )
+
+    def link(self) -> str:
+        return "https://www.youtube.com/@pewdiepie/live"
+
+    async def sent(self, run: Run) -> None:
+        run.deps.bot.get_guild = lambda _guild_id: run.guild
+        document = dict(run.saved())
+        notification = document["notifications"]["values"][0]
+        messages = split_messages(notification["notification_messages"]["value"])
+        live = LiveVideo(
+            video={"id": "live-1", "snippet": {"title": "A live"}},
+            channel={"title": "PewDiePie", "customUrl": "@pewdiepie"},
+        )
+        for _index in each_message(len(messages)):
+            await announce_live(YOUTUBE_LIVES, live_notice(live), document, notification)
+        everything = {
+            "youtuber": self.account,
+            "stream_link": "https://www.youtube.com/watch?v=live-1",
+        }
+        values = {name: everything[name] for name in run.typed.supported}
+        channel = run.guild.get_channel(100)
+        run.check("live sent", values, channel_texts(channel))
 
 
 class Birthdays(Journey):
@@ -799,7 +871,9 @@ JOURNEYS: Mapping[str, Journey] = {
     for journey in (
         Welcome(),
         Twitch(),
+        Kick(),
         YouTube(),
+        YouTubeLives(),
         Birthdays(),
         BlockLinks(),
         StreamElements(),

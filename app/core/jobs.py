@@ -8,8 +8,42 @@ from app.bot import DiscordBot, flush_queues
 from app.constants import Commands as constants
 from app.constants import Dependencies
 from app.constants import LogTypes as logconstants
-from app.core import analytics, analytics_writer, debug_logs, logs_archive, trace
+from app.core import (
+    analytics,
+    analytics_writer,
+    debug_logs,
+    dispatch,
+    logs_archive,
+    trace,
+)
 from app.core.threads import to_thread
+from app.data import data
+
+
+async def hand_due_schedules(now: datetime) -> None:
+    """Hand the schedules due by `now` of every kind a command runs to that command,
+    each kind's batch a job of its own, so one failing kind never stops the next."""
+    kinds = dispatch.schedule_kinds()
+    if not kinds:
+        return
+
+    try:
+        due = await data().keiko_schedules.find_due_schedules(
+            kinds, now, constants.SCHEDULES_DUE_LIMIT
+        )
+    except Exception as error:
+        logger.warn(
+            f"Due schedules not read: {type(error).__name__}: {error}",
+            log_type=logconstants.COMMAND_WARN_TYPE,
+        )
+        return
+
+    for kind in kinds:
+        batch = [schedule for schedule in due if schedule.get("kind") == kind]
+        if batch:
+            await trace.run_traced(
+                dispatch.schedules(kind, batch), f"due {kind}", source="job"
+            )
 
 
 class Analytics(commands.Cog):
@@ -232,5 +266,32 @@ class Analytics(commands.Cog):
         await self.bot.wait_until_ready()
 
 
+class DueSchedules(commands.Cog):
+    """Every `SCHEDULES_CHECK_SECONDS`, hands the schedules due by then to the commands
+    that own their kinds."""
+
+    def __init__(self, bot: DiscordBot) -> None:
+        self.bot = bot
+
+    async def cog_load(self) -> None:
+        """Start the loop."""
+        self.run_due_schedules.start()
+
+    async def cog_unload(self) -> None:
+        """Stop the loop."""
+        self.run_due_schedules.cancel()
+
+    @tasks.loop(seconds=constants.SCHEDULES_CHECK_SECONDS)
+    async def run_due_schedules(self) -> None:
+        """Hand the schedules due by now to the commands that own their kinds."""
+        await hand_due_schedules(datetime.now(timezone.utc))
+
+    @run_due_schedules.before_loop
+    async def before_due_schedules(self) -> None:
+        """Wait for the bot to be ready."""
+        await self.bot.wait_until_ready()
+
+
 async def setup(bot: DiscordBot) -> None:
     await bot.add_cog(Analytics(bot))
+    await bot.add_cog(DueSchedules(bot))

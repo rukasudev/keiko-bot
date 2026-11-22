@@ -17,6 +17,12 @@ texts:
   choose_channel:
     en-us: Choose channel
     pt-br: Escolher canal
+  choose_streamer:
+    en-us: Choose streamer
+    pt-br: Escolher streamer
+  choose_youtuber:
+    en-us: Choose youtuber
+    pt-br: Escolher youtuber
   configure:
     en-us: Configure
     pt-br: Configurar
@@ -29,6 +35,18 @@ texts:
   exceptions:
     en-us: Exceptions
     pt-br: Exceções
+  last_channel_warning:
+    en-us: "You only have **1** channel set up.\n\n$item\n\nIf you remove it now, **$feature** will be **turned off** and you'll need to set it up again. Are you sure you want to continue?"
+    pt-br: "Você só tem **1** canal configurado.\n\n$item\n\nSe você removê-lo agora, a função **$feature** será **desativada** e você vai precisar configurá-la de novo. Tem certeza de que quer continuar?"
+  last_streamer_warning:
+    en-us: "You only have **1** streamer set up.\n\n$item\n\nIf you remove it now, **$feature** will be **turned off** and you'll need to set it up again. Are you sure you want to continue?"
+    pt-br: "Você só tem **1** streamer configurado.\n\n$item\n\nSe você removê-lo agora, a função **$feature** será **desativada** e você vai precisar configurá-la de novo. Tem certeza de que quer continuar?"
+  live_channel_description:
+    en-us: Where I'll announce the live.
+    pt-br: Onde vou avisar da live.
+  live_messages_description:
+    en-us: Up to three messages, I pick one at random each live.
+    pt-br: Até três mensagens, eu sorteio uma a cada live.
   mention:
     en-us: Mention
     pt-br: Mencionar
@@ -62,9 +80,18 @@ texts:
   mention_screen_title:
     en-us: Who should I mention when I post?
     pt-br: Quem eu devo marcar quando postar?
+  notification_mention_description:
+    en-us: Who I mention at the start of the notification.
+    pt-br: Quem eu marco no começo do aviso.
   notification_messages:
     en-us: Notification Messages
     pt-br: Mensagens de Notificação
+  notifications:
+    en-us: Notifications
+    pt-br: Notificações
+  notifications_channel_title:
+    en-us: Where should I send the notifications?
+    pt-br: Onde devo enviar as notificações?
   random_message_1:
     en-us: "Random Message #1"
     pt-br: "Mensagem Aleatória #1"
@@ -92,9 +119,21 @@ texts:
   roles_placeholder:
     en-us: Choose roles
     pt-br: Escolher cargos
+  set_up_counter:
+    en-us: $count of $max set up
+    pt-br: $count de $max configurados
   streamer:
     en-us: Streamer
     pt-br: Streamer
+  streamer_card_description:
+    en-us: Choose the channel and the streamer, and I'll let the server know when they go live! The message already comes set, change it if you want.
+    pt-br: Escolha o canal e o streamer, e eu aviso no servidor quando ele entrar ao vivo! A mensagem já vem configurada, mude se quiser.
+  streamer_live_message:
+    en-us: "{streamer} is live! {stream_link}"
+    pt-br: "{streamer} está ao vivo! {stream_link}"
+  streamers_panel_description:
+    en-us: I let the server know when these streamers go live.
+    pt-br: Aviso no servidor quando estes streamers entram ao vivo.
   support_footer:
     en-us: If you need help, don't hesitate to call us on my official server with the `${context.commands.support}` command.
     pt-br: Se precisar de ajuda, é só me chamar no meu servidor oficial com o comando `${context.commands.support}`.
@@ -104,6 +143,18 @@ texts:
   title:
     en-us: Title
     pt-br: Título
+  youtube_channel:
+    en-us: YouTube Channel
+    pt-br: Canal do YouTube
+  youtube_channel_name:
+    en-us: The YouTube channel name (with or without @)
+    pt-br: O nome do canal no YouTube (com ou sem @)
+  youtube_channel_name_description:
+    en-us: The YouTube channel name (with or without @).
+    pt-br: O nome do canal no YouTube (com ou sem @).
   youtuber:
     en-us: Youtuber
     pt-br: Youtuber
+  youtuber_placeholder:
+    en-us: e.g. @pewdiepie
+    pt-br: "ex: @pewdiepie"

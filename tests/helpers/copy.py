@@ -134,8 +134,6 @@ ui:
     fields:
       game: {en-us: Game, pt-br: Jogo}
       tags: {en-us: Tags, pt-br: Tags}
-    states:
-      online: {en-us: Online, pt-br: Online}
     samples:
       title: {en-us: A sample title, pt-br: Um título de amostra}
     defaults:

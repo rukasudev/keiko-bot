@@ -23,7 +23,6 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.core.commands import setup_features
 from bson import ObjectId
 from pymongo import MongoClient
 
@@ -255,10 +254,11 @@ def test_the_files_mappings_agree_with_the_catalog_and_the_constants():
                   and name not in ("link.blocked", "keiko.settings_changed")}
     assert documented <= set(MIGRATION.COLLECTIONS), "an event the file cannot map"
     assert MIGRATION.RETENTION_DAYS * 86400 == Commands.EVENTS_INTERACTIONS_TTL_SECONDS
+    baseline = importlib.import_module("app.migrations.schema.0001_baseline")
     assert MIGRATION.AUDIT_COGS == (
-        *sorted(spec.key for spec in setup_features()),
+        *sorted(baseline.STRUCTURE["events"]),
         Commands.SERVER_SETTINGS_KEY,
-    )
+    ), "every audit collection v1 kept, whatever features came after it"
 
 
 def test_the_check_refuses_what_it_cannot_map():

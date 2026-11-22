@@ -14,15 +14,16 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 
 from app.commands.twitch import service as notifications_twitch
 from app.commands.twitch.service import (
-    compose_notification_message,
+    LIVES,
     create_stream_notification_embed,
     handle_send_streamer_notification,
     handle_send_streamer_offline_notification,
-    is_more_than_one_hour,
-    parse_streamer_message,
 )
+from app.core import lives
+from app.core.lives import is_more_than_one_hour
 from app.core.utils import fill, ml
 from app.data import data
+from tests.behavioral.harness.copy_keys import copy_text
 from tests.generators.moderations import recorded_server, seed_cog
 from tests.mocks import create_guild
 
@@ -86,10 +87,13 @@ def field(name, locale="en-us"):
 
 
 def footer(status, locale="en-us", duration=None):
-    """The status line of a live notice, as the copy writes it."""
-    line = ml(f"{ANNOUNCEMENT}.states.{status}", locale)
-    if duration:
-        line += " | " + fill(ml(f"{ANNOUNCEMENT}.states.duration", locale), duration=duration)
+    """The status line of a live notice, as the shared copy writes it."""
+    if status == "online":
+        line = copy_text("commands.live_notice.footer", locale)
+    elif duration:
+        line = copy_text("commands.live_notice.overrides.0.footer", locale, duration=duration)
+    else:
+        line = copy_text("commands.live_notice.overrides.1.footer", locale)
     return f"• {line}"
 
 
@@ -195,7 +199,9 @@ class TestTwitchMessageComposition:
         streamer = "gaules"
 
         # Act
-        result = compose_notification_message(notice, streamer)
+        result = lives.one_message(
+            LIVES, notice=notice, name=streamer, link=LIVES.link(streamer)
+        )
 
         # Assert
         assert result == "gaules esta ao vivo! https://www.twitch.tv/gaules"
@@ -213,7 +219,9 @@ class TestTwitchMessageComposition:
         stream_link = "https://www.twitch.tv/gaules"
 
         # Act
-        result = parse_streamer_message(message, streamer, stream_link)
+        result = lives.notice_message(
+            LIVES, message=message, name=streamer, link=stream_link
+        )
 
         # Assert
         assert "twitch.tv/gaules" in result
@@ -222,7 +230,9 @@ class TestTwitchMessageComposition:
         """A placeholder in capitals is text: it used to stop the link from being added."""
         stream_link = "https://www.twitch.tv/gaules"
 
-        result = parse_streamer_message("{STREAM_LINK}", "gaules", stream_link)
+        result = lives.notice_message(
+            LIVES, message="{STREAM_LINK}", name="gaules", link=stream_link
+        )
 
         assert result == f"{{STREAM_LINK}}\n{stream_link}"
 
@@ -243,8 +253,8 @@ class TestTwitchMessageComposition:
         `{stream_link}` got the link appended again on a line of its own."""
         message = f"@everyone gaules está ao vivo! {written}"
 
-        result = parse_streamer_message(
-            message, "gaules", "https://www.twitch.tv/gaules"
+        result = lives.notice_message(
+            LIVES, message=message, name="gaules", link="https://www.twitch.tv/gaules"
         )
 
         assert result == message
@@ -253,8 +263,11 @@ class TestTwitchMessageComposition:
         """Only the streamer's own channel counts as the live link."""
         stream_link = "https://www.twitch.tv/gaules"
 
-        result = parse_streamer_message(
-            "vem também https://twitch.tv/gaulesfan", "gaules", stream_link
+        result = lives.notice_message(
+            LIVES,
+            message="vem também https://twitch.tv/gaulesfan",
+            name="gaules",
+            link=stream_link,
         )
 
         assert result.endswith(f"\n{stream_link}")
@@ -415,7 +428,11 @@ async def test_a_live_already_claimed_never_reads_who_follows_the_streamer(
 
     follow(deps, servers.first.id, servers.first.text_channels[0].id)
     started_at = deps.twitch.get_stream_info("gaules")["started_at"]
-    assert notifications_twitch.claim_the_live("gaules", started_at)
+    assert lives.claim_the_live(
+        notifications_twitch.live_claim("gaules", started_at),
+        notifications_twitch.LIVES.claim_seconds,
+        "gaules",
+    )
     read = notifications_twitch.find_guilds_by_streamer_name
     queried = []
 
@@ -527,7 +544,8 @@ async def test_a_streamer_followed_in_several_channels_gets_its_status_once_per_
     written = footers(servers.second)
     assert len(written) == 2
     assert all(line.startswith(footer("offline", duration="2h")) for line in written)
-    assert all(line.count(ml(f"{ANNOUNCEMENT}.states.offline", "en-us")) == 1 for line in written)
+    offline = copy_text("commands.live_notice.overrides.1.footer", "en-us")
+    assert all(line.count(offline) == 1 for line in written)
 
 
 @pytest.mark.behavioral

@@ -1636,11 +1636,6 @@ copy.yml/Announcement.fields:
     a video's tags).
   pt-br: O rótulo de cada campo inline, pelo valor que o código dá a ele (o jogo de uma live,
     as tags de um vídeo).
-copy.yml/Announcement.states:
-  en-us: 'The footer line of each state the announcement goes through (a live: online, offline,
-    and its duration once over).'
-  pt-br: 'A linha de rodapé de cada estado pelo qual o anúncio passa (uma live: online, offline
-    e a duração quando acaba).'
 copy.yml/Announcement.samples:
   en-us: The sample a preview draws while there is no real content yet, keyed by the part
     it stands for (title, game, description).
@@ -2105,6 +2100,31 @@ languages/commands.yml/SharedCommands.records:
     line per event, every change of a server).
   pt-br: As listas compartilhadas, cada uma chamada `commands.records.<name>` (o Histórico
     de uma funcionalidade e a linha dele por evento, toda mudança de um servidor).
+languages/commands.yml/SharedCommands.live_notice:
+  en-us: The footer of the live notice every streaming command posts, named `commands.live_notice`.
+  pt-br: O rodapé do aviso de live que todo comando de streaming publica, chamado `commands.live_notice`.
+languages/commands.yml/LiveNoticeCopy:
+  en-us: 'The footer every streaming command''s live notice carries: whether the live is on and,
+    once it is over, how long it ran.'
+  pt-br: 'O rodapé que o aviso de live de todo comando de streaming leva: se a live está no ar
+    e, quando acaba, quanto tempo durou.'
+languages/commands.yml/LiveNoticeCopy.footer:
+  en-us: The footer of a live notice while the live is on.
+  pt-br: O rodapé de um aviso de live enquanto a live está no ar.
+languages/commands.yml/LiveNoticeCopy.overrides:
+  en-us: The footer drawn while a rule on the live's facts holds (the live over, with how long
+    it ran once known), the first item whose rule holds winning.
+  pt-br: O rodapé desenhado enquanto uma regra sobre os fatos da live vale (a live encerrada,
+    com quanto tempo durou quando se sabe), vencendo o primeiro item cuja regra vale.
+languages/commands.yml/LiveNoticeOverride:
+  en-us: The footer a live notice draws while a rule holds, in place of its own.
+  pt-br: O rodapé que um aviso de live desenha enquanto uma regra vale, no lugar do próprio.
+languages/commands.yml/LiveNoticeOverride.when:
+  en-us: The rule under which this item's fields replace the block's.
+  pt-br: A regra sob a qual os campos deste item substituem os do bloco.
+languages/commands.yml/LiveNoticeOverride.footer:
+  en-us: The footer drawn while the rule holds; `$duration` marks how long the live ran.
+  pt-br: O rodapé desenhado enquanto a regra vale; `$duration` marca quanto tempo a live durou.
 languages/commands.yml/Response:
   en-us: 'One embed Keiko answers with, drawn by `response_embed`: an answer, a `ConfirmActionView`
     question or the confirmation of a panel aside.'

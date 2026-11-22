@@ -8,15 +8,11 @@ steps:
       en-us: Enabling this feature allows me to notify when your favorite streamer is online on Twitch!
       pt-br: Ativar esta função faz com que eu notifique quando seu streamer favorito estiver online na Twitch!
     panel:
-      description:
-        en-us: I let the server know when these streamers go live.
-        pt-br: Aviso no servidor quando estes streamers entram ao vivo.
+      description: ${ref.streamers_panel_description}
 
   - type: list
     key: notifications
-    title:
-      en-us: Notifications
-      pt-br: Notificações
+    title: ${ref.notifications}
     description:
       en-us: "Do you want to add more streamers? Add more streamers to be notified when they are online on Twitch! (Max: 3)"
       pt-br: "Deseja adicionar mais streamers? Adicione mais streamers para ser notificado quando eles estiverem online na Twitch! (Max: 3)"
@@ -28,21 +24,15 @@ steps:
         key: streamer
     edit: item
     remove: item
-    counter:
-      en-us: $count of $max set up
-      pt-br: $count de $max configurados
-    last_item_warning:
-      en-us: "You only have **1** streamer set up.\n\n$item\n\nIf you remove it now, **$feature** will be **turned off** and you'll need to set it up again. Are you sure you want to continue?"
-      pt-br: "Você só tem **1** streamer configurado.\n\n$item\n\nSe você removê-lo agora, a função **$feature** será **desativada** e você vai precisar configurá-la de novo. Tem certeza de que quer continuar?"
+    counter: ${ref.set_up_counter}
+    last_item_warning: ${ref.last_streamer_warning}
     steps:
       - type: card
         key: notification
         title:
           en-us: Twitch Streamer
           pt-br: Streamer da Twitch
-        description:
-          en-us: Choose the channel and the streamer, and I'll let the server know when they go live! The message already comes set, change it if you want.
-          pt-br: Escolha o canal e o streamer, e eu aviso no servidor quando ele entrar ao vivo! A mensagem já vem configurada, mude se quiser.
+        description: ${ref.streamer_card_description}
         emoji: 📡
         header:
           thumbnail: default
@@ -54,23 +44,17 @@ steps:
           all: [channel, streamer, mention_roles]
         fields:
           - key: channel
-            description:
-              en-us: Where I'll announce the live.
-              pt-br: Onde vou avisar da live.
+            description: ${ref.live_channel_description}
           - key: streamer
             description:
               en-us: The streamer's Twitch nick (with or without @).
               pt-br: O nick do streamer na Twitch (com ou sem @).
           - key: mention
-            description:
-              en-us: Who I mention at the start of the notification.
-              pt-br: Quem eu marco no começo do aviso.
+            description: ${ref.notification_mention_description}
           - key: mention_roles
             description: ${ref.roles_i_mention_description}
           - key: notification_messages
-            description:
-              en-us: Up to three messages, I pick one at random each live.
-              pt-br: Até três mensagens, eu sorteio uma a cada live.
+            description: ${ref.live_messages_description}
         sections:
           - type: channel_select
             key: channel
@@ -79,9 +63,7 @@ steps:
             keys:
               value: channel
             screen:
-              title:
-                en-us: Where should I send the notifications?
-                pt-br: Onde devo enviar as notificações?
+              title: ${ref.notifications_channel_title}
           - type: modal_input
             key: streamer
             emoji: 🎮
@@ -90,9 +72,7 @@ steps:
               value: streamer
             image: streamer_avatar
             button:
-              label:
-                en-us: Choose streamer
-                pt-br: Escolher streamer
+              label: ${ref.choose_streamer}
             modal:
               title: ${ref.streamer}
               validation:
@@ -195,9 +175,7 @@ steps:
         # open: state keys of the card -> a value or a text
         defaults:
           mention: everyone
-          notification_messages:
-            en-us: "{streamer} is live! {stream_link}"
-            pt-br: "{streamer} está ao vivo! {stream_link}"
+          notification_messages: ${ref.streamer_live_message}
 
   - type: review
     key: confirm

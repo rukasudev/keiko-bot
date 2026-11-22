@@ -494,11 +494,12 @@ def titled_items(
         if step.type not in SILENT:
             titles.setdefault(step.key, step.title.get(locale))
             styles.setdefault(step.key, _step_style(step))
+    declared = _item_order(composition.steps)
     rows = []
     for item in items:
         row: dict[str, Any] = {}
         answered = Scope({key: unwrap(entry) for key, entry in dict(item).items()})
-        for key, entry in dict(item).items():
+        for key, entry in _in_order(dict(item), declared):
             if key in BOOKKEEPING:
                 continue
             if isinstance(entry, Mapping):
@@ -518,6 +519,22 @@ def titled_items(
                 row[key]["hidden"] = True
         rows.append(row)
     return rows
+
+
+def _item_order(steps: Sequence[Step]) -> list[str]:
+    order: list[str] = []
+    for step in steps:
+        fields = step.fields if isinstance(step, CardStep) else ()
+        keys = (*(field.key for field in fields), *produced_keys(step))
+        order += [key for key in keys if key not in order]
+    return order
+
+
+def _in_order(
+    item: Mapping[str, Any], declared: Sequence[str]
+) -> list[tuple[str, Any]]:
+    known = [(key, item[key]) for key in declared if key in item]
+    return known + [(key, entry) for key, entry in item.items() if key not in declared]
 
 
 def item_name(

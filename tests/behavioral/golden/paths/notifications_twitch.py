@@ -14,7 +14,7 @@ from tests.behavioral.flows.twitch import (
 from tests.behavioral.golden.paths import golden_book, golden_path
 from tests.behavioral.golden.paths.common import register_lifecycle
 
-golden_book(FORM, rendered=("form.panel", "form.review"))
+golden_book(FORM, rendered=("form.streamers_panel", "form.review"))
 
 
 @golden_path(FORM, "setup_happy", locales=("pt-br", "en-us"))

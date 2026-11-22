@@ -50,7 +50,9 @@ pytestmark = [
 FEATURE_KEYS = [spec.key for spec in setup_features()]
 FOLLOWED = {
     "notifications_twitch": "notifications.values.streamer.value",
+    "notifications_kick": "notifications.values.streamer.value",
     "notifications_youtube_video": "notifications.values.youtuber.value",
+    "notifications_youtube_live": "notifications.values.youtuber.value",
 }
 
 GUILD = "111"
@@ -379,6 +381,7 @@ async def drive_schedules(now: datetime) -> None:
     await schedules.find_schedules_by_reminder(REMINDER)
     await schedules.find_schedules_by_reminder(REMINDER, "birthday")
     await schedules.find_schedules_missing_reminder("birthday", 50)
+    await schedules.find_due_schedules(("birthday", "youtube_renewal"), now, 50)
     await schedules.set_schedule_due(birthday, now)
     await schedules.extend_schedule_expiry(birthday, now)
     await schedules.delete_schedule_without_reminder(birthday)
@@ -392,9 +395,11 @@ async def drive_subscriptions_and_messages(now: datetime) -> None:
         "twitch", "streamer", {"last_live_started_at": now}
     )
     await subscriptions.subscription_state("twitch", "streamer")
+    await subscriptions.clear_subscription_ids("kick", ["sub-1"])
     await subscriptions.count_subscriptions("twitch")
     await messages.save_message(GUILD, CHANNEL, "notifications_twitch", "streamer", "1")
     await messages.find_message(GUILD, CHANNEL, "notifications_twitch", "streamer")
+    await messages.count_messages("notifications_twitch", "streamer")
 
 
 async def drive_analytics(now: datetime) -> None:

@@ -1,7 +1,7 @@
 """keiko.subscriptions: the external accounts Keiko follows, one document per
 `{platform}:{account}`."""
 
-from typing import Any, Dict, Mapping
+from typing import Any, Dict, Mapping, Sequence
 
 from app.data.collection import Repository
 
@@ -29,6 +29,19 @@ class Subscriptions(Repository):
                 "$setOnInsert": {"platform": platform, "account": account},
             },
             upsert=True,
+        )
+
+    async def clear_subscription_ids(
+        self, platform: str, subscription_ids: Sequence[str]
+    ) -> None:
+        """Forget each of `subscription_ids` an account on one platform names, once the
+        platform no longer holds it."""
+        await self._collection.update_many(
+            {
+                "_id": {"$gte": f"{platform}:", "$lt": f"{platform};"},
+                "state.subscription_id": {"$in": list(subscription_ids)},
+            },
+            {"$set": {"state.subscription_id": None}},
         )
 
     async def count_subscriptions(self, platform: str) -> int:

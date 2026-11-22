@@ -1,4 +1,5 @@
-"""What Twitch and YouTube notifications share: one subscription per item."""
+"""What the notifications of a streaming platform share: one subscription per item,
+kept while any command of the platform follows its name."""
 
 from __future__ import annotations
 
@@ -7,8 +8,11 @@ from dataclasses import dataclass
 from typing import Any
 
 import app as app_module
+from app import logger
+from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
-from app.core.commands import command_for
+from app.core.commands import command_for, commands
+from app.data import data
 from app.forms.features.feature import (
     AsideAction,
     CommitContext,
@@ -56,6 +60,16 @@ class SubscriptionFeature(GenericCogFeature):
     async def forget_renewal(self, reminder_id: str) -> None:
         """Delete a renewal reminder on the reminders API, then Keiko's record of it."""
 
+    async def followed(self) -> list[str]:
+        """Every name a server with the feature on follows, once each."""
+        documents = await data().guild_cogs.find_enabled_cogs(self.key)
+        names = {
+            str(item_values(item).get(self.item_key) or "")
+            for document in documents
+            for item in items_of(document, self.composition.key)
+        }
+        return sorted(names - {""})
+
     def asides(self) -> Mapping[str, AsideAction]:
         """The statistics, and the notification previewed one example at a time."""
         if self.preview_sender is None:
@@ -74,10 +88,19 @@ class SubscriptionFeature(GenericCogFeature):
     async def prefetch(
         self, lookup: Lookup, context: OpenContext
     ) -> Mapping[str, Mapping[str, Any]]:
-        """The external account behind the typed name, and its picture."""
+        """The external account behind the typed name, and its picture; a service that
+        does not answer is marked unavailable, for the form's generic error."""
         if self.external not in lookup.services:
             return {}
-        account = await self.find_account(lookup.value)
+        try:
+            account = await self.find_account(lookup.value)
+        except Exception as error:
+            logger.warn(
+                f"{self.external} lookup of **{lookup.value}** failed: "
+                f"{type(error).__name__}: {error}",
+                log_type=logconstants.COMMAND_WARN_TYPE,
+            )
+            return {self.external: {"unavailable": True}}
         return {
             self.external: {
                 self.lookup_result: account.id,
@@ -154,12 +177,13 @@ class SubscriptionFeature(GenericCogFeature):
             await self.release(item)
 
     async def release(self, item: Mapping[str, Any]) -> None:
-        """Unsubscribe the item's name once no server follows it anymore."""
+        """Unsubscribe the item's name once no server follows it on the platform
+        anymore, whichever command followed it."""
         name = item_values(item).get(self.item_key)
         if not name:
             return
 
-        followers = await self.followers(str(name))
+        followers = await platform_followers(self.external, str(name))
         if followers == 0:
             await self.unsubscribe(None, item)
 
@@ -174,6 +198,39 @@ def subscription_feature(key: str) -> SubscriptionFeature:
     if found is None:
         raise KeyError(f"{key!r} keeps no subscriptions")
     return found
+
+
+def platform_features(external: str) -> tuple[SubscriptionFeature, ...]:
+    """Every subscription feature a declared command keeps on `external`."""
+    declared = [command.feature for command in commands()]
+    return tuple(
+        feature
+        for feature in _DECLARED
+        if feature.external == external and any(feature is other for other in declared)
+    )
+
+
+async def platform_followers(external: str, name: str) -> int:
+    """How many follow `name` on the platform `external`, summed over every command
+    that follows the platform."""
+    features = platform_features(external)
+    return sum([await feature.followers(name) for feature in features])
+
+
+async def platform_announcers(external: str, name: str) -> int:
+    """How many announce `name` on the platform `external` while their feature is on,
+    summed over every command that follows the platform."""
+    features = platform_features(external)
+    return sum([await feature.announcers(name) for feature in features])
+
+
+async def platform_followed(external: str) -> list[str]:
+    """Every name a server with its feature on follows on the platform `external`,
+    whichever command follows it, once each."""
+    names: set[str] = set()
+    for feature in platform_features(external):
+        names.update(await feature.followed())
+    return sorted(names)
 
 
 def _name(item: Mapping[str, Any], key: str) -> str:

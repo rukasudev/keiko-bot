@@ -9,6 +9,7 @@ import discord
 import pytest
 
 from app.core.commands import setup_features
+from app.constants import ViewConstants
 from pymongo.errors import AutoReconnect
 from redis.exceptions import ConnectionError as RedisConnectionError
 
@@ -72,7 +73,9 @@ async def setup_row(command_key):
     spec = next(
         feature for feature in setup_features() if feature.key == command_key
     )
-    page = await category_page(GUILD_ID, spec.category)
+    siblings = [feature for feature in setup_features() if feature.category == spec.category]
+    number = siblings.index(spec) // ViewConstants.SETUP_PAGE_SIZE
+    page = await category_page(GUILD_ID, spec.category, number)
     return row_of(page, command_key)
 
 

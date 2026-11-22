@@ -14,9 +14,7 @@ steps:
 
   - type: list
     key: notifications
-    title:
-      en-us: Notifications
-      pt-br: Notificações
+    title: ${ref.notifications}
     description:
       en-us: "Do you want to add more youtubers? Add more youtubers to be notified when they post a new video! (Max: 2)"
       pt-br: "Deseja adicionar mais youtubers? Adicione mais youtubers para ser notificado quando eles postarem um novo vídeo! (Máx: 2)"
@@ -28,18 +26,12 @@ steps:
         key: youtuber
     edit: item
     remove: item
-    counter:
-      en-us: $count of $max set up
-      pt-br: $count de $max configurados
-    last_item_warning:
-      en-us: "You only have **1** channel set up.\n\n$item\n\nIf you remove it now, **$feature** will be **turned off** and you'll need to set it up again. Are you sure you want to continue?"
-      pt-br: "Você só tem **1** canal configurado.\n\n$item\n\nSe você removê-lo agora, a função **$feature** será **desativada** e você vai precisar configurá-la de novo. Tem certeza de que quer continuar?"
+    counter: ${ref.set_up_counter}
+    last_item_warning: ${ref.last_channel_warning}
     steps:
       - type: card
         key: notification
-        title:
-          en-us: YouTube Channel
-          pt-br: Canal do YouTube
+        title: ${ref.youtube_channel}
         description:
           en-us: Choose the channel and the youtuber, and I'll let the server know when they post a new video! The message already comes set, change it if you want.
           pt-br: Escolha o canal e o youtuber, e eu aviso no servidor quando ele postar um vídeo novo! A mensagem já vem configurada, mude se quiser.
@@ -58,13 +50,9 @@ steps:
               en-us: Where I'll announce the new video.
               pt-br: Onde vou avisar do vídeo novo.
           - key: youtuber
-            description:
-              en-us: The YouTube channel name (with or without @).
-              pt-br: O nome do canal no YouTube (com ou sem @).
+            description: ${ref.youtube_channel_name_description}
           - key: mention
-            description:
-              en-us: Who I mention at the start of the notification.
-              pt-br: Quem eu marco no começo do aviso.
+            description: ${ref.notification_mention_description}
           - key: mention_roles
             description: ${ref.roles_i_mention_description}
           - key: notification_messages
@@ -79,9 +67,7 @@ steps:
             keys:
               value: channel
             screen:
-              title:
-                en-us: Where should I send the notifications?
-                pt-br: Onde devo enviar as notificações?
+              title: ${ref.notifications_channel_title}
           - type: modal_input
             key: youtuber
             emoji: 🎬
@@ -90,9 +76,7 @@ steps:
               value: youtuber
             image: youtuber_avatar
             button:
-              label:
-                en-us: Choose youtuber
-                pt-br: Escolher youtuber
+              label: ${ref.choose_youtuber}
             modal:
               title: ${ref.youtuber}
               validation:
@@ -105,12 +89,8 @@ steps:
                   error: notifications_youtube_video.ui.errors.youtuber
               inputs:
                 - key: youtuber
-                  label:
-                    en-us: The YouTube channel name (with or without @)
-                    pt-br: O nome do canal no YouTube (com ou sem @)
-                  placeholder:
-                    en-us: e.g. @pewdiepie
-                    pt-br: "ex: @pewdiepie"
+                  label: ${ref.youtube_channel_name}
+                  placeholder: ${ref.youtuber_placeholder}
                   max_length: 30
                   normalize:
                     name: handle

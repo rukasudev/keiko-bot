@@ -1,41 +1,37 @@
 """Twitch notifications: a live announced, then edited when it ends."""
 
-import datetime
-import random
-import re
 import time
-from typing import Any, List, Mapping, Optional, Sequence, Tuple
+from functools import partial
+from typing import Any, List, Mapping, Optional
 
 import discord
 from dateutil import parser
-from redis.exceptions import RedisError
 
 from app import bot, logger
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
-from app.core import analytics
-from app.core.cache import claim_redis_key, release_redis_key
+from app.core import lives
 from app.core.commands import WebhookEvent, WebhookReply
-from app.core.mentions import mention_of
-from app.core.servers import server_language
 from app.core.threads import to_thread
-from app.core.trace import Outcome, as_utc, fan_out
 from app.core.utils import (
-    destination,
-    fill,
-    fill_placeholders,
-    format_datetime_output,
     ml,
-    split_messages,
-    values_of,
 )
 from app.data import data
 from app.data.collection import Document
 from app.exceptions import ErrorContext
-from app.forms import item_values, items_of
+from app.forms import item_values
 from app.forms.features.subscriptions import Account, SubscriptionFeature
 from app.ui.embed import announcement_embed
-from app.ui.message_preview import MessagePreviewView
+
+LIVES = lives.LiveNotices(
+    key="notifications_twitch",
+    item_key="streamer",
+    platform="twitch",
+    flow="twitch_notification",
+    claim_seconds=constants.TWITCH_NOTIFIED_STREAM_TTL_SECONDS,
+    live_link="https://www.twitch.tv/{name}",
+    link_variable="stream_link",
+)
 
 
 async def count_streamers_guilds(streamer_name: str) -> int:
@@ -100,30 +96,13 @@ async def handle_send_streamer_notification(streamer_name: str) -> None:
             return
 
         stream_started_at = stream_info.get("started_at")
-        started_at = parser.parse(stream_started_at)
-        last_live = await last_live_of(streamer_name)
-
-        if not last_live or is_more_than_one_hour(started_at, last_live):
-            if not await to_thread(claim_the_live, streamer_name, stream_started_at):
-                logger.info(
-                    f"The live of **{streamer_name}** started at {stream_started_at} "
-                    "was already announced",
-                    log_type=logconstants.COMMAND_INFO_TYPE,
-                )
-                return
-            try:
-                guilds_data = await following_guilds(streamer_name)
-            except Exception:
-                await to_thread(give_back_the_live, streamer_name, stream_started_at)
-                raise
-            await send_streamer_notifications(stream_info, user_info, guilds_data)
-            await data().keiko_subscriptions.update_subscription_state(
-                "twitch", streamer_name, {"last_live_started_at": started_at}
-            )
-        else:
-            await edit_streamer_notifications(
-                user_info, status=constants.NOTIFICATIONS_TWITCH_STREAM_STATUS_ONLINE
-            )
+        await lives.go_live(
+            LIVES,
+            live_of(stream_info, user_info),
+            parser.parse(stream_started_at),
+            live_claim(streamer_name, stream_started_at),
+            partial(following_guilds, streamer_name),
+        )
     except Exception as e:
         logger.error(
             f"Failed to handle twitch notification: {type(e).__name__}: {e}",
@@ -134,86 +113,10 @@ async def handle_send_streamer_notification(streamer_name: str) -> None:
         raise
 
 
-def claim_the_live(streamer_name: str, started_at: Any) -> bool:
-    """Whether this delivery of a live announces it; True when Redis cannot say."""
-    try:
-        return claim_redis_key(
-            live_claim(streamer_name, started_at),
-            constants.TWITCH_NOTIFIED_STREAM_TTL_SECONDS,
-        )
-    except RedisError as error:
-        logger.warn(
-            f"The live of **{streamer_name}** is announced without its claim — Redis: "
-            f"{type(error).__name__}",
-            log_type=logconstants.COMMAND_WARN_TYPE,
-        )
-        return True
-
-
-def give_back_the_live(streamer_name: str, started_at: Any) -> None:
-    """Free the claim of a live this delivery could not announce, for the next one."""
-    try:
-        release_redis_key(live_claim(streamer_name, started_at))
-    except RedisError as error:
-        logger.warn(
-            f"The claim of the live of **{streamer_name}** stays until it expires "
-            f"— Redis: {type(error).__name__}",
-            log_type=logconstants.COMMAND_WARN_TYPE,
-        )
-
-
 def live_claim(streamer_name: str, started_at: Any) -> str:
     """The Redis key one live of a streamer is claimed under."""
     return constants.REDIS_TWITCH_LIVE_CLAIM.format(
         streamer=streamer_name, started_at=started_at
-    )
-
-
-async def send_streamer_notifications(
-    stream_info: Mapping[str, Any],
-    user_info: Mapping[str, Any],
-    guilds_data: Sequence[Mapping[str, Any]],
-) -> None:
-    """Post the live in every server that follows the streamer, each one on its own."""
-    streamer_name = user_info["login"]
-    logger.info(
-        f"Sending notifications for **{streamer_name}**",
-        log_type=logconstants.COMMAND_INFO_TYPE,
-    )
-
-    served = await fan_out(
-        "twitch_notification",
-        (
-            (
-                guild_data.get("guild_id"),
-                announce_live(guild_data, notification, stream_info, user_info),
-            )
-            for guild_data, notification in notices_of(guilds_data, streamer_name)
-        ),
-        streamer_name=streamer_name,
-    )
-    count = sum(1 for share in served if share.outcome is Outcome.DELIVERED)
-    logger.info(
-        f"Notifications sent for **{streamer_name}** in {count} guilds",
-        log_type=logconstants.COMMAND_INFO_TYPE,
-    )
-
-
-async def edit_streamer_notifications(
-    user_info: Mapping[str, Any], status: str
-) -> None:
-    """Write the stream's status on every notice the streamer's live has."""
-    streamer_name = user_info["login"]
-    guilds_data = await following_guilds(streamer_name)
-    logger.info(
-        f"Editing notifications to {status} for **{streamer_name}**",
-        log_type=logconstants.COMMAND_INFO_TYPE,
-    )
-
-    count = await update_notification_status(guilds_data, streamer_name, status)
-    logger.info(
-        f"Notifications edited to {status} for **{streamer_name}** in {count} guilds",
-        log_type=logconstants.COMMAND_INFO_TYPE,
     )
 
 
@@ -229,29 +132,7 @@ async def handle_send_streamer_offline_notification(streamer_name: str) -> None:
 
     try:
         guilds_data = await following_guilds(streamer_name)
-        last_live = await last_live_of(streamer_name)
-        stream_duration = None
-
-        if last_live:
-            stream_duration = format_datetime_output(
-                datetime.datetime.now(datetime.timezone.utc) - last_live
-            )
-
-        logger.info(
-            f"Editing notifications to offline for **{streamer_name}**",
-            log_type=logconstants.COMMAND_INFO_TYPE,
-        )
-        count = await update_notification_status(
-            guilds_data,
-            streamer_name,
-            constants.NOTIFICATIONS_TWITCH_STREAM_STATUS_OFFLINE,
-            stream_duration,
-        )
-        logger.info(
-            f"Notifications edited to offline for **{streamer_name}** "
-            f"in {count} guilds",
-            log_type=logconstants.COMMAND_INFO_TYPE,
-        )
+        await lives.end_live(LIVES, streamer_name, guilds_data)
     except Exception as e:
         logger.error(
             f"Failed to handle twitch offline notification: {type(e).__name__}: {e}",
@@ -262,137 +143,22 @@ async def handle_send_streamer_offline_notification(streamer_name: str) -> None:
         raise
 
 
-async def announce_live(
-    guild_data: Mapping[str, Any],
-    notification: Mapping[str, Any],
-    stream_info: Mapping[str, Any],
-    user_info: Mapping[str, Any],
-) -> None:
-    """Post a live in the channel one server chose for it, in that server's language,
-    pinging only who the notice mentions."""
-    streamer_name = user_info["login"]
-    notice = item_values(notification)
-    mention = mention_of(notice.get("mention"), notice.get("mention_roles"))
-    guild, channel = destination(guild_data.get("guild_id"), notice.get("channel"))
-    embed = create_stream_notification_embed(
-        streamer_name, stream_info, user_info, await server_language(guild.id)
-    )
-
-    try:
-        message = await channel.send(
-            content=mention.before(compose_notification_message(notice, streamer_name)),
-            embed=embed,
-            allowed_mentions=mention.allowed,
-        )
-    except discord.Forbidden as error:
-        analytics.record_permission_failure(guild.id, "notifications_twitch", error)
-        raise
-
-    await data().guild_messages.save_message(
-        guild.id, channel.id, "notifications_twitch", streamer_name, message.id
-    )
-    analytics.record_value(guild.id, "notifications_twitch")
-
-
-async def update_notification_status(
-    guilds_data: Sequence[Mapping[str, Any]],
-    streamer_name: str,
-    status: str,
-    duration: Optional[str] = None,
-) -> int:
-    """Write the stream's status on every notice it has, each server on its own."""
-    served = await fan_out(
-        "twitch_notification",
-        (
-            (
-                guild_data.get("guild_id"),
-                show_status(guild_data, notification, streamer_name, status, duration),
-            )
-            for guild_data, notification in notices_of(guilds_data, streamer_name)
-        ),
-        streamer_name=streamer_name,
-    )
-    return sum(1 for share in served if share.value)
-
-
-async def show_status(
-    guild_data: Mapping[str, Any],
-    notification: Mapping[str, Any],
-    streamer_name: str,
-    status: str,
-    duration: Optional[str],
-) -> bool:
-    """Write the status on the notice one server got; False when that notice is gone."""
-    guild, channel = destination(
-        guild_data.get("guild_id"), item_values(notification).get("channel")
-    )
-    message = await fetch_notification_message(guild, channel, streamer_name)
-    if not message:
-        return False
-
-    locale = await server_language(guild.id)
-    message.embeds[0].set_footer(text=f"• {stream_status(status, locale, duration)}")
-    await message.edit(embed=message.embeds[0])
-    return True
-
-
-def notices_of(
-    guilds_data: Sequence[Mapping[str, Any]], streamer_name: str
-) -> List[Tuple[Mapping[str, Any], Mapping[str, Any]]]:
-    """Every notice a server set for the streamer, with the server's document."""
-    return [
-        (guild_data, notification)
-        for guild_data in guilds_data
-        for notification in items_of(guild_data, "notifications")
-        if str(item_values(notification).get("streamer") or "").lower() == streamer_name
-    ]
-
-
-def stream_status(status: str, locale: str, duration: Optional[str] = None) -> str:
-    """The footer of a live notice: whether it is on and, once over, how long it ran."""
-    parts = [ml(f"notifications_twitch.ui.announcement.states.{status}", locale)]
-
-    if duration:
-        line = ml("notifications_twitch.ui.announcement.states.duration", locale)
-        parts.append(fill(line, duration=duration))
-    return " | ".join(parts)
-
-
-async def fetch_notification_message(
-    guild: Any, channel: Any, streamer_name: str
-) -> Optional[discord.Message]:
-    """The notice Keiko posted for the streamer's live in a channel, None once gone."""
-    stream_notification = await data().guild_messages.find_message(
-        guild.id, channel.id, "notifications_twitch", streamer_name
-    )
-    if not stream_notification:
-        return None
-
-    try:
-        message: discord.Message = await channel.fetch_message(
-            stream_notification["message_id"]
-        )
-    except (discord.NotFound, discord.Forbidden):
-        return None
-    return message
-
-
 async def following_guilds(streamer_name: str) -> List[Document]:
     """Every guild document that follows the streamer, read to the end."""
     return list(await find_guilds_by_streamer_name(streamer_name))
 
 
-async def last_live_of(streamer_name: str) -> Optional[datetime.datetime]:
-    """When the streamer's last announced live started, as Keiko recorded it."""
-    state = await data().keiko_subscriptions.subscription_state("twitch", streamer_name)
-    return as_utc(state.get("last_live_started_at"))
-
-
-def is_more_than_one_hour(
-    start_time: datetime.datetime, last_time: datetime.datetime
-) -> bool:
-    """Whether a live started over an hour after the last one, so it is a new live."""
-    return (start_time - last_time).total_seconds() > 3600
+def live_of(stream_info: Mapping[str, Any], user_info: Mapping[str, Any]) -> lives.Live:
+    """A streamer's live as its notice draws it: the embed in a server's language and
+    where it is watched."""
+    streamer = str(user_info["login"])
+    return lives.Live(
+        name=streamer,
+        embed=partial(
+            create_stream_notification_embed, streamer, stream_info, user_info
+        ),
+        link=LIVES.link(streamer),
+    )
 
 
 def wait_for_stream_info(streamer: str) -> Optional[Mapping[str, Any]]:
@@ -435,12 +201,12 @@ def create_stream_notification_embed(
     return announcement_embed(
         stream_info.get("title"),
         user_info.get("description"),
-        stream_status(constants.NOTIFICATIONS_TWITCH_STREAM_STATUS_ONLINE, locale),
+        lives.stream_status("online", locale),
         picture,
         copy="notifications_twitch.ui.announcement",
         locale=locale,
         fields={"game": stream_info.get("game_name"), "streamer": streamer},
-        url=f"https://www.twitch.tv/{streamer}",
+        url=LIVES.link(streamer),
         colour=discord.Color.purple(),
         thumbnail=str(user_info.get("profile_image_url") or ""),
     )
@@ -529,18 +295,9 @@ async def unsubscribe_streamer(
 async def send_notification_preview(
     interaction: discord.Interaction, responses: List[Document]
 ) -> None:
-    """The live announcement as it will arrive, one written message per click, its
-    mention written but pinging nobody."""
-    values = values_of(responses)
-    streamer = str(values.get("streamer") or "")
-    stream_link = f"https://www.twitch.tv/{streamer}"
-    mention = mention_of(values.get("mention"), values.get("mention_roles"))
-    texts = [
-        mention.before(parse_streamer_message(message, streamer, stream_link)) or ""
-        for message in split_messages(values.get("notification_messages"))
-    ]
-    embed = await build_preview_embed(streamer, str(interaction.locale))
-    await MessagePreviewView(texts, interaction.locale, embed).send(interaction)
+    """The live announcement as it will arrive, under the embed drawn for the
+    streamer."""
+    await lives.send_preview(LIVES, interaction, responses, build_preview_embed)
 
 
 async def build_preview_embed(streamer: str, locale: str) -> Optional[discord.Embed]:
@@ -582,28 +339,6 @@ async def last_stream_thumbnail(user_info: Mapping[str, Any]) -> str:
     except Exception:
         found = None
     return str(found or user_info.get("offline_image_url") or "")
-
-
-def compose_notification_message(notice: Mapping[str, Any], streamer: str) -> str:
-    """One of the notice's messages, picked at random, filled for this streamer."""
-    messages = split_messages(notice.get("notification_messages"))
-    stream_link = f"https://www.twitch.tv/{streamer}"
-    random_message = random.choice(messages or [""])
-
-    return parse_streamer_message(random_message, streamer, stream_link)
-
-
-def parse_streamer_message(message: str, streamer: str, stream_link: str) -> str:
-    """A message with the streamer and the live link filled in, the link added unless
-    already written."""
-    linked = bool(streamer) and re.search(
-        rf"twitch\.tv/{re.escape(streamer)}(?!\w)", message, flags=re.IGNORECASE
-    )
-    return fill_placeholders(
-        message,
-        {"streamer": streamer, "stream_link": stream_link},
-        required=None if linked else "stream_link",
-    )
 
 
 async def find_streamer(login: str) -> Account:

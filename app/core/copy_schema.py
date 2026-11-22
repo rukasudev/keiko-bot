@@ -12,6 +12,7 @@ from app.core.commands import Command, Open, commands
 from app.core.facts import FactSpec
 from app.core.feature_health import Stats
 from app.core.i18n import CopyBlock, CopyText
+from app.core.lives import LiveNoticeCopy
 from app.core.utils import SetupRow
 from app.forms.features.feature import Panel
 from app.translator import Slash
@@ -143,6 +144,12 @@ class SharedCommands(CopyBlock):
         default_factory=dict,
         description="The shared lists, each named `commands.records.<name>` (a "
         "feature's History and its line per event, every change of a server).",
+        json_schema_extra={"role": "structure"},
+    )
+    live_notice: LiveNoticeCopy | None = Field(
+        None,
+        description="The footer of the live notice every streaming command posts, "
+        "named `commands.live_notice`.",
         json_schema_extra={"role": "structure"},
     )
 

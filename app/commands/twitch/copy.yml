@@ -1,9 +1,3 @@
-# open: fact names -> a fact the code passes
-facts:
-  duration:
-    type: text
-    description: How long a live lasted, formatted for the reader.
-
 command:
   slash:
     subgroup:
@@ -21,8 +15,8 @@ command:
       en-us: Twitch Lives
       pt-br: Twitch Lives
     description:
-      en-us: Notifies you when your streamers go live
-      pt-br: Avisa quando seus streamers entram ao vivo
+      en-us: Notifies you when your streamers go live on Twitch
+      pt-br: Avisa quando seus streamers entram ao vivo na Twitch
 
   stats:
     title:
@@ -56,17 +50,6 @@ ui:
       streamer:
         en-us: Streamer
         pt-br: Streamer
-    # open: the live's states -> its footer line
-    states:
-      online:
-        en-us: 🟢 Online
-        pt-br: 🟢 Ao vivo
-      offline:
-        en-us: 🔴 Offline
-        pt-br: 🔴 Live encerrada
-      duration:
-        en-us: "⌛️ Duration: $duration"
-        pt-br: "⌛️ Duração: $duration"
     # open: the part each sample stands for -> the sample a preview draws
     samples:
       title:

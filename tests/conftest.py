@@ -32,6 +32,7 @@ i18n.load()
 from tests.mocks import (
     create_guild,
     create_member,
+    MockKickAPI,
     MockTwitchAPI,
     MockYouTubeAPI,
     MockChannel,
@@ -79,6 +80,7 @@ def deps(mongodb, redis_client):
     # APIs mockadas
     ns.twitch = MockTwitchAPI()
     ns.youtube = MockYouTubeAPI()
+    ns.kick = MockKickAPI()
 
     # Discord
     ns.guild = create_guild(
@@ -94,6 +96,7 @@ def deps(mongodb, redis_client):
     ns.bot = MagicMock()
     ns.bot.twitch = ns.twitch
     ns.bot.youtube = ns.youtube
+    ns.bot.kick = ns.kick
     ns.bot.get_guild = MagicMock(return_value=ns.guild)
     ns.bot.wait_until_ready = AsyncMock()
     ns.bot.config = MagicMock()
@@ -129,7 +132,7 @@ def auto_inject_dependencies(deps):
     """AUTOUSE: every test runs on the fake bot, the in-memory stores and the
     test loop; a new service holding `bot` needs no line here."""
     patches = [patch(f"{module}.bot", deps.bot) for module in _bot_holders()] + [
-        patch('app.commands.youtube.service._RENEWALS', new_callable=asyncio.Lock),
+        patch('app.integrations.youtube.hub._RENEWALS', new_callable=asyncio.Lock),
         patch('app.core.cache.redis_client', deps.redis_client),
         patch('app.data._own_loop', SettlingLoop),
         patch('app.data._LOOP', None),

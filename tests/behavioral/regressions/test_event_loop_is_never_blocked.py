@@ -236,7 +236,7 @@ async def test_renewing_the_youtube_subscriptions_at_start_never_freezes_the_bot
     deps.bot.config.YOUTUBE_HUB_SECRET = "hub-secret"
     deps.youtube.add_channel("UC-pewdiepie", "PewDiePie", custom_url="@pewdiepie")
     monkeypatch.setattr(
-        "app.commands.youtube.service.find_followed_youtubers",
+        "app.integrations.youtube.hub.platform_followed",
         slow(["pewdiepie"]),
     )
 

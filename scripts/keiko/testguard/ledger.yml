@@ -1221,3 +1221,59 @@ entries:
   broke: 'picking /moderações aniversários lembretes in /ajuda showed no Executar button:
     the help took a command''s feature from the name of the Python method behind it (`reminders`),
     while the birthdays feature is `reminders_birthday`.'
+- id: pb-178
+  test: tests/behavioral/regressions/test_youtube.py::test_a_live_is_never_announced_as_a_new_video
+  guarantee: a notice whose video carries live details never posts the video announcement;
+    while no command takes lives, the webhook answers it with 204.
+  broke: the video command read only the snippet of the video a hub notice named and announced
+    it as a new video whatever it was, so a scheduled live was posted as a video the moment
+    it was scheduled, a live when YouTube sent its notice, and the moment a scheduled live
+    started was never announced.
+- id: pb-179
+  test: tests/behavioral/regressions/test_youtube.py::test_a_channel_another_youtube_command_follows_keeps_its_hub_subscription
+  guarantee: a channel stays subscribed, with its renewal, while any YouTube command follows
+    it.
+  broke: the video command counted only its own followers before it unsubscribed a channel
+    from the hub, so a channel followed for its lives would stop sending notices the moment
+    its videos were unfollowed.
+- id: pb-180
+  test: tests/behavioral/regressions/test_language.py::test_a_live_preview_shows_its_status_in_the_servers_language
+  guarantee: a Portuguese server's preview says "Ao vivo", never "Online".
+  broke: PR12 made the line one text with overrides on a fact, read through `Text.get`, which
+    matched only "pt-br"; the preview passes the interaction's locale, which `speak` sets
+    to Discord's `pt-BR`, so a Portuguese server previewed "🟢 Online" while its real notices
+    said "🟢 Ao vivo" (s11 and s24 on the PR…
+- id: pb-181
+  test: tests/behavioral/regressions/test_panel.py::test_a_panel_lists_an_items_entries_in_the_forms_order
+  guarantee: '"Mencionar" comes before "Mensagens de Notificação" on the panel.'
+  broke: the panel and the last-item warning listed an item's entries in the order of its
+    stored keys, so a notice whose mention was added after its messages (the 0008 notice-mentions
+    migration did that to every saved notice) showed "Mensagens de Notificação" before "Mencionar",
+    while a notice set up throug…
+- id: pb-182
+  test: tests/behavioral/scenarios/test_kick_flow.py::test_unpausing_keeps_the_one_subscription_kick_still_holds
+  guarantee: 'The only server following a streamer turns on again while Kick still holds its
+    subscription: Kick keeps that one, Keiko names it, and no copy is made for the resync
+    to drop.'
+  broke: Keiko asked Kick only about the id it kept, so a subscription Kick held under another
+    id (a subscribe whose answer was lost) was subscribed again, and Kick sent every event
+    of the streamer twice until the daily resync.
+- id: pb-183
+  test: tests/test_admin_templates.py::test_a_wrong_variable_in_the_shared_live_notice_is_caught_in_each_command
+  guarantee: a wrong variable in a shared default fails in each command whose form names it.
+  broke: the check read each form as written and skipped its `${ref...}`, so a `{streamr}`
+    in the live notice Twitch and Kick both default to passed, and every server that kept
+    the default would have posted it as typed.
+- id: pb-184
+  test: tests/test_notifications_kick.py::test_a_resync_forgets_the_id_of_a_subscription_it_deleted
+  guarantee: a subscription the resync deletes is no longer named in Keiko's state, and the
+    broadcaster behind it stays known.
+  broke: the resync deleted the subscription of a streamer no server follows any more and
+    Keiko still named it, so a later unsubscribe asked Kick to delete an id it no longer held.
+- id: pb-185
+  test: tests/test_notifications_youtube_live.py::test_a_live_youtube_does_not_show_yet_is_announced_when_the_hub_retries
+  guarantee: a notice whose video YouTube does not show yet is delivered again by the hub
+    however old the video is, and the live is announced once YouTube shows it.
+  broke: the webhook answered 204 for a video the Data API could not see once its notice came
+    more than 5 minutes after the video was published, so a private scheduled live made public
+    when it started, while the API still lagged, was dropped and never announced.

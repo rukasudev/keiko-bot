@@ -24,7 +24,7 @@ from app.integrations.http import create_api
 from app.constants import Commands
 from app.core import trace as trace_service
 from app.core.servers import set_feature_enabled
-from app.commands.youtube.service import find_reminder_by_id, insert_renewal_reminder
+from app.integrations.youtube.hub import find_reminder_by_id, insert_renewal_reminder
 from tests.generators.birthdays import saved_birthday
 from app.integrations.reminders import client as reminder_webhook
 from app.integrations.reminders.client import (
@@ -36,10 +36,9 @@ from app.integrations.reminders.client import (
 )
 from app.migrations.runner import declared_structure
 from app.commands.youtube import service as notifications_youtube_video
-from app.commands.youtube.service import (
-    record_hub_confirmation,
-    unsubscribe_youtube_new_video,
-)
+from app.commands.youtube.service import unsubscribe_youtube_new_video
+from app.integrations.youtube import hub as youtube_hub
+from app.integrations.youtube.hub import record_hub_confirmation
 from app.commands.birthdays.service import save_birthday_config
 from app.commands.birthdays import celebration as birthday_handler
 from tests.generators.moderations import recorded_server, seed_cog
@@ -477,7 +476,7 @@ async def test_a_callback_sent_again_celebrates_no_one_twice_and_renews_again(ke
                          ids=["given-as-a-number", "given-as-text"])
 async def test_a_renewal_for_a_youtuber_no_server_follows_drops_itself(keiko, deps, given_id):
     """The one place a renewal is deleted: the unsubscribe leaves it, and it ends here."""
-    from app.commands.youtube.service import find_reminder_by_id
+    from app.integrations.youtube.hub import find_reminder_by_id
 
     deps.mongo_client.guild.cogs.delete_many({"cog": "notifications_youtube_video"})
     await insert_renewal_reminder(given_id, "pewdiepie")
@@ -716,7 +715,7 @@ async def test_the_start_gives_every_followed_youtuber_without_a_renewal_its_ren
     follow_youtuber(youtube, "4444", "mrbeast")
     a_renewal(youtube, 7001, "mrbeast")
 
-    await notifications_youtube_video.resubscribe_followed_channels()
+    await youtube_hub.resubscribe_followed_channels()
 
     assert renewals_of(youtube, "pewdiepie") == 1
     assert renewals_of(youtube, "mrbeast") == 1
@@ -727,7 +726,7 @@ async def test_a_youtuber_asked_for_from_everywhere_at_once_gets_one_renewal(you
     callers = [a_server_adds("pewdiepie") for _ in range(3)]
     follow_youtuber(youtube, "4343", "mrbeast")
     callers += [a_server_adds("mrbeast") for _ in range(2)]
-    callers.append(notifications_youtube_video.resubscribe_followed_channels())
+    callers.append(youtube_hub.resubscribe_followed_channels())
 
     await asyncio.wait_for(asyncio.gather(*callers), timeout=10)
 
@@ -737,7 +736,7 @@ async def test_a_youtuber_asked_for_from_everywhere_at_once_gets_one_renewal(you
 
 
 async def test_a_server_adding_a_youtuber_while_its_renewal_ends_gets_one(youtube, monkeypatch):
-    from app.commands.youtube.service import renew_youtube_subscription
+    from app.integrations.youtube.hub import renew_youtube_subscription
 
     bind_loop(asyncio.get_running_loop())
     youtube.mongo_client.guild.settings.insert_one({"_id": "4242", "state": {"present": False}})
@@ -792,11 +791,11 @@ async def test_renewals_of_one_youtuber_take_turns_on_the_loop_without_a_thread_
             beats += 1
 
     beat = asyncio.ensure_future(heartbeat())
-    taken = notifications_youtube_video.HubAnswer(
-        notifications_youtube_video.HubOutcome.DONE, "the hub answered 202", 202
+    taken = youtube_hub.HubAnswer(
+        youtube_hub.HubOutcome.DONE, "the hub answered 202", 202
     )
     await asyncio.wait_for(asyncio.gather(*(
-        notifications_youtube_video.ensure_renewal("pewdiepie", taken) for _ in range(3)
+        youtube_hub.ensure_renewal("pewdiepie", taken) for _ in range(3)
     )), timeout=5)
     renewing = False
     await beat

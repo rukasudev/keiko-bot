@@ -1,9 +1,12 @@
 import datetime
+from dataclasses import replace
 
 from dateutil import parser
 from flask import request
+from redis.exceptions import RedisError
 
 from app import logger
+from app.constants import Commands
 from app.constants import LogTypes as logconstants
 from app.core import dispatch
 from app.core.commands import WebhookEvent
@@ -12,7 +15,9 @@ from app.integrations.youtube.client import (
     CALLBACK_TOKEN_PARAMETER,
     HUB_MODES,
     channel_of_topic,
+    notice_event,
     parse_video_notice,
+    video_owner,
 )
 from app.integrations.http import webhooks
 
@@ -77,16 +82,71 @@ def youtube_webhook():
         )
         return 'Invalid token', 403
 
-    if not check_request_type_by_publish_time(notice.published, notice.updated):
+    try:
+        video = bot.youtube.get_video_info(notice.video_id)
+    except Exception as error:
+        logger.error(
+            f'youtube video {notice.video_id} could not be read: {type(error).__name__}: {error}',
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            context=ErrorContext(
+                flow="youtube_notification",
+                extra={"video_id": notice.video_id, "youtube_channel_id": notice.channel_id},
+            ),
+            exc_info=True,
+        )
+        return 'YouTube did not answer', 503
+
+    if not video:
+        return _unseen_video(notice.video_id)
+
+    if video_owner(video) != notice.channel_id:
+        logger.warn(
+            f'youtube notice ignored — video {notice.video_id} is not from channel {notice.channel_id}',
+            log_type=logconstants.COMMAND_WARN_TYPE,
+        )
+        return 'Video from another channel', 204
+
+    name = notice_event(video)
+    published = name == "youtube.video.published"
+    fresh = check_request_type_by_publish_time(notice.published, notice.updated)
+    if published and not fresh:
         logger.info('Time difference is greater than 5 minutes. No action taken.', log_type=logconstants.COMMAND_INFO_TYPE)
         return 'No action needed', 204
 
     reply = dispatch.webhook(
-        WebhookEvent("youtube.video.published", notice.channel_id, notice)
+        WebhookEvent(name, notice.channel_id, replace(notice, video=video))
     )
     if reply is None:
         return 'No action needed', 204
     return reply.body, reply.status
+
+
+def _unseen_video(video_id: str) -> tuple[str, int]:
+    from app.core.cache import increment_redis_key_with_expiration
+
+    try:
+        deliveries = increment_redis_key_with_expiration(
+            Commands.REDIS_YOUTUBE_UNSEEN_WINDOW.format(video_id=video_id),
+            1,
+            Commands.YOUTUBE_UNSEEN_WINDOW_SECONDS,
+        )
+    except RedisError as error:
+        logger.warn(
+            f'youtube video {video_id} is not visible yet and its deliveries cannot be counted — Redis: {type(error).__name__}. The hub will deliver it again.',
+            log_type=logconstants.COMMAND_WARN_TYPE,
+        )
+        return 'Video not visible yet', 503
+    if deliveries > Commands.YOUTUBE_UNSEEN_RETRIES:
+        logger.info(
+            f'youtube video {video_id} is still not visible after {Commands.YOUTUBE_UNSEEN_RETRIES} deliveries. No action taken.',
+            log_type=logconstants.COMMAND_INFO_TYPE,
+        )
+        return 'Video not visible', 204
+    logger.info(
+        f'youtube video {video_id} is not visible yet. The hub will deliver it again.',
+        log_type=logconstants.COMMAND_INFO_TYPE,
+    )
+    return 'Video not visible yet', 503
 
 
 def check_request_type_by_publish_time(published: str, updated: str) -> bool:

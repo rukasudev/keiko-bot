@@ -11,15 +11,15 @@ screens:
         - {type: thumbnail, media: KEIKO_DEFAULT.png}
       - type: section
         children:
-        - {type: text, content: ':busts_in_silhouette: **⟨setup.ui.texts.categories.notifications⟩:** ⟨notifications_twitch.form.steps.notifications.counter: count=«1»; max=«2»⟩'}
+        - {type: text, content: ':busts_in_silhouette: **⟨setup.ui.texts.categories.notifications⟩:** ⟨vocabulary.texts.set_up_counter: count=«1»; max=«2»⟩'}
         - {type: button, label: ⟨buttons.add.label⟩, style: secondary, disabled: false}
       - type: text
         content: |-
           ### ⟨setup.ui.texts.categories.notifications⟩ #1
           📺 **⟨vocabulary.texts.text_channel⟩:** <#100>
           🎬 **⟨vocabulary.texts.youtuber⟩:** pewdiepie
-          💬 **⟨vocabulary.texts.notification_messages⟩:** ```• {youtuber} acabou de postar um novo vídeo!```
           📣 **⟨vocabulary.texts.mention⟩:** @everyone
+          💬 **⟨vocabulary.texts.notification_messages⟩:** ```• {youtuber} acabou de postar um novo vídeo!```
       - type: actionrow
         children:
         - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
@@ -44,8 +44,8 @@ screens:
         ### Notificações #1
         📺 **Canal de Texto:** <#100>
         🎬 **Youtuber:** pewdiepie
-        💬 **Mensagens de Notificação:** ```• {youtuber} acabou de postar um novo vídeo!```
         📣 **Mencionar:** @everyone
+        💬 **Mensagens de Notificação:** ```• {youtuber} acabou de postar um novo vídeo!```
       - Editar
       - Pré-visualizar
       - Remover
@@ -93,7 +93,7 @@ screens:
   form.panel+done:
     from: form.panel
     changes:
-    - set components.0.children.1.children.0.content: ':busts_in_silhouette: **⟨setup.ui.texts.categories.notifications⟩:** ⟨notifications_twitch.form.steps.notifications.counter: count=«2»; max=«2»⟩'
+    - set components.0.children.1.children.0.content: ':busts_in_silhouette: **⟨setup.ui.texts.categories.notifications⟩:** ⟨vocabulary.texts.set_up_counter: count=«2»; max=«2»⟩'
     - set components.0.children.1.children.1.disabled: true
     - add components.0.children.4:
         type: text
@@ -121,7 +121,7 @@ screens:
   form.panel+start_command:
     from: form.panel
     changes:
-    - set components.0.children.1.children.0.content: ':busts_in_silhouette: **⟨setup.ui.texts.categories.notifications⟩:** ⟨notifications_twitch.form.steps.notifications.counter: count=«2»; max=«2»⟩'
+    - set components.0.children.1.children.0.content: ':busts_in_silhouette: **⟨setup.ui.texts.categories.notifications⟩:** ⟨vocabulary.texts.set_up_counter: count=«2»; max=«2»⟩'
     - set components.0.children.1.children.1.disabled: true
     - add components.0.children.4:
         type: text
@@ -129,8 +129,8 @@ screens:
           ### ⟨setup.ui.texts.categories.notifications⟩ #2
           📺 **⟨vocabulary.texts.text_channel⟩:** <#102>
           🎬 **⟨vocabulary.texts.youtuber⟩:** mrbeast
-          💬 **⟨vocabulary.texts.notification_messages⟩:** ```• {youtuber} acabou de postar um novo vídeo!```
           📣 **⟨vocabulary.texts.mention⟩:** @everyone
+          💬 **⟨vocabulary.texts.notification_messages⟩:** ```• {youtuber} acabou de postar um novo vídeo!```
     - add components.0.children.5:
         type: actionrow
         children:
@@ -144,16 +144,16 @@ screens:
         ### ⟨setup.ui.texts.categories.notifications⟩ #1
         📺 **⟨vocabulary.texts.text_channel⟩:** <#102>
         🎬 **⟨vocabulary.texts.youtuber⟩:** mrbeast
-        💬 **⟨vocabulary.texts.notification_messages⟩:** ```• {youtuber} acabou de postar um novo vídeo!```
         📣 **⟨vocabulary.texts.mention⟩:** @everyone
-  notification:
+        💬 **⟨vocabulary.texts.notification_messages⟩:** ```• {youtuber} acabou de postar um novo vídeo!```
+  youtube_channel.notification:
     ephemeral: true
     components:
     - type: container
       children:
       - type: section
         children:
-        - {type: text, content: '## ▶️ ⟨notifications_youtube_video.form.steps.notifications.steps.notification.title⟩'}
+        - {type: text, content: '## ▶️ ⟨vocabulary.texts.youtube_channel⟩'}
         - {type: text, content: ⟨notifications_youtube_video.form.steps.notifications.steps.notification.description⟩}
         - {type: thumbnail, media: KEIKO_DEFAULT.png}
       - type: text
@@ -169,7 +169,7 @@ screens:
           > ⟨texts.empty_value⟩
       - type: actionrow
         children:
-        - {type: button, label: ⟨notifications_youtube_video.form.steps.notifications.steps.notification.sections.youtuber.button.label⟩, style: secondary, disabled: false}
+        - {type: button, label: ⟨vocabulary.texts.choose_youtuber⟩, style: secondary, disabled: false}
       - type: text
         content: |-
           📣 **⟨vocabulary.texts.mention⟩**
@@ -201,14 +201,14 @@ screens:
       - {type: button, label: ⟨buttons.done.label⟩, style: success, disabled: false}
       - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
     components_v2: true
-  notification+continue:
-    from: notification
+  youtube_channel.notification+continue:
+    from: youtube_channel.notification
     changes:
     - set components.0.children.1.content: |-
         📺 **⟨vocabulary.texts.text_channel⟩**
         > ⟨texts.empty_value⟩
-  notification+modal_submit:
-    from: notification
+  youtube_channel.notification+modal_submit:
+    from: youtube_channel.notification
     changes:
     - set components.0.children.2.children.0.disabled: true
     - set components.0.children.4.children.0.disabled: true
@@ -217,8 +217,8 @@ screens:
     - set components.1.children.0.disabled: true
     - set components.1.children.1.disabled: true
     - set components.1.children.2.disabled: true
-  notification+modal_submit@setup_back:
-    from: notification
+  youtube_channel.notification+modal_submit@setup_back:
+    from: youtube_channel.notification
     changes:
     - set components.0.children.3.content: |-
         🎬 **⟨vocabulary.texts.youtuber⟩**
@@ -227,8 +227,8 @@ screens:
         💬 **⟨vocabulary.texts.notification_messages⟩**
         ⟨notifications_youtube_video.form.steps.notifications.steps.notification.sections.messages.description⟩
         ```• ⟨notifications_youtube_video.form.steps.notifications.steps.notification.defaults.notification_messages: youtuber=«pewdiepie»⟩```
-  notification+modal_submit@setup_happy:
-    from: notification
+  youtube_channel.notification+modal_submit@setup_happy:
+    from: youtube_channel.notification
     changes:
     - set components.0.children.3.content: |-
         🎬 **⟨vocabulary.texts.youtuber⟩**
@@ -237,8 +237,8 @@ screens:
         💬 **⟨vocabulary.texts.notification_messages⟩**
         ⟨notifications_youtube_video.form.steps.notifications.steps.notification.sections.messages.description⟩
         ```• {youtuber} postou: {video_link}```
-  notification+add:
-    from: notification
+  youtube_channel.notification+add:
+    from: youtube_channel.notification
     changes:
     - set components.0.children.1.content: |-
         📺 **⟨vocabulary.texts.text_channel⟩**
@@ -252,8 +252,8 @@ screens:
         ⟨notifications_youtube_video.form.steps.notifications.steps.notification.sections.messages.description⟩
         ```• {youtuber} acabou de postar um novo vídeo!```
     - set components.1.children.1.label: ⟨buttons.confirm.label⟩
-  notification+channel=general:
-    from: notification
+  youtube_channel.notification+channel=general:
+    from: youtube_channel.notification
     changes:
     - set components.0.children.5.content: |-
         📣 **⟨vocabulary.texts.mention⟩**
@@ -264,8 +264,8 @@ screens:
         ⟨notifications_youtube_video.form.steps.notifications.steps.notification.sections.messages.description⟩
         ```• {youtuber} acabou de postar um novo vídeo!```
     - set components.1.children.1.label: ⟨buttons.confirm.label⟩
-  notification+modal_submit@manager_add_item:
-    from: notification
+  youtube_channel.notification+modal_submit@manager_add_item:
+    from: youtube_channel.notification
     changes:
     - set components.0.children.2.children.0.disabled: true
     - set components.0.children.4.children.0.disabled: true
@@ -283,8 +283,8 @@ screens:
     - set components.1.children.1.label: ⟨buttons.confirm.label⟩
     - set components.1.children.1.disabled: true
     - set components.1.children.2.disabled: true
-  notification+modal_submit@manager_add_item#2:
-    from: notification
+  youtube_channel.notification+modal_submit@manager_add_item#2:
+    from: youtube_channel.notification
     changes:
     - set components.0.children.3.content: |-
         🎬 **⟨vocabulary.texts.youtuber⟩**
@@ -298,8 +298,8 @@ screens:
         ⟨notifications_youtube_video.form.steps.notifications.steps.notification.sections.messages.description⟩
         ```• ⟨notifications_youtube_video.form.steps.notifications.steps.notification.defaults.notification_messages: youtuber=«mrbeast»⟩```
     - set components.1.children.1.label: ⟨buttons.confirm.label⟩
-  notification+modal_submit@manager_add_item#3:
-    from: notification
+  youtube_channel.notification+modal_submit@manager_add_item#3:
+    from: youtube_channel.notification
     changes:
     - set components.0.children.3.content: |-
         🎬 **⟨vocabulary.texts.youtuber⟩**
@@ -313,8 +313,8 @@ screens:
         ⟨notifications_youtube_video.form.steps.notifications.steps.notification.sections.messages.description⟩
         ```• {youtuber} postou: {video_link}```
     - set components.1.children.1.label: ⟨buttons.confirm.label⟩
-  notification+section:notifications$0:
-    from: notification
+  youtube_channel.notification+section:notifications$0:
+    from: youtube_channel.notification
     changes:
     - set components.0.children.3.content: |-
         🎬 **⟨vocabulary.texts.youtuber⟩**
@@ -328,8 +328,8 @@ screens:
         ⟨notifications_youtube_video.form.steps.notifications.steps.notification.sections.messages.description⟩
         ```• {youtuber} acabou de postar um novo vídeo!```
     - set components.1.children.1.label: ⟨buttons.confirm.label⟩
-  notification+channel=announcements:
-    from: notification
+  youtube_channel.notification+channel=announcements:
+    from: youtube_channel.notification
     changes:
     - set components.0.children.1.content: |-
         📺 **⟨vocabulary.texts.text_channel⟩**
@@ -346,8 +346,8 @@ screens:
         ⟨notifications_youtube_video.form.steps.notifications.steps.notification.sections.messages.description⟩
         ```• {youtuber} acabou de postar um novo vídeo!```
     - set components.1.children.1.label: ⟨buttons.confirm.label⟩
-  notification+modal_submit@manager_edit_one_step:
-    from: notification
+  youtube_channel.notification+modal_submit@manager_edit_one_step:
+    from: youtube_channel.notification
     changes:
     - set components.0.children.1.content: |-
         📺 **⟨vocabulary.texts.text_channel⟩**
@@ -371,8 +371,8 @@ screens:
     - set components.1.children.1.label: ⟨buttons.confirm.label⟩
     - set components.1.children.1.disabled: true
     - set components.1.children.2.disabled: true
-  notification+modal_submit@manager_edit_one_step#2:
-    from: notification
+  youtube_channel.notification+modal_submit@manager_edit_one_step#2:
+    from: youtube_channel.notification
     changes:
     - set components.0.children.1.content: |-
         📺 **⟨vocabulary.texts.text_channel⟩**
@@ -389,8 +389,8 @@ screens:
         ⟨notifications_youtube_video.form.steps.notifications.steps.notification.sections.messages.description⟩
         ```• pewdiepie acabou de postar um novo vídeo!```
     - set components.1.children.1.label: ⟨buttons.confirm.label⟩
-  notification+modal_submit@manager_edit_one_step#3:
-    from: notification
+  youtube_channel.notification+modal_submit@manager_edit_one_step#3:
+    from: youtube_channel.notification
     changes:
     - set components.0.children.1.content: |-
         📺 **⟨vocabulary.texts.text_channel⟩**
@@ -407,8 +407,8 @@ screens:
         ⟨notifications_youtube_video.form.steps.notifications.steps.notification.sections.messages.description⟩
         ```• {youtuber} postou: {video_link}```
     - set components.1.children.1.label: ⟨buttons.confirm.label⟩
-  notification+channel=announcements@setup_back:
-    from: notification
+  youtube_channel.notification+channel=announcements@setup_back:
+    from: youtube_channel.notification
     changes:
     - set components.0.children.1.content: |-
         📺 **⟨vocabulary.texts.text_channel⟩**
@@ -420,8 +420,8 @@ screens:
         💬 **⟨vocabulary.texts.notification_messages⟩**
         ⟨notifications_youtube_video.form.steps.notifications.steps.notification.sections.messages.description⟩
         ```• ⟨notifications_youtube_video.form.steps.notifications.steps.notification.defaults.notification_messages: youtuber=«pewdiepie»⟩```
-  notification+modal_submit@setup_back#2:
-    from: notification
+  youtube_channel.notification+modal_submit@setup_back#2:
+    from: youtube_channel.notification
     changes:
     - set components.0.children.1.content: |-
         📺 **⟨vocabulary.texts.text_channel⟩**
@@ -440,8 +440,8 @@ screens:
     - set components.1.children.0.disabled: true
     - set components.1.children.1.disabled: true
     - set components.1.children.2.disabled: true
-  notification+modal_submit@setup_back#3:
-    from: notification
+  youtube_channel.notification+modal_submit@setup_back#3:
+    from: youtube_channel.notification
     changes:
     - set components.0.children.1.content: |-
         📺 **⟨vocabulary.texts.text_channel⟩**
@@ -453,25 +453,25 @@ screens:
         💬 **⟨vocabulary.texts.notification_messages⟩**
         ⟨notifications_youtube_video.form.steps.notifications.steps.notification.sections.messages.description⟩
         ```• mrbeast acabou de postar um novo vídeo!```
-  notification+Descartar_tudo:
-    from: notification
+  youtube_channel.notification+Descartar_tudo:
+    from: youtube_channel.notification
     changes:
     - drop components.0.children.2: null
     - drop components.0.children.3: null
     - drop components.0.children.4: null
     - drop components.0.children.5: null
     - drop components.1: null
-  youtuber:
+  youtuber.youtube_channel_name:
     modal:
       title: 🎬 ⟨vocabulary.texts.youtuber⟩
       fields:
-      - {label: ⟨notifications_youtube_video.form.steps.notifications.steps.notification.sections.youtuber.modal.inputs.youtuber.label⟩, required: true, style: short, max_length: 30, default: ''}
-  youtuber+customize:youtuber:
-    from: youtuber
+      - {label: ⟨vocabulary.texts.youtube_channel_name⟩, required: true, style: short, max_length: 30, default: ''}
+  youtuber.youtube_channel_name+customize:youtuber:
+    from: youtuber.youtube_channel_name
     changes:
     - set modal.fields.0.default: pewdiepie
-  youtuber+customize:youtuber@setup_validation_error_and_recover:
-    from: youtuber
+  youtuber.youtube_channel_name+customize:youtuber@setup_validation_error_and_recover:
+    from: youtuber.youtube_channel_name
     changes:
     - set modal.fields.0.default: naoexiste
   notification_messages.random_message_1:
@@ -598,8 +598,8 @@ screens:
         :pencil: **⟨texts.settings_heading⟩**
 
         :flying_disc: **⟨vocabulary.texts.text_channel⟩:** ⟨notifications_youtube_video.form.steps.notifications.steps.notification.fields.channel.description⟩
-        :flying_disc: **⟨vocabulary.texts.youtuber⟩:** ⟨notifications_youtube_video.form.steps.notifications.steps.notification.fields.youtuber.description⟩
-        :flying_disc: **⟨vocabulary.texts.mention⟩:** ⟨notifications_twitch.form.steps.notifications.steps.notification.fields.mention.description⟩
+        :flying_disc: **⟨vocabulary.texts.youtuber⟩:** ⟨vocabulary.texts.youtube_channel_name_description⟩
+        :flying_disc: **⟨vocabulary.texts.mention⟩:** ⟨vocabulary.texts.notification_mention_description⟩
         :flying_disc: **⟨vocabulary.texts.roles_i_mention⟩:** ⟨vocabulary.texts.roles_i_mention_description⟩
         :flying_disc: **⟨vocabulary.texts.notification_messages⟩:** ⟨notifications_youtube_video.form.steps.notifications.steps.notification.fields.notification_messages.description⟩
 
@@ -639,7 +639,7 @@ screens:
         - {type: thumbnail, media: KEIKO_BOLO.png}
       - type: section
         children:
-        - {type: text, content: ':busts_in_silhouette: **⟨setup.ui.texts.categories.notifications⟩:** ⟨notifications_twitch.form.steps.notifications.counter: count=«1»; max=«2»⟩'}
+        - {type: text, content: ':busts_in_silhouette: **⟨setup.ui.texts.categories.notifications⟩:** ⟨vocabulary.texts.set_up_counter: count=«1»; max=«2»⟩'}
         - {type: button, label: ⟨buttons.add.label⟩, style: secondary, disabled: false}
       - type: text
         content: |-
@@ -726,19 +726,19 @@ flows:
   - start_command notifications_youtube_video "pt-br":
     - send M1 form.panel
   - click add:
-    - send M2 notification+add
+    - send M2 youtube_channel.notification+add
     - delete M1
   - select channel ["general"]:
-    - edit M2 notification+channel=general
+    - edit M2 youtube_channel.notification+channel=general
   - click customize:youtuber:
-    - modal youtuber
+    - modal youtuber.youtube_channel_name
   - 'modal_submit {"O nome do canal no YouTube (com ou sem @)": "mrbeast"}':
-    - edit M2 notification+modal_submit@manager_add_item
-    - edit M2 notification+modal_submit@manager_add_item#2
+    - edit M2 youtube_channel.notification+modal_submit@manager_add_item
+    - edit M2 youtube_channel.notification+modal_submit@manager_add_item#2
   - click customize:messages:
     - modal notification_messages.random_message_1+customize:messages
   - 'modal_submit {"Mensagem Aleatória #1": "{youtuber} postou: {video_link}"}':
-    - edit M2 notification+modal_submit@manager_add_item#3
+    - edit M2 youtube_channel.notification+modal_submit@manager_add_item#3
   - click done:
     - edit M2 form.panel+done
   manager_disable.pt-br:
@@ -754,19 +754,19 @@ flows:
   - start_command notifications_youtube_video "pt-br":
     - send M1 form.panel
   - click section:notifications$0:
-    - send M2 notification+section:notifications$0
+    - send M2 youtube_channel.notification+section:notifications$0
     - delete M1
   - select channel ["announcements"]:
-    - edit M2 notification+channel=announcements
+    - edit M2 youtube_channel.notification+channel=announcements
   - click customize:youtuber:
-    - modal youtuber+customize:youtuber
+    - modal youtuber.youtube_channel_name+customize:youtuber
   - 'modal_submit {"O nome do canal no YouTube (com ou sem @)": "pewdiepie"}':
-    - edit M2 notification+modal_submit@manager_edit_one_step
-    - edit M2 notification+modal_submit@manager_edit_one_step#2
+    - edit M2 youtube_channel.notification+modal_submit@manager_edit_one_step
+    - edit M2 youtube_channel.notification+modal_submit@manager_edit_one_step#2
   - click customize:messages:
     - modal notification_messages.random_message_1+customize:messages@manager_edit_one_step
   - 'modal_submit {"Mensagem Aleatória #1": "{youtuber} postou: {video_link}"}':
-    - edit M2 notification+modal_submit@manager_edit_one_step#3
+    - edit M2 youtube_channel.notification+modal_submit@manager_edit_one_step#3
   - click done:
     - edit M2 form.panel+done@manager_edit_one_step
   manager_history.pt-br:
@@ -800,43 +800,43 @@ flows:
   - start_command notifications_youtube_video "pt-br":
     - send M1 form
   - click continue:
-    - send M2 notification+continue
+    - send M2 youtube_channel.notification+continue
     - delete M1
   - select channel ["general"]:
-    - edit M2 notification
+    - edit M2 youtube_channel.notification
   - click customize:youtuber:
-    - modal youtuber
+    - modal youtuber.youtube_channel_name
   - 'modal_submit {"O nome do canal no YouTube (com ou sem @)": "pewdiepie"}':
-    - edit M2 notification+modal_submit
-    - edit M2 notification+modal_submit@setup_back
+    - edit M2 youtube_channel.notification+modal_submit
+    - edit M2 youtube_channel.notification+modal_submit@setup_back
   - select channel ["announcements"]:
-    - edit M2 notification+channel=announcements@setup_back
+    - edit M2 youtube_channel.notification+channel=announcements@setup_back
   - click customize:youtuber:
-    - modal youtuber+customize:youtuber
+    - modal youtuber.youtube_channel_name+customize:youtuber
   - 'modal_submit {"O nome do canal no YouTube (com ou sem @)": "mrbeast"}':
-    - edit M2 notification+modal_submit@setup_back#2
-    - edit M2 notification+modal_submit@setup_back#3
+    - edit M2 youtube_channel.notification+modal_submit@setup_back#2
+    - edit M2 youtube_channel.notification+modal_submit@setup_back#3
   setup_cancel_discard.pt-br:
   - start_command notifications_youtube_video "pt-br":
     - send M1 form
   - click continue:
-    - send M2 notification+continue
+    - send M2 youtube_channel.notification+continue
     - delete M1
   - select channel ["general"]:
-    - edit M2 notification
+    - edit M2 youtube_channel.notification
   - click cancel:
     - send M3 discard
   - click Descartar tudo:
-    - edit M2 notification+Descartar_tudo
+    - edit M2 youtube_channel.notification+Descartar_tudo
     - delete M3
   setup_cancel_keep.pt-br:
   - start_command notifications_youtube_video "pt-br":
     - send M1 form
   - click continue:
-    - send M2 notification+continue
+    - send M2 youtube_channel.notification+continue
     - delete M1
   - select channel ["general"]:
-    - edit M2 notification
+    - edit M2 youtube_channel.notification
   - click cancel:
     - send M3 discard
   - click Continuar configurando:
@@ -845,19 +845,19 @@ flows:
   - start_command notifications_youtube_video "en-us":
     - send M1 form
   - click continue:
-    - send M2 notification+continue
+    - send M2 youtube_channel.notification+continue
     - delete M1
   - select channel ["general"]:
-    - edit M2 notification
+    - edit M2 youtube_channel.notification
   - click customize:youtuber:
-    - modal youtuber
+    - modal youtuber.youtube_channel_name
   - 'modal_submit {"The YouTube channel name (with or without @)": "pewdiepie"}':
-    - edit M2 notification+modal_submit
-    - edit M2 notification+modal_submit@setup_back
+    - edit M2 youtube_channel.notification+modal_submit
+    - edit M2 youtube_channel.notification+modal_submit@setup_back
   - click customize:messages:
     - modal notification_messages.random_message_1
   - 'modal_submit {"Random Message #1": "{youtuber} postou: {video_link}"}':
-    - edit M2 notification+modal_submit@setup_happy
+    - edit M2 youtube_channel.notification+modal_submit@setup_happy
   - click done:
     - edit M2 form.review
   - click continue:
@@ -868,19 +868,19 @@ flows:
   - start_command notifications_youtube_video "pt-br":
     - send M1 form
   - click continue:
-    - send M2 notification+continue
+    - send M2 youtube_channel.notification+continue
     - delete M1
   - select channel ["general"]:
-    - edit M2 notification
+    - edit M2 youtube_channel.notification
   - click customize:youtuber:
-    - modal youtuber
+    - modal youtuber.youtube_channel_name
   - 'modal_submit {"O nome do canal no YouTube (com ou sem @)": "pewdiepie"}':
-    - edit M2 notification+modal_submit
-    - edit M2 notification+modal_submit@setup_back
+    - edit M2 youtube_channel.notification+modal_submit
+    - edit M2 youtube_channel.notification+modal_submit@setup_back
   - click customize:messages:
     - modal notification_messages.random_message_1
   - 'modal_submit {"Mensagem Aleatória #1": "{youtuber} postou: {video_link}"}':
-    - edit M2 notification+modal_submit@setup_happy
+    - edit M2 youtube_channel.notification+modal_submit@setup_happy
   - click done:
     - edit M2 form.review
   - click continue:
@@ -891,18 +891,18 @@ flows:
   - start_command notifications_youtube_video "pt-br":
     - send M1 form
   - click continue:
-    - send M2 notification+continue
+    - send M2 youtube_channel.notification+continue
     - delete M1
   - select channel ["general"]:
-    - edit M2 notification
+    - edit M2 youtube_channel.notification
   - click customize:youtuber:
-    - modal youtuber
+    - modal youtuber.youtube_channel_name
   - 'modal_submit {"O nome do canal no YouTube (com ou sem @)": "naoexiste"}':
-    - edit M2 notification+modal_submit
-    - edit M2 notification
+    - edit M2 youtube_channel.notification+modal_submit
+    - edit M2 youtube_channel.notification
     - send M3 youtuber_not_found (delete_after 10)
   - click customize:youtuber:
-    - modal youtuber+customize:youtuber@setup_validation_error_and_recover
+    - modal youtuber.youtube_channel_name+customize:youtuber@setup_validation_error_and_recover
   - 'modal_submit {"O nome do canal no YouTube (com ou sem @)": "pewdiepie"}':
-    - edit M2 notification+modal_submit
-    - edit M2 notification+modal_submit@setup_back
+    - edit M2 youtube_channel.notification+modal_submit
+    - edit M2 youtube_channel.notification+modal_submit@setup_back

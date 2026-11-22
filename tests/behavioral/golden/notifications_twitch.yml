@@ -1,5 +1,5 @@
 screens:
-  form.panel:
+  form.streamers_panel:
     ephemeral: true
     components:
     - type: container
@@ -7,19 +7,19 @@ screens:
       - type: section
         children:
         - {type: text, content: '## ⟨notifications_twitch.form.steps.form.title⟩'}
-        - {type: text, content: ⟨notifications_twitch.form.steps.form.panel.description⟩}
+        - {type: text, content: ⟨vocabulary.texts.streamers_panel_description⟩}
         - {type: thumbnail, media: KEIKO_DEFAULT.png}
       - type: section
         children:
-        - {type: text, content: ':busts_in_silhouette: **⟨setup.ui.texts.categories.notifications⟩:** ⟨notifications_twitch.form.steps.notifications.counter: count=«2»; max=«3»⟩'}
+        - {type: text, content: ':busts_in_silhouette: **⟨setup.ui.texts.categories.notifications⟩:** ⟨vocabulary.texts.set_up_counter: count=«2»; max=«3»⟩'}
         - {type: button, label: ⟨buttons.add.label⟩, style: secondary, disabled: false}
       - type: text
         content: |-
           ### ⟨setup.ui.texts.categories.notifications⟩ #1
           📺 **⟨vocabulary.texts.text_channel⟩:** <#100>
           🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩:** gaules
-          💬 **⟨vocabulary.texts.notification_messages⟩:** ```• {streamer} está ao vivo! {stream_link}```
           📣 **⟨vocabulary.texts.mention⟩:** @everyone
+          💬 **⟨vocabulary.texts.notification_messages⟩:** ```• {streamer} está ao vivo! {stream_link}```
       - type: actionrow
         children:
         - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
@@ -30,8 +30,8 @@ screens:
           ### ⟨setup.ui.texts.categories.notifications⟩ #2
           📺 **⟨vocabulary.texts.text_channel⟩:** <#102>
           🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩:** cellbit
-          💬 **⟨vocabulary.texts.notification_messages⟩:** ```• {streamer} está ao vivo! {stream_link}```
           📣 **⟨vocabulary.texts.mention⟩:** @everyone
+          💬 **⟨vocabulary.texts.notification_messages⟩:** ```• {streamer} está ao vivo! {stream_link}```
       - type: actionrow
         children:
         - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
@@ -56,8 +56,8 @@ screens:
         ### Notificações #1
         📺 **Canal de Texto:** <#100>
         🎮 **Streamer:** gaules
-        💬 **Mensagens de Notificação:** ```• {streamer} está ao vivo! {stream_link}```
         📣 **Mencionar:** @everyone
+        💬 **Mensagens de Notificação:** ```• {streamer} está ao vivo! {stream_link}```
       - Editar
       - Pré-visualizar
       - Remover
@@ -65,8 +65,8 @@ screens:
         ### Notificações #2
         📺 **Canal de Texto:** <#102>
         🎮 **Streamer:** cellbit
-        💬 **Mensagens de Notificação:** ```• {streamer} está ao vivo! {stream_link}```
         📣 **Mencionar:** @everyone
+        💬 **Mensagens de Notificação:** ```• {streamer} está ao vivo! {stream_link}```
       - Editar
       - Pré-visualizar
       - Remover
@@ -76,15 +76,15 @@ screens:
       - Histórico
       - Estatísticas
       - Ajuda
-  form.panel+pause:
-    from: form.panel
+  form.streamers_panel+pause:
+    from: form.streamers_panel
     changes:
     - set components.0.children.0.children.0.content: '## ⟨notifications_twitch.form.steps.form.title⟩ (⟨texts.paused_suffix⟩)'
     - set components.1.children.0.label: ⟨buttons.unpause.label⟩
-  form.panel+continue:
-    from: form.panel
+  form.streamers_panel+continue:
+    from: form.streamers_panel
     changes:
-    - set components.0.children.1.children.0.content: ':busts_in_silhouette: **⟨setup.ui.texts.categories.notifications⟩:** ⟨notifications_twitch.form.steps.notifications.counter: count=«1»; max=«3»⟩'
+    - set components.0.children.1.children.0.content: ':busts_in_silhouette: **⟨setup.ui.texts.categories.notifications⟩:** ⟨vocabulary.texts.set_up_counter: count=«1»; max=«3»⟩'
     - set components.0.children.2.content: |-
         ### ⟨setup.ui.texts.categories.notifications⟩ #1
         📺 **⟨vocabulary.texts.text_channel⟩:** <#100>
@@ -114,10 +114,10 @@ screens:
       - History
       - Statistics
       - Help
-  form.panel+done:
-    from: form.panel
+  form.streamers_panel+done:
+    from: form.streamers_panel
     changes:
-    - set components.0.children.1.children.0.content: ':busts_in_silhouette: **⟨setup.ui.texts.categories.notifications⟩:** ⟨notifications_twitch.form.steps.notifications.counter: count=«3»; max=«3»⟩'
+    - set components.0.children.1.children.0.content: ':busts_in_silhouette: **⟨setup.ui.texts.categories.notifications⟩:** ⟨vocabulary.texts.set_up_counter: count=«3»; max=«3»⟩'
     - set components.0.children.1.children.1.disabled: true
     - add components.0.children.6:
         type: text
@@ -133,8 +133,8 @@ screens:
         - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
         - {type: button, label: ⟨buttons.preview.label⟩, style: secondary, disabled: false}
         - {type: button, label: ⟨buttons.remove.label⟩, style: danger, disabled: false}
-  form.panel+done@manager_edit_one_step:
-    from: form.panel
+  form.streamers_panel+done@manager_edit_one_step:
+    from: form.streamers_panel
     changes:
     - set components.0.children.2.content: |-
         ### ⟨setup.ui.texts.categories.notifications⟩ #1
@@ -142,19 +142,19 @@ screens:
         🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩:** gaules
         📣 **⟨vocabulary.texts.mention⟩:** @everyone
         💬 **⟨vocabulary.texts.notification_messages⟩:** ```• {streamer} entrou ao vivo: {stream_link}```
-  form.panel+remove_items:
-    from: form.panel
+  form.streamers_panel+remove_items:
+    from: form.streamers_panel
     changes:
-    - set components.0.children.1.children.0.content: ':busts_in_silhouette: **⟨setup.ui.texts.categories.notifications⟩:** ⟨notifications_twitch.form.steps.notifications.counter: count=«1»; max=«3»⟩'
+    - set components.0.children.1.children.0.content: ':busts_in_silhouette: **⟨setup.ui.texts.categories.notifications⟩:** ⟨vocabulary.texts.set_up_counter: count=«1»; max=«3»⟩'
     - set components.0.children.2.content: |-
         ### ⟨setup.ui.texts.categories.notifications⟩ #1
         📺 **⟨vocabulary.texts.text_channel⟩:** <#102>
         🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩:** cellbit
-        💬 **⟨vocabulary.texts.notification_messages⟩:** ```• {streamer} está ao vivo! {stream_link}```
         📣 **⟨vocabulary.texts.mention⟩:** @everyone
+        💬 **⟨vocabulary.texts.notification_messages⟩:** ```• {streamer} está ao vivo! {stream_link}```
     - drop components.0.children.3: null
     - drop components.0.children.3: null
-  notification:
+  notification.streamer_card:
     ephemeral: true
     components:
     - type: container
@@ -162,7 +162,7 @@ screens:
       - type: section
         children:
         - {type: text, content: '## 📡 ⟨notifications_twitch.form.steps.notifications.steps.notification.title⟩'}
-        - {type: text, content: ⟨notifications_twitch.form.steps.notifications.steps.notification.description⟩}
+        - {type: text, content: ⟨vocabulary.texts.streamer_card_description⟩}
         - {type: thumbnail, media: KEIKO_DEFAULT.png}
       - type: text
         content: |-
@@ -177,7 +177,7 @@ screens:
           > ⟨texts.empty_value⟩
       - type: actionrow
         children:
-        - {type: button, label: ⟨notifications_twitch.form.steps.notifications.steps.notification.sections.streamer.button.label⟩, style: secondary, disabled: false}
+        - {type: button, label: ⟨vocabulary.texts.choose_streamer⟩, style: secondary, disabled: false}
       - type: text
         content: |-
           📣 **⟨vocabulary.texts.mention⟩**
@@ -198,7 +198,7 @@ screens:
         content: |-
           💬 **⟨vocabulary.texts.notification_messages⟩**
           ⟨notifications_twitch.form.steps.notifications.steps.notification.sections.messages.description⟩
-          ```• ⟨notifications_twitch.form.steps.notifications.steps.notification.defaults.notification_messages⟩```
+          ```• ⟨vocabulary.texts.streamer_live_message⟩```
       - type: actionrow
         children:
         - {type: button, label: ⟨vocabulary.texts.edit_messages⟩, style: secondary, disabled: false}
@@ -209,14 +209,14 @@ screens:
       - {type: button, label: ⟨buttons.done.label⟩, style: success, disabled: false}
       - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
     components_v2: true
-  notification+continue:
-    from: notification
+  notification.streamer_card+continue:
+    from: notification.streamer_card
     changes:
     - set components.0.children.1.content: |-
         📺 **⟨vocabulary.texts.text_channel⟩**
         > ⟨texts.empty_value⟩
-  notification+modal_submit:
-    from: notification
+  notification.streamer_card+modal_submit:
+    from: notification.streamer_card
     changes:
     - set components.0.children.2.children.0.disabled: true
     - set components.0.children.4.children.0.disabled: true
@@ -225,8 +225,8 @@ screens:
     - set components.1.children.0.disabled: true
     - set components.1.children.1.disabled: true
     - set components.1.children.2.disabled: true
-  notification+modal_submit@setup_back:
-    from: notification
+  notification.streamer_card+modal_submit@setup_back:
+    from: notification.streamer_card
     changes:
     - set components.0.children.3.content: |-
         🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩**
@@ -235,9 +235,9 @@ screens:
     - set components.0.children.8.content: |-
         💬 **⟨vocabulary.texts.notification_messages⟩**
         ⟨notifications_twitch.form.steps.notifications.steps.notification.sections.messages.description⟩
-        ```• ⟨notifications_twitch.form.steps.notifications.steps.notification.defaults.notification_messages: stream_link=«https://twitch.tv/gaules»; streamer=«gaules»⟩```
-  notification+modal_submit@setup_happy:
-    from: notification
+        ```• ⟨vocabulary.texts.streamer_live_message: stream_link=«https://twitch.tv/gaules»; streamer=«gaules»⟩```
+  notification.streamer_card+modal_submit@setup_happy:
+    from: notification.streamer_card
     changes:
     - set components.0.children.3.content: |-
         🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩**
@@ -247,8 +247,8 @@ screens:
         💬 **⟨vocabulary.texts.notification_messages⟩**
         ⟨notifications_twitch.form.steps.notifications.steps.notification.sections.messages.description⟩
         ```• {streamer} entrou ao vivo: {stream_link}```
-  notification+add:
-    from: notification
+  notification.streamer_card+add:
+    from: notification.streamer_card
     changes:
     - set components.0.children.1.content: |-
         📺 **⟨vocabulary.texts.text_channel⟩**
@@ -262,8 +262,8 @@ screens:
         ⟨notifications_twitch.form.steps.notifications.steps.notification.sections.messages.description⟩
         ```• {streamer} está ao vivo! {stream_link}```
     - set components.1.children.1.label: ⟨buttons.confirm.label⟩
-  notification+channel=general:
-    from: notification
+  notification.streamer_card+channel=general:
+    from: notification.streamer_card
     changes:
     - set components.0.children.5.content: |-
         📣 **⟨vocabulary.texts.mention⟩**
@@ -274,8 +274,8 @@ screens:
         ⟨notifications_twitch.form.steps.notifications.steps.notification.sections.messages.description⟩
         ```• {streamer} está ao vivo! {stream_link}```
     - set components.1.children.1.label: ⟨buttons.confirm.label⟩
-  notification+modal_submit@manager_add_item:
-    from: notification
+  notification.streamer_card+modal_submit@manager_add_item:
+    from: notification.streamer_card
     changes:
     - set components.0.children.2.children.0.disabled: true
     - set components.0.children.4.children.0.disabled: true
@@ -293,8 +293,8 @@ screens:
     - set components.1.children.1.label: ⟨buttons.confirm.label⟩
     - set components.1.children.1.disabled: true
     - set components.1.children.2.disabled: true
-  notification+modal_submit@manager_add_item#2:
-    from: notification
+  notification.streamer_card+modal_submit@manager_add_item#2:
+    from: notification.streamer_card
     changes:
     - set components.0.children.3.content: |-
         🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩**
@@ -307,10 +307,10 @@ screens:
     - set components.0.children.8.content: |-
         💬 **⟨vocabulary.texts.notification_messages⟩**
         ⟨notifications_twitch.form.steps.notifications.steps.notification.sections.messages.description⟩
-        ```• ⟨notifications_twitch.form.steps.notifications.steps.notification.defaults.notification_messages: stream_link=«https://twitch.tv/shroud»; streamer=«shroud»⟩```
+        ```• ⟨vocabulary.texts.streamer_live_message: stream_link=«https://twitch.tv/shroud»; streamer=«shroud»⟩```
     - set components.1.children.1.label: ⟨buttons.confirm.label⟩
-  notification+modal_submit@manager_add_item#3:
-    from: notification
+  notification.streamer_card+modal_submit@manager_add_item#3:
+    from: notification.streamer_card
     changes:
     - set components.0.children.3.content: |-
         🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩**
@@ -325,8 +325,8 @@ screens:
         ⟨notifications_twitch.form.steps.notifications.steps.notification.sections.messages.description⟩
         ```• {streamer} entrou ao vivo: {stream_link}```
     - set components.1.children.1.label: ⟨buttons.confirm.label⟩
-  notification+section:notifications$0:
-    from: notification
+  notification.streamer_card+section:notifications$0:
+    from: notification.streamer_card
     changes:
     - set components.0.children.3.content: |-
         🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩**
@@ -340,8 +340,8 @@ screens:
         ⟨notifications_twitch.form.steps.notifications.steps.notification.sections.messages.description⟩
         ```• {streamer} está ao vivo! {stream_link}```
     - set components.1.children.1.label: ⟨buttons.confirm.label⟩
-  notification+channel=announcements:
-    from: notification
+  notification.streamer_card+channel=announcements:
+    from: notification.streamer_card
     changes:
     - set components.0.children.1.content: |-
         📺 **⟨vocabulary.texts.text_channel⟩**
@@ -358,8 +358,8 @@ screens:
         ⟨notifications_twitch.form.steps.notifications.steps.notification.sections.messages.description⟩
         ```• {streamer} está ao vivo! {stream_link}```
     - set components.1.children.1.label: ⟨buttons.confirm.label⟩
-  notification+modal_submit@manager_edit_one_step:
-    from: notification
+  notification.streamer_card+modal_submit@manager_edit_one_step:
+    from: notification.streamer_card
     changes:
     - set components.0.children.1.content: |-
         📺 **⟨vocabulary.texts.text_channel⟩**
@@ -383,8 +383,8 @@ screens:
     - set components.1.children.1.label: ⟨buttons.confirm.label⟩
     - set components.1.children.1.disabled: true
     - set components.1.children.2.disabled: true
-  notification+modal_submit@manager_edit_one_step#2:
-    from: notification
+  notification.streamer_card+modal_submit@manager_edit_one_step#2:
+    from: notification.streamer_card
     changes:
     - set components.0.children.1.content: |-
         📺 **⟨vocabulary.texts.text_channel⟩**
@@ -402,8 +402,8 @@ screens:
         ⟨notifications_twitch.form.steps.notifications.steps.notification.sections.messages.description⟩
         ```• gaules está ao vivo! https://twitch.tv/gaules```
     - set components.1.children.1.label: ⟨buttons.confirm.label⟩
-  notification+modal_submit@manager_edit_one_step#3:
-    from: notification
+  notification.streamer_card+modal_submit@manager_edit_one_step#3:
+    from: notification.streamer_card
     changes:
     - set components.0.children.1.content: |-
         📺 **⟨vocabulary.texts.text_channel⟩**
@@ -421,8 +421,8 @@ screens:
         ⟨notifications_twitch.form.steps.notifications.steps.notification.sections.messages.description⟩
         ```• {streamer} entrou ao vivo: {stream_link}```
     - set components.1.children.1.label: ⟨buttons.confirm.label⟩
-  notification+channel=announcements@setup_back:
-    from: notification
+  notification.streamer_card+channel=announcements@setup_back:
+    from: notification.streamer_card
     changes:
     - set components.0.children.1.content: |-
         📺 **⟨vocabulary.texts.text_channel⟩**
@@ -434,9 +434,9 @@ screens:
     - set components.0.children.8.content: |-
         💬 **⟨vocabulary.texts.notification_messages⟩**
         ⟨notifications_twitch.form.steps.notifications.steps.notification.sections.messages.description⟩
-        ```• ⟨notifications_twitch.form.steps.notifications.steps.notification.defaults.notification_messages: stream_link=«https://twitch.tv/gaules»; streamer=«gaules»⟩```
-  notification+modal_submit@setup_back#2:
-    from: notification
+        ```• ⟨vocabulary.texts.streamer_live_message: stream_link=«https://twitch.tv/gaules»; streamer=«gaules»⟩```
+  notification.streamer_card+modal_submit@setup_back#2:
+    from: notification.streamer_card
     changes:
     - set components.0.children.1.content: |-
         📺 **⟨vocabulary.texts.text_channel⟩**
@@ -451,18 +451,18 @@ screens:
     - add components.0.children.5:
         type: actionrow
         children:
-        - {type: button, label: ⟨notifications_twitch.form.steps.notifications.steps.notification.sections.streamer.button.label⟩, style: secondary, disabled: true}
+        - {type: button, label: ⟨vocabulary.texts.choose_streamer⟩, style: secondary, disabled: true}
     - set components.0.children.7.children.0.disabled: true
     - set components.0.children.8.content: |-
         💬 **⟨vocabulary.texts.notification_messages⟩**
         ⟨notifications_twitch.form.steps.notifications.steps.notification.sections.messages.description⟩
-        ```• ⟨notifications_twitch.form.steps.notifications.steps.notification.defaults.notification_messages: stream_link=«https://twitch.tv/gaules»; streamer=«gaules»⟩```
+        ```• ⟨vocabulary.texts.streamer_live_message: stream_link=«https://twitch.tv/gaules»; streamer=«gaules»⟩```
     - set components.0.children.9.children.0.disabled: true
     - set components.1.children.0.disabled: true
     - set components.1.children.1.disabled: true
     - set components.1.children.2.disabled: true
-  notification+modal_submit@setup_back#3:
-    from: notification
+  notification.streamer_card+modal_submit@setup_back#3:
+    from: notification.streamer_card
     changes:
     - set components.0.children.1.content: |-
         📺 **⟨vocabulary.texts.text_channel⟩**
@@ -475,8 +475,8 @@ screens:
         💬 **⟨vocabulary.texts.notification_messages⟩**
         ⟨notifications_twitch.form.steps.notifications.steps.notification.sections.messages.description⟩
         ```• cellbit está ao vivo! https://twitch.tv/cellbit```
-  notification+Descartar_tudo:
-    from: notification
+  notification.streamer_card+Descartar_tudo:
+    from: notification.streamer_card
     changes:
     - drop components.0.children.2: null
     - drop components.0.children.3: null
@@ -500,13 +500,13 @@ screens:
     modal:
       title: 💬 ⟨vocabulary.texts.notification_messages⟩
       fields:
-      - {label: ⟨vocabulary.texts.random_message_1⟩, required: true, style: paragraph, max_length: 100, default: '⟨notifications_twitch.form.steps.notifications.steps.notification.defaults.notification_messages: stream_link=«https://twitch.tv/gaules»; streamer=«gaules»⟩'}
+      - {label: ⟨vocabulary.texts.random_message_1⟩, required: true, style: paragraph, max_length: 100, default: '⟨vocabulary.texts.streamer_live_message: stream_link=«https://twitch.tv/gaules»; streamer=«gaules»⟩'}
       - {label: ⟨vocabulary.texts.random_message_2⟩, required: false, style: paragraph, max_length: 100, default: ''}
       - {label: ⟨vocabulary.texts.random_message_3⟩, required: false, style: paragraph, max_length: 100, default: ''}
   notification_messages.random_message_1+customize:messages:
     from: notification_messages.random_message_1
     changes:
-    - set modal.fields.0.default: '⟨notifications_twitch.form.steps.notifications.steps.notification.defaults.notification_messages: stream_link=«https://twitch.tv/shroud»; streamer=«shroud»⟩'
+    - set modal.fields.0.default: '⟨vocabulary.texts.streamer_live_message: stream_link=«https://twitch.tv/shroud»; streamer=«shroud»⟩'
   notification_messages.random_message_1+customize:messages@manager_edit_one_step:
     from: notification_messages.random_message_1
     changes:
@@ -619,11 +619,11 @@ screens:
 
         :pencil: **⟨texts.settings_heading⟩**
 
-        :flying_disc: **⟨vocabulary.texts.text_channel⟩:** ⟨notifications_twitch.form.steps.notifications.steps.notification.fields.channel.description⟩
+        :flying_disc: **⟨vocabulary.texts.text_channel⟩:** ⟨vocabulary.texts.live_channel_description⟩
         :flying_disc: **⟨notifications_twitch.ui.announcement.fields.streamer⟩:** ⟨notifications_twitch.form.steps.notifications.steps.notification.fields.streamer.description⟩
-        :flying_disc: **⟨vocabulary.texts.mention⟩:** ⟨notifications_twitch.form.steps.notifications.steps.notification.fields.mention.description⟩
+        :flying_disc: **⟨vocabulary.texts.mention⟩:** ⟨vocabulary.texts.notification_mention_description⟩
         :flying_disc: **⟨vocabulary.texts.roles_i_mention⟩:** ⟨vocabulary.texts.roles_i_mention_description⟩
-        :flying_disc: **⟨vocabulary.texts.notification_messages⟩:** ⟨notifications_twitch.form.steps.notifications.steps.notification.fields.notification_messages.description⟩
+        :flying_disc: **⟨vocabulary.texts.notification_messages⟩:** ⟨vocabulary.texts.live_messages_description⟩
 
         -# ⟨vocabulary.fallbacks.footer⟩
       fields: []
@@ -661,7 +661,7 @@ screens:
         - {type: thumbnail, media: KEIKO_BOLO.png}
       - type: section
         children:
-        - {type: text, content: ':busts_in_silhouette: **⟨setup.ui.texts.categories.notifications⟩:** ⟨notifications_twitch.form.steps.notifications.counter: count=«1»; max=«3»⟩'}
+        - {type: text, content: ':busts_in_silhouette: **⟨setup.ui.texts.categories.notifications⟩:** ⟨vocabulary.texts.set_up_counter: count=«1»; max=«3»⟩'}
         - {type: button, label: ⟨buttons.add.label⟩, style: secondary, disabled: false}
       - type: text
         content: |-
@@ -746,26 +746,26 @@ screens:
 flows:
   manager_add_item.pt-br:
   - start_command notifications_twitch "pt-br":
-    - send M1 form.panel
+    - send M1 form.streamers_panel
   - click add:
-    - send M2 notification+add
+    - send M2 notification.streamer_card+add
     - delete M1
   - select channel ["general"]:
-    - edit M2 notification+channel=general
+    - edit M2 notification.streamer_card+channel=general
   - click customize:streamer:
     - modal streamer
   - 'modal_submit {"O nick do streamer na Twitch (com ou sem @)": "shroud"}':
-    - edit M2 notification+modal_submit@manager_add_item
-    - edit M2 notification+modal_submit@manager_add_item#2
+    - edit M2 notification.streamer_card+modal_submit@manager_add_item
+    - edit M2 notification.streamer_card+modal_submit@manager_add_item#2
   - click customize:messages:
     - modal notification_messages.random_message_1+customize:messages
   - 'modal_submit {"Mensagem Aleatória #1": "{streamer} entrou ao vivo: {stream_link}"}':
-    - edit M2 notification+modal_submit@manager_add_item#3
+    - edit M2 notification.streamer_card+modal_submit@manager_add_item#3
   - click done:
-    - edit M2 form.panel+done
+    - edit M2 form.streamers_panel+done
   manager_disable.pt-br:
   - start_command notifications_twitch "pt-br":
-    - send M1 form.panel
+    - send M1 form.streamers_panel
   - click disable:
     - send M2 delete
     - delete M1
@@ -774,91 +774,91 @@ flows:
     - delete M2
   manager_edit_one_step.pt-br:
   - start_command notifications_twitch "pt-br":
-    - send M1 form.panel
+    - send M1 form.streamers_panel
   - click section:notifications$0:
-    - send M2 notification+section:notifications$0
+    - send M2 notification.streamer_card+section:notifications$0
     - delete M1
   - select channel ["announcements"]:
-    - edit M2 notification+channel=announcements
+    - edit M2 notification.streamer_card+channel=announcements
   - click customize:streamer:
     - modal streamer+customize:streamer
   - 'modal_submit {"O nick do streamer na Twitch (com ou sem @)": "gaules"}':
-    - edit M2 notification+modal_submit@manager_edit_one_step
-    - edit M2 notification+modal_submit@manager_edit_one_step#2
+    - edit M2 notification.streamer_card+modal_submit@manager_edit_one_step
+    - edit M2 notification.streamer_card+modal_submit@manager_edit_one_step#2
   - click customize:messages:
     - modal notification_messages.random_message_1+customize:messages@manager_edit_one_step
   - 'modal_submit {"Mensagem Aleatória #1": "{streamer} entrou ao vivo: {stream_link}"}':
-    - edit M2 notification+modal_submit@manager_edit_one_step#3
+    - edit M2 notification.streamer_card+modal_submit@manager_edit_one_step#3
   - click done:
-    - edit M2 form.panel+done@manager_edit_one_step
+    - edit M2 form.streamers_panel+done@manager_edit_one_step
   manager_history.pt-br:
   - start_command notifications_twitch "pt-br":
-    - send M1 form.panel
+    - send M1 form.streamers_panel
   - click history:
     - send M2 screen
     - edit M2 changes.history
   manager_pause.pt-br:
   - start_command notifications_twitch "pt-br":
-    - send M1 form.panel
+    - send M1 form.streamers_panel
   - click pause:
-    - edit M1 form.panel+pause
+    - edit M1 form.streamers_panel+pause
     - send M2 paused (delete_after 5)
   manager_remove_item.pt-br:
   - start_command notifications_twitch "pt-br":
-    - send M1 form.panel
+    - send M1 form.streamers_panel
   - click remove_this:notifications$0:
     - send M2 remove
     - delete M1
   - click remove_items:
-    - send M3 form.panel+remove_items
+    - send M3 form.streamers_panel+remove_items
     - delete M2
   manager_unpause.pt-br:
   - start_command notifications_twitch "pt-br":
-    - send M1 form.panel+pause
+    - send M1 form.streamers_panel+pause
   - click unpause:
-    - edit M1 form.panel
+    - edit M1 form.streamers_panel
     - send M2 unpaused (delete_after 5)
   setup_back.pt-br:
   - start_command notifications_twitch "pt-br":
     - send M1 form
   - click continue:
-    - send M2 notification+continue
+    - send M2 notification.streamer_card+continue
     - delete M1
   - select channel ["general"]:
-    - edit M2 notification
+    - edit M2 notification.streamer_card
   - click customize:streamer:
     - modal streamer
   - 'modal_submit {"O nick do streamer na Twitch (com ou sem @)": "gaules"}':
-    - edit M2 notification+modal_submit
-    - edit M2 notification+modal_submit@setup_back
+    - edit M2 notification.streamer_card+modal_submit
+    - edit M2 notification.streamer_card+modal_submit@setup_back
   - select channel ["announcements"]:
-    - edit M2 notification+channel=announcements@setup_back
+    - edit M2 notification.streamer_card+channel=announcements@setup_back
   - click customize:streamer:
     - modal streamer+customize:streamer
   - 'modal_submit {"O nick do streamer na Twitch (com ou sem @)": "cellbit"}':
-    - edit M2 notification+modal_submit@setup_back#2
-    - edit M2 notification+modal_submit@setup_back#3
+    - edit M2 notification.streamer_card+modal_submit@setup_back#2
+    - edit M2 notification.streamer_card+modal_submit@setup_back#3
   setup_cancel_discard.pt-br:
   - start_command notifications_twitch "pt-br":
     - send M1 form
   - click continue:
-    - send M2 notification+continue
+    - send M2 notification.streamer_card+continue
     - delete M1
   - select channel ["general"]:
-    - edit M2 notification
+    - edit M2 notification.streamer_card
   - click cancel:
     - send M3 discard
   - click Descartar tudo:
-    - edit M2 notification+Descartar_tudo
+    - edit M2 notification.streamer_card+Descartar_tudo
     - delete M3
   setup_cancel_keep.pt-br:
   - start_command notifications_twitch "pt-br":
     - send M1 form
   - click continue:
-    - send M2 notification+continue
+    - send M2 notification.streamer_card+continue
     - delete M1
   - select channel ["general"]:
-    - edit M2 notification
+    - edit M2 notification.streamer_card
   - click cancel:
     - send M3 discard
   - click Continuar configurando:
@@ -867,64 +867,64 @@ flows:
   - start_command notifications_twitch "en-us":
     - send M1 form
   - click continue:
-    - send M2 notification+continue
+    - send M2 notification.streamer_card+continue
     - delete M1
   - select channel ["general"]:
-    - edit M2 notification
+    - edit M2 notification.streamer_card
   - click customize:streamer:
     - modal streamer
   - 'modal_submit {"Streamer''s Twitch nick (with or without @)": "gaules"}':
-    - edit M2 notification+modal_submit
-    - edit M2 notification+modal_submit@setup_back
+    - edit M2 notification.streamer_card+modal_submit
+    - edit M2 notification.streamer_card+modal_submit@setup_back
   - click customize:messages:
     - modal notification_messages.random_message_1
   - 'modal_submit {"Random Message #1": "{streamer} entrou ao vivo: {stream_link}"}':
-    - edit M2 notification+modal_submit@setup_happy
+    - edit M2 notification.streamer_card+modal_submit@setup_happy
   - click done:
     - edit M2 form.review
   - click continue:
     - send M3 enabled
     - delete M2
-    - send M4 form.panel+continue
+    - send M4 form.streamers_panel+continue
   setup_happy.pt-br:
   - start_command notifications_twitch "pt-br":
     - send M1 form
   - click continue:
-    - send M2 notification+continue
+    - send M2 notification.streamer_card+continue
     - delete M1
   - select channel ["general"]:
-    - edit M2 notification
+    - edit M2 notification.streamer_card
   - click customize:streamer:
     - modal streamer
   - 'modal_submit {"O nick do streamer na Twitch (com ou sem @)": "gaules"}':
-    - edit M2 notification+modal_submit
-    - edit M2 notification+modal_submit@setup_back
+    - edit M2 notification.streamer_card+modal_submit
+    - edit M2 notification.streamer_card+modal_submit@setup_back
   - click customize:messages:
     - modal notification_messages.random_message_1
   - 'modal_submit {"Mensagem Aleatória #1": "{streamer} entrou ao vivo: {stream_link}"}':
-    - edit M2 notification+modal_submit@setup_happy
+    - edit M2 notification.streamer_card+modal_submit@setup_happy
   - click done:
     - edit M2 form.review
   - click continue:
     - send M3 enabled
     - delete M2
-    - send M4 form.panel+continue
+    - send M4 form.streamers_panel+continue
   setup_validation_error_and_recover.pt-br:
   - start_command notifications_twitch "pt-br":
     - send M1 form
   - click continue:
-    - send M2 notification+continue
+    - send M2 notification.streamer_card+continue
     - delete M1
   - select channel ["general"]:
-    - edit M2 notification
+    - edit M2 notification.streamer_card
   - click customize:streamer:
     - modal streamer
   - 'modal_submit {"O nick do streamer na Twitch (com ou sem @)": "naoexiste"}':
-    - edit M2 notification+modal_submit
-    - edit M2 notification
+    - edit M2 notification.streamer_card+modal_submit
+    - edit M2 notification.streamer_card
     - send M3 streamer_not_found (delete_after 10)
   - click customize:streamer:
     - modal streamer+customize:streamer@setup_validation_error_and_recover
   - 'modal_submit {"O nick do streamer na Twitch (com ou sem @)": "gaules"}':
-    - edit M2 notification+modal_submit
-    - edit M2 notification+modal_submit@setup_back
+    - edit M2 notification.streamer_card+modal_submit
+    - edit M2 notification.streamer_card+modal_submit@setup_back

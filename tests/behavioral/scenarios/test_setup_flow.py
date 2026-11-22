@@ -197,7 +197,7 @@ async def test_a_category_with_one_page_offers_only_voltar(scenario_factory, dep
     scenario = await _configurar(_admin_scenario(scenario_factory))
     message = scenario.current_message
 
-    await scenario.click(_beside(message, _category("notifications")))
+    await scenario.click(_beside(message, _category("integrations")))
 
     assert not any(_page_note(1, 1) in text for text in _texts(message)), (
         "one page, no count"
@@ -493,16 +493,15 @@ async def test_a_setup_from_configurar_ends_on_its_category_marked_just_turned_o
 async def test_the_ending_opens_the_page_of_its_category_that_holds_the_feature(
     scenario_factory, six_moderations
 ):
-    view = await category_page(
-        GUILD_ID, "moderations", activated="reminders_birthday"
-    )
+    activated = six_moderations[-1][0].key
+    view = await category_page(GUILD_ID, "moderations", activated=activated)
 
     texts = "\n".join(
         item.content for item in locators.walk_items(view)
         if isinstance(item, discord.ui.TextDisplay)
     )
     assert _page_note(2, 2) in texts
-    assert f"{_feature_name('reminders_birthday')} {JUST_TURNED_ON}" in texts
+    assert f"{_feature_name(activated)} {JUST_TURNED_ON}" in texts
 
 
 async def test_the_last_setup_left_ends_on_its_category_then_the_first_page_congratulates(
