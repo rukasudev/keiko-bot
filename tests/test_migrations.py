@@ -539,6 +539,8 @@ def test_the_shipped_files_form_a_clean_plan_from_an_empty_ledger():
         "schema/0004_subscriptions_and_messages",
         "schema/0005_events",
         "schema/0006_analytics_and_traces",
+        "schema/0007_youtube_lives",
+        "schema/0008_kick_lives",
         "data/0001_bot_defaults",
         "data/0002_server_settings",
         "data/0003_cogs_and_keiko",
@@ -957,8 +959,12 @@ def test_a_lapse_report_older_than_the_hub_confirmation_is_not_copied():
     assert states == {"pewdiepie": {"hub_confirmed_at": late}}
 
 
-def test_the_new_homes_are_read_by_id_and_need_no_index():
+def test_the_new_homes_hold_only_the_indexes_their_reads_need():
+    """The accounts Keiko follows are read by `_id` alone; the messages it edits by
+    `_id`, and counted by their command and subject across servers."""
     structure = runner.declared_structure()
 
     assert structure["keiko"]["subscriptions"] == {}
-    assert structure["guild"]["messages"] == {}
+    assert [spec["key"] for spec in structure["guild"]["messages"].values()] == [
+        [["cog", 1], ["subject", 1]]
+    ]

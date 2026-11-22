@@ -235,6 +235,20 @@ def beside(scenario, command_key):
     )
 
 
+async def turn_to(scenario, command_key):
+    """The category's pages turned until the row of `command_key` shows."""
+    following = ml("setup.ui.buttons.next.label", scenario.locale_str)
+    while not any(
+        getattr(row.accessory, "command_key", None) == command_key
+        for row in rows(scenario.current_message.view)
+    ):
+        await scenario.click(next(
+            item
+            for item in walk_items(scenario.current_message.view)
+            if isinstance(item, discord.ui.Button) and item.label == following
+        ))
+
+
 def category_button(scenario, category):
     """The Configurar beside `category`'s row on the first page."""
     name = f"**{ml(f'{TEXTS}.categories.{category}', scenario.locale_str)}**"
@@ -357,10 +371,16 @@ async def test_a_category_page_lists_only_its_features_in_declared_order(
     configured, category
 ):
     """Lucas (PR15 round 4, item 2): birthdays belong to the notifications,
-    while their command stays under /moderações."""
-    shown = [row.accessory.command_key for row in rows(await page(category))]
+    while their command stays under /moderações; read page after page."""
+    declared = in_category(category)
+    pages = -(-len(declared) // ViewConstants.SETUP_PAGE_SIZE)
+    shown = [
+        row.accessory.command_key
+        for number in range(pages)
+        for row in rows(await page(category, number=number))
+    ]
 
-    assert shown == [spec.key for spec in in_category(category)]
+    assert shown == [spec.key for spec in declared]
     assert "reminders_birthday" in [spec.key for spec in in_category("notifications")]
 
 
@@ -534,6 +554,7 @@ async def test_a_birthdays_setup_from_configurar_ends_on_the_notifications(
 ):
     scenario = await configurar(admin(scenario_factory))
     await scenario.click(category_button(scenario, "notifications"))
+    await turn_to(scenario, birthdays.FORM)
     await scenario.click(beside(scenario, birthdays.FORM))
 
     await scenario.confirm()

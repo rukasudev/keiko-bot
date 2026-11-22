@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Mapping, Sequence
 from dataclasses import replace
 from typing import Any
 
@@ -21,6 +21,7 @@ from app.core.commands import (
     message_hooks,
     prefix_hooks,
     reminder_handlers,
+    schedule_handlers,
     view_hooks,
     webhook_handlers,
 )
@@ -96,3 +97,19 @@ def webhook(event: WebhookEvent) -> WebhookReply | None:
         return None
 
     return handler(event)
+
+
+def schedule_kinds() -> tuple[str, ...]:
+    """Every schedule kind a command runs once it is due."""
+    return tuple(schedule_handlers())
+
+
+async def schedules(kind: str, due: Sequence[Mapping[str, Any]]) -> bool:
+    """Hand the due schedules of `kind` to the command owning the kind; False when
+    none does."""
+    handler = schedule_handlers().get(kind)
+    if handler is None:
+        return False
+
+    await handler(due)
+    return True

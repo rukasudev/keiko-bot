@@ -1,8 +1,8 @@
 import hashlib
 import hmac
 import re
-from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Mapping, Optional, Sequence
 from urllib.parse import parse_qs, urlencode, urlsplit
 from xml.etree import ElementTree
 
@@ -36,12 +36,14 @@ class YoutubeAPIError(RequestException):
 
 @dataclass(frozen=True)
 class VideoNotice:
-    """A new or updated video, as the hub's Atom feed announces it."""
+    """A new or updated video, as the hub's Atom feed announces it, with the video
+    YouTube describes once the webhook read it."""
 
     video_id: str
     channel_id: str
     published: str
     updated: str
+    video: Mapping[str, Any] = field(default_factory=dict)
 
 
 def parse_video_notice(body: bytes) -> Optional[VideoNotice]:
@@ -60,6 +62,29 @@ def parse_video_notice(body: bytes) -> Optional[VideoNotice]:
         (entry.findtext(f"{ATOM_NAMESPACE}updated") or "").strip(),
     ]
     return VideoNotice(*fields) if all(fields) else None
+
+
+def video_owner(video: Mapping[str, Any]) -> Optional[str]:
+    """The channel YouTube says a video belongs to."""
+    owner = (video.get("snippet") or {}).get("channelId")
+    return None if owner is None else str(owner)
+
+
+def notice_event(video: Mapping[str, Any]) -> str:
+    """The event a hub notice is, read from its video: a video published, or a live
+    that started, is scheduled or is over (a premiere is a live too)."""
+    details = video.get("liveStreamingDetails")
+    if not details:
+        return "youtube.video.published"
+    if details.get("actualEndTime"):
+        return "youtube.live.ended"
+
+    broadcast = (video.get("snippet") or {}).get("liveBroadcastContent")
+    if broadcast == "live":
+        return "youtube.live.started"
+    if broadcast == "upcoming":
+        return "youtube.live.scheduled"
+    return "youtube.live.ended"
 
 
 def channel_of_topic(topic: Optional[str]) -> str:
@@ -119,9 +144,27 @@ class YoutubeClient:
         return items[0].get("snippet") if items else None
 
     def get_video_info(self, video_id: str) -> Optional[dict]:
-        """The video, with its `id` and `snippet`, or None when YouTube does not show it."""
-        items = self._read_data_api("videos", {"part": "snippet", "id": video_id}).get("items")
+        """The video, with its `id`, `snippet` and, for a live, `liveStreamingDetails`,
+        in one unit, or None when YouTube does not show it."""
+        items = self._read_data_api(
+            "videos", {"part": "snippet,liveStreamingDetails", "id": video_id}
+        ).get("items")
         return items[0] if items else None
+
+    def get_videos_info(self, video_ids: Sequence[str]) -> List[dict]:
+        """Every video of `video_ids` YouTube still shows, with its `snippet` and
+        `liveStreamingDetails`, one unit for each 50 ids."""
+        size = Commands.YOUTUBE_VIDEOS_PER_READ
+        found: List[dict] = []
+        for start in range(0, len(video_ids), size):
+            chunk = ",".join(video_ids[start : start + size])
+            found.extend(
+                self._read_data_api(
+                    "videos", {"part": "snippet,liveStreamingDetails", "id": chunk}
+                ).get("items")
+                or []
+            )
+        return found
 
     def _read_data_api(self, resource: str, params: Dict[str, str]) -> Dict[str, Any]:
         try:

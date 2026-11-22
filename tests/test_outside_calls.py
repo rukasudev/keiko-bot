@@ -31,6 +31,7 @@ from app import integrations
 from app.bot import DiscordBot, discord_latency
 from app.constants import DBConfigs, Dependencies
 from app.core import metrics
+from app.integrations.kick import KickClient
 from app.integrations.notion import NotionIntegration
 from app.integrations.reminders.client import ReminderWebhook
 from app.integrations.stream_elements import StreamElementsClient
@@ -60,6 +61,7 @@ DEFAULT_TIMEOUT = (
     Dependencies.HTTP_READ_TIMEOUT_SECONDS,
 )
 REQUEST_FUNCTIONS = {"get", "post", "put", "delete", "patch", "head", "options", "request"}
+TOKEN_PATHS = ("/oauth2/token", "/oauth/token")
 
 
 def calls(dependency):
@@ -87,7 +89,7 @@ def web(monkeypatch):
     def answer(method):
         def send(url, **options):
             sent.append(SimpleNamespace(method=method, url=url, options=options))
-            if "oauth2/token" in url:
+            if url.endswith(TOKEN_PATHS):
                 return Answer({"access_token": "token", "expires_in": 3600})
             return Answer({"items": [], "data": [], "id": 1}, status=200)
         return send
@@ -104,6 +106,8 @@ def config():
         TWITCH_CLIENT_ID="client-id",
         TWITCH_SECRET="secret",
         TWITCH_HMAC_SECRET="hmac",
+        KICK_CLIENT_ID="kick-client-id",
+        KICK_CLIENT_SECRET="kick-secret",
         YOUTUBE_API_KEY="key",
         YOUTUBE_HUB_SECRET="hub-secret",
         REMINDER_APPLICATION_ID="1",
@@ -157,7 +161,8 @@ def test_a_dependency_keiko_does_not_name_is_refused_before_anything_is_sent(web
     ("notion", lambda bot: NotionIntegration(bot.config).create_report("t", "d", "c", "1", None)),
     ("notion", lambda bot: NotionIntegration(bot.config).update_status("0" * 32, "Resolvido")),
     ("stream_elements", lambda bot: StreamElementsClient().send_chat_command("c", "!mouse")),
-], ids=["twitch", "youtube", "reminders", "notion", "notion-status", "stream_elements"])
+    ("kick", lambda bot: KickClient(bot).channels(["xqcow"])),
+], ids=["twitch", "youtube", "reminders", "notion", "notion-status", "stream_elements", "kick"])
 def test_every_integration_sends_through_the_shared_client(web, config, dependency, call):
     before = calls(dependency)
 
@@ -388,12 +393,16 @@ def test_the_latency_label_is_the_dependency_from_a_closed_list():
     assert metrics.DEPENDENCY_LATENCY._labelnames == ("dependency",)
     assert set(Dependencies.NAMES) >= {
         "mongo", "redis", "discord", "twitch", "youtube", "reminders", "notion", "translate",
+        "kick",
     }
     with pytest.raises(ValueError):
         metrics.record_dependency_latency("guild:1234", 0.1)
 
 
 TWITCH_SECRET = "twitch-client-secret-0042"
+
+
+KICK_SECRET = "kick-client-secret-0042"
 
 
 YOUTUBE_KEY = "AIza-youtube-key-0042"
@@ -412,7 +421,8 @@ NOTION_TOKEN = "notion-token-0042"
 
 
 SECRETS = (
-    TWITCH_SECRET, YOUTUBE_KEY, HUB_SECRET, REMINDERS_KEY, REMINDERS_PASSWORD, NOTION_TOKEN,
+    TWITCH_SECRET, KICK_SECRET, YOUTUBE_KEY, HUB_SECRET, REMINDERS_KEY, REMINDERS_PASSWORD,
+    NOTION_TOKEN,
 )
 
 
@@ -424,8 +434,10 @@ class Web:
 
     def answer(self, method, url, **options):
         self.sent.append(SimpleNamespace(method=method, url=url, options=options))
-        if "oauth2/token" in url:
+        if url.endswith(TOKEN_PATHS):
             return Answer({"access_token": "token", "expires_in": 3600})
+        if "api.kick.com" in url:
+            return Answer({"data": [{"subscription_id": "kick-sub-1"}]})
         if "googleapis" in url:
             return Answer({"items": [{"id": "UC-channel", "snippet": {}}]})
         if "notion" in url:
@@ -464,6 +476,8 @@ def secrets_config():
         TWITCH_CLIENT_ID="twitch-client-id",
         TWITCH_SECRET=TWITCH_SECRET,
         TWITCH_HMAC_SECRET="twitch-hmac",
+        KICK_CLIENT_ID="kick-client-id",
+        KICK_CLIENT_SECRET=KICK_SECRET,
         YOUTUBE_API_KEY=YOUTUBE_KEY,
         YOUTUBE_HUB_SECRET=HUB_SECRET,
         REMINDER_APPLICATION_ID="1",
@@ -492,8 +506,9 @@ def test_the_twitch_secret_travels_in_the_body_of_the_token_request(recording_we
 
     Guaranteed: the Twitch secret is sent in the body of the token request, the YouTube
     key in the `X-Goog-Api-Key` header, and no secret the configuration holds (the
-    Twitch secret, the YouTube key and hub secret, the reminders-api key and password,
-    the Notion token) appears in any URL an integration requests.
+    Twitch secret, the Kick client secret, the YouTube key and hub secret, the
+    reminders-api key and password, the Notion token) appears in any URL an
+    integration requests.
     """
     TwitchClient(SimpleNamespace(config=secrets_config)).authenticate()
 
@@ -520,6 +535,7 @@ def test_no_secret_reaches_a_url_any_integration_requests(recording_web, secrets
     twitch = TwitchClient(bot)
     youtube = YoutubeClient(bot)
     reminders = ReminderWebhook(bot)
+    kick = KickClient(bot)
 
     twitch.get_user_info("gaules")
     twitch.subscribe_to_stream_online_event("123")
@@ -532,9 +548,12 @@ def test_no_secret_reaches_a_url_any_integration_requests(recording_web, secrets
     reminders.delete_reminder("7001")
     NotionIntegration(secrets_config).create_report("title", "description", "command", "1", None)
     NotionIntegration(secrets_config).update_status("0" * 32, "Resolvido")
+    kick.channels(["xqcow"])
+    kick.subscribe_live_status(676)
+    kick.delete_subscription("kick-sub-1")
 
     urls = recording_web.requested_urls()
-    assert len(urls) == 12, "the token request comes first, then every call above"
+    assert len(urls) == 16, "each token request comes first, then every call above"
     leaked = [(secret, url) for url in urls for secret in SECRETS if secret in url]
     assert leaked == []
 

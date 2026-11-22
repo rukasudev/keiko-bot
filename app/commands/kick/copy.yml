@@ -1,0 +1,63 @@
+command:
+  slash:
+    subgroup:
+      en-us: kick
+      pt-br: kick
+    name:
+      en-us: lives
+      pt-br: lives
+    description:
+      en-us: Keiko lets the server know whenever your favorite streamers go live on Kick
+      pt-br: Keiko avisa o servidor sempre que seus streamers favoritos entram ao vivo na Kick
+
+  setup:
+    label:
+      en-us: Kick Lives
+      pt-br: Kick Lives
+    description:
+      en-us: Notifies you when your streamers go live on Kick
+      pt-br: Avisa quando seus streamers entram ao vivo na Kick
+
+  stats:
+    title:
+      en-us: 📊 Kick Lives Statistics
+      pt-br: 📊 Estatísticas de Kick Lives
+    delivered:
+      one:
+        en-us: ✅ I sent 1 live notification in the last $days days!
+        pt-br: ✅ Enviei 1 aviso de live nos últimos $days dias!
+      other:
+        en-us: ✅ I sent $count live notifications in the last $days days!
+        pt-br: ✅ Enviei $count avisos de live nos últimos $days dias!
+
+ui:
+  # open: error names -> an error block
+  errors:
+    preview_needs_streamer:
+      title:
+        en-us: Kick Streamer Required
+        pt-br: Streamer da Kick Obrigatório
+      message:
+        en-us: Oops! You need to pick the Kick streamer before I can show the preview. Pick one on the card and try again! 🐶
+        pt-br: Ops! Você precisa escolher o streamer da Kick antes de eu mostrar a pré-visualização. Escolha um no card e tente de novo! 🐶
+
+  announcement:
+    # open: the value the code gives each field -> its label
+    fields:
+      category:
+        en-us: Category
+        pt-br: Categoria
+      streamer:
+        en-us: Streamer
+        pt-br: Streamer
+    # open: the part each sample stands for -> the sample a preview draws
+    samples:
+      title:
+        en-us: The stream title shows up here
+        pt-br: O título da live aparece aqui
+      category:
+        en-us: The stream category
+        pt-br: A categoria da live
+      description:
+        en-us: Stream description here
+        pt-br: Descrição da live aqui

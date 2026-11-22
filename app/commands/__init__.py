@@ -6,6 +6,7 @@ from app.commands import (
     block_links,
     config,
     help,
+    kick,
     report,
     roles,
     setup,
@@ -15,6 +16,7 @@ from app.commands import (
     twitch,
     welcome,
     youtube,
+    youtube_live,
 )
 from app.core.commands import Command
 
@@ -24,8 +26,10 @@ COMMANDS: tuple[Command, ...] = (
     roles.COMMAND,
     block_links.COMMAND,
     twitch.COMMAND,
+    kick.COMMAND,
     youtube.COMMAND,
     birthdays.COMMAND,
+    youtube_live.COMMAND,
     stream_elements.COMMAND,
     setup.COMMAND,
     report.COMMAND,

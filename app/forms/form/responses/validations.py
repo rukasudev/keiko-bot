@@ -84,7 +84,10 @@ def _registered_and_found(value: Any, context: ValidationContext) -> str | None:
     name = str(value or "")
     if _registered(context.items, params["item"], name):
         return f"{params['error']}_already_registered"
-    if context.external.get(params["service"], {}).get(params["id"]) is None:
+    found = context.external.get(params["service"], {})
+    if found.get("unavailable"):
+        return "generic"
+    if found.get(params["id"]) is None:
         return f"{params['error']}_not_found"
     return None
 

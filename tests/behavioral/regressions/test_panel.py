@@ -12,7 +12,7 @@ from app.core import analytics, journey
 from app.core.utils import ml
 from app.data import data
 from app.forms.features import feature_for
-from tests.behavioral.flows import birthdays, block_links, module_of, twitch
+from tests.behavioral.flows import birthdays, block_links, kick, module_of, twitch, youtube_live
 from tests.behavioral.flows.birthdays import (
     complete_member_card,
 )
@@ -917,3 +917,26 @@ async def test_a_screen_closed_by_another_panels_delete_keeps_no_button(
     assert _clickable(screen) == [], "the list's Add beside its title is gone too"
     assert shown <= _shown_lines(screen), "the screen keeps the text it showed"
     assert ml("texts.notices.closed", locale=LOCALE) in _registered_text(screen)
+
+
+@pytest.mark.parametrize("flow", [twitch, youtube_live, kick], ids=lambda flow: flow.FORM)
+async def test_a_panel_lists_an_items_entries_in_the_forms_order(scenario_factory, deps, flow):
+    """A saved item reads in the order its card declares, whatever order it was stored in.
+
+    Broke as: the panel and the last-item warning listed an item's entries in the order
+    of its stored keys, so a notice whose mention was added after its messages (the
+    0008 notice-mentions migration did that to every saved notice) showed "Mensagens de
+    Notificação" before "Mencionar", while a notice set up through the card showed them
+    the other way (s09, s10, s22 and s23 on the PR12 test page).
+
+    Shared behaviour: `titled_items` (`app/forms/form/responses/summary.py`), which
+    every panel, last-item warning and search result reads a stored item through.
+    Consumers: every list feature's panel (Twitch, YouTube, Kick, birthdays, block links).
+
+    Guaranteed: "Mencionar" comes before "Mensagens de Notificação" on the panel.
+    """
+    scenario = await open_manager(scenario_factory, deps, "pt-br", flow.FORM, flow.seed)
+
+    text = _screen_text(scenario)
+    assert text.index("Mencionar") < text.index("Mensagens de Notificação")
+    await scenario.finish()

@@ -18,6 +18,10 @@ class Messages(Repository):
             {"_id": f"{guild_id}:{channel_id}:{cog}:{subject}"}
         )
 
+    async def count_messages(self, cog: str, subject: str) -> int:
+        """How many messages a cog posted about `subject`, in every server."""
+        return await self._collection.count_documents({"cog": cog, "subject": subject})
+
     async def save_message(
         self, guild_id: Any, channel_id: Any, cog: str, subject: str, message_id: Any
     ) -> None:

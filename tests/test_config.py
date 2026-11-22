@@ -14,6 +14,8 @@ from tests.helpers.config import production_config
 pytestmark = pytest.mark.unit
 
 HEARTBEAT = "/keiko/heartbeat/url"
+KICK_ID = "/keiko/kick/client_id"
+KICK_SECRET = "/keiko/kick/client_secret"
 
 
 def test_a_heartbeat_parameter_never_created_leaves_the_heartbeat_off(monkeypatch):
@@ -35,6 +37,19 @@ def test_production_reads_the_heartbeat_url_from_ssm(monkeypatch):
 
     assert config.HEARTBEAT_URL == f"value of {HEARTBEAT}"
     assert HEARTBEAT in ssm.asked
+
+
+def test_production_reads_the_kick_credentials_from_ssm(monkeypatch):
+    config, _ = production_config(monkeypatch)
+
+    assert config.KICK_CLIENT_ID == f"value of {KICK_ID}"
+    assert config.KICK_CLIENT_SECRET == f"value of {KICK_SECRET}"
+
+
+def test_kick_parameters_never_created_leave_kick_off_and_the_bot_starts(monkeypatch):
+    config, _ = production_config(monkeypatch, missing={KICK_ID, KICK_SECRET})
+
+    assert (config.KICK_CLIENT_ID, config.KICK_CLIENT_SECRET) == ("", "")
 
 
 def test_a_mandatory_parameter_that_is_missing_still_stops_the_boot(monkeypatch):

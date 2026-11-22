@@ -183,12 +183,6 @@ class Announcement(CopyBlock):
         "gives it (a live's game, a video's tags).",
         json_schema_extra={"role": "copy"},
     )
-    states: Open[CopyText] = Field(
-        default_factory=dict,
-        description="The footer line of each state the announcement goes through "
-        "(a live: online, offline, and its duration once over).",
-        json_schema_extra={"role": "copy"},
-    )
     samples: Open[CopyText] = Field(
         default_factory=dict,
         description="The sample a preview draws while there is no real content yet, "

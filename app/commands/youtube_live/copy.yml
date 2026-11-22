@@ -1,0 +1,63 @@
+command:
+  slash:
+    subgroup:
+      en-us: youtube
+      pt-br: youtube
+    name:
+      en-us: lives
+      pt-br: lives
+    description:
+      en-us: Keiko lets the server know when your favorite channels go live on YouTube
+      pt-br: Keiko avisa o servidor quando seus canais favoritos entram ao vivo no YouTube
+
+  setup:
+    label:
+      en-us: YouTube Lives
+      pt-br: YouTube Lives
+    description:
+      en-us: Notifies you when your channels go live on YouTube
+      pt-br: Avisa quando seus canais entram ao vivo no YouTube
+
+  stats:
+    title:
+      en-us: 📊 YouTube Lives Statistics
+      pt-br: 📊 Estatísticas de YouTube Lives
+    delivered:
+      one:
+        en-us: ✅ I sent 1 live notification in the last $days days!
+        pt-br: ✅ Enviei 1 aviso de live nos últimos $days dias!
+      other:
+        en-us: ✅ I sent $count live notifications in the last $days days!
+        pt-br: ✅ Enviei $count avisos de live nos últimos $days dias!
+
+ui:
+  # open: error names -> an error block
+  errors:
+    youtuber_already_registered:
+      title:
+        en-us: Channel Already Registered
+        pt-br: Canal Já Registrado
+      message:
+        en-us: I'm sorry, but this channel's live notifications are already set up on this server. Pick another channel and try again!
+        pt-br: Sinto muito, mas a notificação das lives desse canal já está configurada neste servidor. Escolha outro canal e tente de novo!
+    youtuber_not_found:
+      title:
+        en-us: Channel Not Found
+        pt-br: Canal Não Encontrado
+      message:
+        en-us: I'm sorry, but I couldn't find that channel on YouTube. Check the name and try again!
+        pt-br: Sinto muito, mas não encontrei esse canal no YouTube. Confira o nome e tente de novo!
+    preview_needs_youtuber:
+      title:
+        en-us: YouTube Channel Required
+        pt-br: Canal do YouTube Obrigatório
+      message:
+        en-us: Oops! You need to pick the YouTube channel before I can show the preview. Pick one on the card and try again! 🐶
+        pt-br: Ops! Você precisa escolher o canal do YouTube antes de eu mostrar a pré-visualização. Escolha um no card e tente de novo! 🐶
+
+  announcement:
+    # open: the part each sample stands for -> the sample a preview draws
+    samples:
+      title:
+        en-us: The live title shows up here
+        pt-br: O título da live aparece aqui

@@ -24,6 +24,9 @@ facts:
   documents:
     type: number
     description: How many documents a database backup holds.
+  duration:
+    type: text
+    description: How long a live lasted, formatted for the reader.
   emoji:
     type: text
     description: The emoji of the parent group a line or a title names, as /setup shows it beside the group.
@@ -46,6 +49,10 @@ facts:
   items:
     type: text
     description: The items a removal question names, one bullet each.
+  live_status:
+    type: enum
+    values: [online, offline]
+    description: Whether the live a notice announces is on or over.
   max:
     type: number
     description: The most items a list holds, for the count beside its title.

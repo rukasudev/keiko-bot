@@ -21,6 +21,7 @@ from discord.ext.commands import Bot
 from app import logger
 from app.config import AppConfig
 from app.constants import DBConfigs, Dependencies, LogTypes
+from app.integrations.kick import KickClient
 from app.integrations.notion import NotionIntegration
 from app.integrations.reminders.client import ReminderWebhook
 from app.integrations.twitch.client import TwitchClient
@@ -116,6 +117,7 @@ class DiscordBot(Bot):
         self.notion = NotionIntegration(config)
         self.twitch = TwitchClient(self)
         self.youtube = YoutubeClient(self)
+        self.kick = KickClient(self)
         self.reminder = ReminderWebhook(self)
         self.app_commands: list[app_commands.Command[Any, ..., Any] | app_commands.Group] = []
         self.ready_time: Optional[datetime] = None

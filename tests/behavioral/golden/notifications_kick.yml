@@ -1,0 +1,906 @@
+screens:
+  form.streamers_panel:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - type: section
+        children:
+        - {type: text, content: '## ⟨notifications_kick.form.steps.form.title⟩'}
+        - {type: text, content: ⟨vocabulary.texts.streamers_panel_description⟩}
+        - {type: thumbnail, media: KEIKO_DEFAULT.png}
+      - type: section
+        children:
+        - {type: text, content: ':busts_in_silhouette: **⟨setup.ui.texts.categories.notifications⟩:** ⟨vocabulary.texts.set_up_counter: count=«1»; max=«3»⟩'}
+        - {type: button, label: ⟨buttons.add.label⟩, style: secondary, disabled: false}
+      - type: text
+        content: |-
+          ### ⟨setup.ui.texts.categories.notifications⟩ #1
+          📺 **⟨vocabulary.texts.text_channel⟩:** <#100>
+          🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩:** xqcow
+          📣 **⟨vocabulary.texts.mention⟩:** @everyone
+          💬 **⟨vocabulary.texts.notification_messages⟩:** ```• {streamer} está ao vivo! {stream_link}```
+      - type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+        - {type: button, label: ⟨buttons.preview.label⟩, style: secondary, disabled: false}
+        - {type: button, label: ⟨buttons.remove.label⟩, style: danger, disabled: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.pause.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨buttons.disable.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨buttons.history.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨buttons.stats.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨buttons.help.label⟩, style: secondary, disabled: false}
+    components_v2: true
+    rendered:
+      pt-br:
+      - '## 🟩 Kick Lives'
+      - Aviso no servidor quando estes streamers entram ao vivo.
+      - ':busts_in_silhouette: **Notificações:** 1 de 3 configurados'
+      - Adicionar
+      - |-
+        ### Notificações #1
+        📺 **Canal de Texto:** <#100>
+        🎮 **Streamer:** xqcow
+        📣 **Mencionar:** @everyone
+        💬 **Mensagens de Notificação:** ```• {streamer} está ao vivo! {stream_link}```
+      - Editar
+      - Pré-visualizar
+      - Remover
+      - -# • Use o comando `/reportar` para me contar um bug
+      - Pausar
+      - Desativar
+      - Histórico
+      - Estatísticas
+      - Ajuda
+  form.streamers_panel+pause:
+    from: form.streamers_panel
+    changes:
+    - set components.0.children.0.children.0.content: '## ⟨notifications_kick.form.steps.form.title⟩ (⟨texts.paused_suffix⟩)'
+    - set components.1.children.0.label: ⟨buttons.unpause.label⟩
+  form.streamers_panel+continue:
+    from: form.streamers_panel
+    changes:
+    - set components.0.children.2.content: |-
+        ### ⟨setup.ui.texts.categories.notifications⟩ #1
+        📺 **⟨vocabulary.texts.text_channel⟩:** <#100>
+        🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩:** xqcow
+        📣 **⟨vocabulary.texts.mention⟩:** ⟨vocabulary.texts.mention_everyone⟩
+        💬 **⟨vocabulary.texts.notification_messages⟩:** ```• {streamer} entrou ao vivo na Kick: {stream_link}```
+    rendered:
+      en-us:
+      - '## 🟩 Kick Lives'
+      - I let the server know when these streamers go live.
+      - ':busts_in_silhouette: **Notifications:** 1 of 3 set up'
+      - Add
+      - |-
+        ### Notifications #1
+        📺 **Text Channel:** <#100>
+        🎮 **Streamer:** xqcow
+        📣 **Mention:** @everyone
+        💬 **Notification Messages:** ```• {streamer} entrou ao vivo na Kick: {stream_link}```
+      - Edit
+      - Preview
+      - Remove
+      - -# • Use the `/report` command to tell me a bug
+      - Pause
+      - Disable
+      - History
+      - Statistics
+      - Help
+  form.streamers_panel+done:
+    from: form.streamers_panel
+    changes:
+    - set components.0.children.1.children.0.content: ':busts_in_silhouette: **⟨setup.ui.texts.categories.notifications⟩:** ⟨vocabulary.texts.set_up_counter: count=«2»; max=«3»⟩'
+    - add components.0.children.4:
+        type: text
+        content: |-
+          ### ⟨setup.ui.texts.categories.notifications⟩ #2
+          📺 **⟨vocabulary.texts.text_channel⟩:** <#100>
+          🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩:** amouranth
+          📣 **⟨vocabulary.texts.mention⟩:** @everyone
+          💬 **⟨vocabulary.texts.notification_messages⟩:** ```• {streamer} entrou ao vivo na Kick: {stream_link}```
+    - add components.0.children.5:
+        type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+        - {type: button, label: ⟨buttons.preview.label⟩, style: secondary, disabled: false}
+        - {type: button, label: ⟨buttons.remove.label⟩, style: danger, disabled: false}
+  form.streamers_panel+done@manager_edit_one_step:
+    from: form.streamers_panel
+    changes:
+    - set components.0.children.2.content: |-
+        ### ⟨setup.ui.texts.categories.notifications⟩ #1
+        📺 **⟨vocabulary.texts.text_channel⟩:** <#102>
+        🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩:** xqcow
+        📣 **⟨vocabulary.texts.mention⟩:** @everyone
+        💬 **⟨vocabulary.texts.notification_messages⟩:** ```• {streamer} entrou ao vivo na Kick: {stream_link}```
+  form.streamers_panel+start_command:
+    from: form.streamers_panel
+    changes:
+    - set components.0.children.1.children.0.content: ':busts_in_silhouette: **⟨setup.ui.texts.categories.notifications⟩:** ⟨vocabulary.texts.set_up_counter: count=«2»; max=«3»⟩'
+    - add components.0.children.4:
+        type: text
+        content: |-
+          ### ⟨setup.ui.texts.categories.notifications⟩ #2
+          📺 **⟨vocabulary.texts.text_channel⟩:** <#102>
+          🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩:** adinross
+          📣 **⟨vocabulary.texts.mention⟩:** @everyone
+          💬 **⟨vocabulary.texts.notification_messages⟩:** ```• {streamer} está ao vivo! {stream_link}```
+    - add components.0.children.5:
+        type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+        - {type: button, label: ⟨buttons.preview.label⟩, style: secondary, disabled: false}
+        - {type: button, label: ⟨buttons.remove.label⟩, style: danger, disabled: false}
+  form.streamers_panel+remove_items:
+    from: form.streamers_panel
+    changes:
+    - set components.0.children.2.content: |-
+        ### ⟨setup.ui.texts.categories.notifications⟩ #1
+        📺 **⟨vocabulary.texts.text_channel⟩:** <#102>
+        🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩:** adinross
+        📣 **⟨vocabulary.texts.mention⟩:** @everyone
+        💬 **⟨vocabulary.texts.notification_messages⟩:** ```• {streamer} está ao vivo! {stream_link}```
+  notification.streamer_card:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - type: section
+        children:
+        - {type: text, content: '## 🟩 ⟨notifications_kick.form.steps.notifications.steps.notification.title⟩'}
+        - {type: text, content: ⟨vocabulary.texts.streamer_card_description⟩}
+        - {type: thumbnail, media: KEIKO_DEFAULT.png}
+      - type: text
+        content: |-
+          📺 **⟨vocabulary.texts.text_channel⟩**
+          > <#100>
+      - type: actionrow
+        children:
+        - {type: channel_select, placeholder: ⟨texts.placeholders.channel⟩, min: 1, max: 1, disabled: false}
+      - type: text
+        content: |-
+          🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩**
+          > ⟨texts.empty_value⟩
+      - type: actionrow
+        children:
+        - {type: button, label: ⟨vocabulary.texts.choose_streamer⟩, style: secondary, disabled: false}
+      - type: text
+        content: |-
+          📣 **⟨vocabulary.texts.mention⟩**
+          > ⟨vocabulary.texts.mention_everyone⟩
+      - type: actionrow
+        children:
+        - type: select
+          placeholder: ⟨vocabulary.texts.mention_placeholder⟩
+          min: 1
+          max: 1
+          disabled: false
+          options:
+          - {label: ⟨vocabulary.texts.mention_none⟩, value: none, default: false}
+          - {label: ⟨vocabulary.texts.mention_everyone⟩, value: everyone, default: true}
+          - {label: ⟨vocabulary.texts.mention_here⟩, value: here, default: false}
+          - {label: ⟨vocabulary.texts.mention_roles⟩, value: roles, default: false}
+      - type: text
+        content: |-
+          💬 **⟨vocabulary.texts.notification_messages⟩**
+          ⟨notifications_kick.form.steps.notifications.steps.notification.sections.messages.description⟩
+          ```• ⟨vocabulary.texts.streamer_live_message⟩```
+      - type: actionrow
+        children:
+        - {type: button, label: ⟨vocabulary.texts.edit_messages⟩, style: secondary, disabled: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.preview.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨buttons.done.label⟩, style: success, disabled: false}
+      - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
+    components_v2: true
+  notification.streamer_card+continue:
+    from: notification.streamer_card
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.text_channel⟩**
+        > ⟨texts.empty_value⟩
+  notification.streamer_card+modal_submit:
+    from: notification.streamer_card
+    changes:
+    - set components.0.children.2.children.0.disabled: true
+    - set components.0.children.4.children.0.disabled: true
+    - set components.0.children.6.children.0.disabled: true
+    - set components.0.children.8.children.0.disabled: true
+    - set components.1.children.0.disabled: true
+    - set components.1.children.1.disabled: true
+    - set components.1.children.2.disabled: true
+  notification.streamer_card+modal_submit@setup_back:
+    from: notification.streamer_card
+    changes:
+    - set components.0.children.3.content: |-
+        🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩**
+        > xqcow
+    - set components.0.children.7.content: |-
+        💬 **⟨vocabulary.texts.notification_messages⟩**
+        ⟨notifications_kick.form.steps.notifications.steps.notification.sections.messages.description⟩
+        ```• ⟨vocabulary.texts.streamer_live_message: stream_link=«https://kick.com/xqcow»; streamer=«xqcow»⟩```
+  notification.streamer_card+modal_submit@setup_happy:
+    from: notification.streamer_card
+    changes:
+    - set components.0.children.3.content: |-
+        🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩**
+        > xqcow
+    - set components.0.children.7.content: |-
+        💬 **⟨vocabulary.texts.notification_messages⟩**
+        ⟨notifications_kick.form.steps.notifications.steps.notification.sections.messages.description⟩
+        ```• {streamer} entrou ao vivo na Kick: {stream_link}```
+  notification.streamer_card+add:
+    from: notification.streamer_card
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.text_channel⟩**
+        > ⟨texts.empty_value⟩
+    - set components.0.children.5.content: |-
+        📣 **⟨vocabulary.texts.mention⟩**
+        > @everyone
+    - set components.0.children.6.children.0.options.1.label: '@everyone'
+    - set components.0.children.7.content: |-
+        💬 **⟨vocabulary.texts.notification_messages⟩**
+        ⟨notifications_kick.form.steps.notifications.steps.notification.sections.messages.description⟩
+        ```• {streamer} está ao vivo! {stream_link}```
+    - set components.1.children.1.label: ⟨buttons.confirm.label⟩
+  notification.streamer_card+channel=general:
+    from: notification.streamer_card
+    changes:
+    - set components.0.children.5.content: |-
+        📣 **⟨vocabulary.texts.mention⟩**
+        > @everyone
+    - set components.0.children.6.children.0.options.1.label: '@everyone'
+    - set components.0.children.7.content: |-
+        💬 **⟨vocabulary.texts.notification_messages⟩**
+        ⟨notifications_kick.form.steps.notifications.steps.notification.sections.messages.description⟩
+        ```• {streamer} está ao vivo! {stream_link}```
+    - set components.1.children.1.label: ⟨buttons.confirm.label⟩
+  notification.streamer_card+modal_submit@manager_add_item:
+    from: notification.streamer_card
+    changes:
+    - set components.0.children.2.children.0.disabled: true
+    - set components.0.children.4.children.0.disabled: true
+    - set components.0.children.5.content: |-
+        📣 **⟨vocabulary.texts.mention⟩**
+        > @everyone
+    - set components.0.children.6.children.0.disabled: true
+    - set components.0.children.6.children.0.options.1.label: '@everyone'
+    - set components.0.children.7.content: |-
+        💬 **⟨vocabulary.texts.notification_messages⟩**
+        ⟨notifications_kick.form.steps.notifications.steps.notification.sections.messages.description⟩
+        ```• {streamer} está ao vivo! {stream_link}```
+    - set components.0.children.8.children.0.disabled: true
+    - set components.1.children.0.disabled: true
+    - set components.1.children.1.label: ⟨buttons.confirm.label⟩
+    - set components.1.children.1.disabled: true
+    - set components.1.children.2.disabled: true
+  notification.streamer_card+modal_submit@manager_add_item#2:
+    from: notification.streamer_card
+    changes:
+    - set components.0.children.3.content: |-
+        🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩**
+        > amouranth
+    - set components.0.children.5.content: |-
+        📣 **⟨vocabulary.texts.mention⟩**
+        > @everyone
+    - set components.0.children.6.children.0.options.1.label: '@everyone'
+    - set components.0.children.7.content: |-
+        💬 **⟨vocabulary.texts.notification_messages⟩**
+        ⟨notifications_kick.form.steps.notifications.steps.notification.sections.messages.description⟩
+        ```• ⟨vocabulary.texts.streamer_live_message: stream_link=«https://kick.com/amouranth»; streamer=«amouranth»⟩```
+    - set components.1.children.1.label: ⟨buttons.confirm.label⟩
+  notification.streamer_card+modal_submit@manager_add_item#3:
+    from: notification.streamer_card
+    changes:
+    - set components.0.children.3.content: |-
+        🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩**
+        > amouranth
+    - set components.0.children.5.content: |-
+        📣 **⟨vocabulary.texts.mention⟩**
+        > @everyone
+    - set components.0.children.6.children.0.options.1.label: '@everyone'
+    - set components.0.children.7.content: |-
+        💬 **⟨vocabulary.texts.notification_messages⟩**
+        ⟨notifications_kick.form.steps.notifications.steps.notification.sections.messages.description⟩
+        ```• {streamer} entrou ao vivo na Kick: {stream_link}```
+    - set components.1.children.1.label: ⟨buttons.confirm.label⟩
+  notification.streamer_card+section:notifications$0:
+    from: notification.streamer_card
+    changes:
+    - set components.0.children.3.content: |-
+        🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩**
+        > xqcow
+    - set components.0.children.5.content: |-
+        📣 **⟨vocabulary.texts.mention⟩**
+        > @everyone
+    - set components.0.children.6.children.0.options.1.label: '@everyone'
+    - set components.0.children.7.content: |-
+        💬 **⟨vocabulary.texts.notification_messages⟩**
+        ⟨notifications_kick.form.steps.notifications.steps.notification.sections.messages.description⟩
+        ```• {streamer} está ao vivo! {stream_link}```
+    - set components.1.children.1.label: ⟨buttons.confirm.label⟩
+  notification.streamer_card+channel=announcements:
+    from: notification.streamer_card
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.text_channel⟩**
+        > <#102>
+    - set components.0.children.3.content: |-
+        🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩**
+        > xqcow
+    - set components.0.children.5.content: |-
+        📣 **⟨vocabulary.texts.mention⟩**
+        > @everyone
+    - set components.0.children.6.children.0.options.1.label: '@everyone'
+    - set components.0.children.7.content: |-
+        💬 **⟨vocabulary.texts.notification_messages⟩**
+        ⟨notifications_kick.form.steps.notifications.steps.notification.sections.messages.description⟩
+        ```• {streamer} está ao vivo! {stream_link}```
+    - set components.1.children.1.label: ⟨buttons.confirm.label⟩
+  notification.streamer_card+modal_submit@manager_edit_one_step:
+    from: notification.streamer_card
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.text_channel⟩**
+        > <#102>
+    - set components.0.children.2.children.0.disabled: true
+    - set components.0.children.3.content: |-
+        🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩**
+        > xqcow
+    - set components.0.children.4.children.0.disabled: true
+    - set components.0.children.5.content: |-
+        📣 **⟨vocabulary.texts.mention⟩**
+        > @everyone
+    - set components.0.children.6.children.0.disabled: true
+    - set components.0.children.6.children.0.options.1.label: '@everyone'
+    - set components.0.children.7.content: |-
+        💬 **⟨vocabulary.texts.notification_messages⟩**
+        ⟨notifications_kick.form.steps.notifications.steps.notification.sections.messages.description⟩
+        ```• {streamer} está ao vivo! {stream_link}```
+    - set components.0.children.8.children.0.disabled: true
+    - set components.1.children.0.disabled: true
+    - set components.1.children.1.label: ⟨buttons.confirm.label⟩
+    - set components.1.children.1.disabled: true
+    - set components.1.children.2.disabled: true
+  notification.streamer_card+modal_submit@manager_edit_one_step#2:
+    from: notification.streamer_card
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.text_channel⟩**
+        > <#102>
+    - set components.0.children.3.content: |-
+        🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩**
+        > xqcow
+    - set components.0.children.5.content: |-
+        📣 **⟨vocabulary.texts.mention⟩**
+        > @everyone
+    - set components.0.children.6.children.0.options.1.label: '@everyone'
+    - set components.0.children.7.content: |-
+        💬 **⟨vocabulary.texts.notification_messages⟩**
+        ⟨notifications_kick.form.steps.notifications.steps.notification.sections.messages.description⟩
+        ```• xqcow está ao vivo! https://kick.com/xqcow```
+    - set components.1.children.1.label: ⟨buttons.confirm.label⟩
+  notification.streamer_card+modal_submit@manager_edit_one_step#3:
+    from: notification.streamer_card
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.text_channel⟩**
+        > <#102>
+    - set components.0.children.3.content: |-
+        🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩**
+        > xqcow
+    - set components.0.children.5.content: |-
+        📣 **⟨vocabulary.texts.mention⟩**
+        > @everyone
+    - set components.0.children.6.children.0.options.1.label: '@everyone'
+    - set components.0.children.7.content: |-
+        💬 **⟨vocabulary.texts.notification_messages⟩**
+        ⟨notifications_kick.form.steps.notifications.steps.notification.sections.messages.description⟩
+        ```• {streamer} entrou ao vivo na Kick: {stream_link}```
+    - set components.1.children.1.label: ⟨buttons.confirm.label⟩
+  notification.streamer_card+channel=announcements@setup_back:
+    from: notification.streamer_card
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.text_channel⟩**
+        > <#102>
+    - set components.0.children.3.content: |-
+        🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩**
+        > xqcow
+    - set components.0.children.7.content: |-
+        💬 **⟨vocabulary.texts.notification_messages⟩**
+        ⟨notifications_kick.form.steps.notifications.steps.notification.sections.messages.description⟩
+        ```• ⟨vocabulary.texts.streamer_live_message: stream_link=«https://kick.com/xqcow»; streamer=«xqcow»⟩```
+  notification.streamer_card+modal_submit@setup_back#2:
+    from: notification.streamer_card
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.text_channel⟩**
+        > <#102>
+    - set components.0.children.2.children.0.disabled: true
+    - set components.0.children.3.content: |-
+        🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩**
+        > xqcow
+    - set components.0.children.4.children.0.disabled: true
+    - set components.0.children.6.children.0.disabled: true
+    - set components.0.children.7.content: |-
+        💬 **⟨vocabulary.texts.notification_messages⟩**
+        ⟨notifications_kick.form.steps.notifications.steps.notification.sections.messages.description⟩
+        ```• ⟨vocabulary.texts.streamer_live_message: stream_link=«https://kick.com/xqcow»; streamer=«xqcow»⟩```
+    - set components.0.children.8.children.0.disabled: true
+    - set components.1.children.0.disabled: true
+    - set components.1.children.1.disabled: true
+    - set components.1.children.2.disabled: true
+  notification.streamer_card+modal_submit@setup_back#3:
+    from: notification.streamer_card
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.text_channel⟩**
+        > <#102>
+    - set components.0.children.3.content: |-
+        🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩**
+        > adinross
+    - set components.0.children.7.content: |-
+        💬 **⟨vocabulary.texts.notification_messages⟩**
+        ⟨notifications_kick.form.steps.notifications.steps.notification.sections.messages.description⟩
+        ```• adinross está ao vivo! https://kick.com/adinross```
+  notification.streamer_card+Descartar_tudo:
+    from: notification.streamer_card
+    changes:
+    - drop components.0.children.2: null
+    - drop components.0.children.3: null
+    - drop components.0.children.4: null
+    - drop components.0.children.5: null
+    - drop components.1: null
+  streamer:
+    modal:
+      title: 🎮 ⟨notifications_twitch.ui.announcement.fields.streamer⟩
+      fields:
+      - {label: ⟨notifications_kick.form.steps.notifications.steps.notification.sections.streamer.modal.inputs.streamer.label⟩, required: true, style: short, max_length: 25, default: ''}
+  streamer+customize:streamer:
+    from: streamer
+    changes:
+    - set modal.fields.0.default: xqcow
+  streamer+customize:streamer@setup_validation_error_and_recover:
+    from: streamer
+    changes:
+    - set modal.fields.0.default: naoexiste
+  notification_messages.random_message_1:
+    modal:
+      title: 💬 ⟨vocabulary.texts.notification_messages⟩
+      fields:
+      - {label: ⟨vocabulary.texts.random_message_1⟩, required: true, style: paragraph, max_length: 100, default: '⟨vocabulary.texts.streamer_live_message: stream_link=«https://kick.com/xqcow»; streamer=«xqcow»⟩'}
+      - {label: ⟨vocabulary.texts.random_message_2⟩, required: false, style: paragraph, max_length: 100, default: ''}
+      - {label: ⟨vocabulary.texts.random_message_3⟩, required: false, style: paragraph, max_length: 100, default: ''}
+  notification_messages.random_message_1+customize:messages:
+    from: notification_messages.random_message_1
+    changes:
+    - set modal.fields.0.default: '⟨vocabulary.texts.streamer_live_message: stream_link=«https://kick.com/amouranth»; streamer=«amouranth»⟩'
+  notification_messages.random_message_1+customize:messages@manager_edit_one_step:
+    from: notification_messages.random_message_1
+    changes:
+    - set modal.fields.0.default: xqcow está ao vivo! https://kick.com/xqcow
+  delete:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.delete.title⟩
+      description: '⟨commands.responses.delete.description: command_name=«⟨texts.groups.notifications⟩ ⟨notifications_kick.command.slash.subgroup⟩ ⟨notifications_kick.command.slash.name⟩»⟩'
+      fields: []
+      footer: null
+      color: 16711680
+      thumbnail: null
+      image: null
+    components:
+    - {type: button, label: ⟨buttons.delete_all.label⟩, style: danger, disabled: false}
+    - {type: button, label: ⟨buttons.back.label⟩, style: secondary, disabled: false}
+    components_v2: false
+  disabled:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.disabled.title⟩
+      description: |-
+        ⟨commands.responses.disabled.description: command_name=«⟨texts.groups.notifications⟩ ⟨notifications_kick.command.slash.subgroup⟩ ⟨notifications_kick.command.slash.name⟩»; date=«<t:1767268800:f>»; user=«<@555>»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+  screen:
+    ephemeral: true
+    components:
+    - {type: button, label: '|<', style: success, disabled: false}
+    - {type: button, label: <, style: primary, disabled: false}
+    - {type: button, label: '>', style: primary, disabled: false}
+    - {type: button, label: '>|', style: success, disabled: false}
+    components_v2: false
+  changes.history:
+    ephemeral: true
+    embed:
+      title: ⟨commands.records.changes.title⟩
+      description: '⟨commands.records.history.description: command_name=«⟨texts.groups.notifications⟩ ⟨notifications_kick.command.slash.subgroup⟩ ⟨notifications_kick.command.slash.name⟩»⟩'
+      fields:
+      - {name: 1. ⟨commands.records.history.lines.edited⟩, value: '<@555> · <t:1767263400:f>', inline: false}
+      - {name: 2. ⟨commands.records.history.lines.enabled⟩, value: '<@555> · <t:1767259800:f>', inline: false}
+      footer: • ⟨texts.page⟩ 1 / 1
+      color: 5216249
+      thumbnail: KEIKO_NERD.png
+      image: null
+    components:
+    - {type: button, label: '|<', style: success, disabled: true}
+    - {type: button, label: <, style: primary, disabled: true}
+    - {type: button, label: '>', style: primary, disabled: true}
+    - {type: button, label: '>|', style: success, disabled: true}
+    components_v2: false
+  paused:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.paused.title⟩
+      description: |-
+        ⟨commands.responses.paused.description: command_name=«⟨texts.groups.notifications⟩ ⟨notifications_kick.command.slash.subgroup⟩ ⟨notifications_kick.command.slash.name⟩»; date=«<t:1767268800:f>»; user=«<@555>»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+  remove:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.remove.title⟩
+      description: '⟨commands.responses.remove.description: items=«- xqcow»⟩'
+      fields: []
+      footer: null
+      color: 16711680
+      thumbnail: null
+      image: null
+    components:
+    - {type: button, label: ⟨buttons.remove.label⟩, style: danger, disabled: false}
+    - {type: button, label: ⟨buttons.back.label⟩, style: secondary, disabled: false}
+    components_v2: false
+  unpaused:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.unpaused.title⟩
+      description: |-
+        ⟨commands.responses.unpaused.description: command_name=«⟨texts.groups.notifications⟩ ⟨notifications_kick.command.slash.subgroup⟩ ⟨notifications_kick.command.slash.name⟩»; date=«<t:1767268800:f>»; user=«<@555>»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+  form:
+    ephemeral: true
+    embed:
+      title: ⟨notifications_kick.form.steps.form.title⟩
+      description: |-
+        ⟨notifications_kick.form.steps.form.description⟩
+
+        :pencil: **⟨texts.settings_heading⟩**
+
+        :flying_disc: **⟨vocabulary.texts.text_channel⟩:** ⟨vocabulary.texts.live_channel_description⟩
+        :flying_disc: **⟨notifications_twitch.ui.announcement.fields.streamer⟩:** ⟨notifications_kick.form.steps.notifications.steps.notification.fields.streamer.description⟩
+        :flying_disc: **⟨vocabulary.texts.mention⟩:** ⟨vocabulary.texts.notification_mention_description⟩
+        :flying_disc: **⟨vocabulary.texts.roles_i_mention⟩:** ⟨vocabulary.texts.roles_i_mention_description⟩
+        :flying_disc: **⟨vocabulary.texts.notification_messages⟩:** ⟨vocabulary.texts.live_messages_description⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: KEIKO_DEFAULT.png
+      image: null
+    components:
+    - {type: button, label: ⟨buttons.confirm.label⟩, style: success, disabled: false}
+    - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
+    components_v2: false
+  discard:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.discard.title⟩
+      description: ⟨commands.responses.discard.description⟩
+      fields: []
+      footer: null
+      color: 16711680
+      thumbnail: null
+      image: null
+    components:
+    - {type: button, label: ⟨buttons.keep.label⟩, style: secondary, disabled: false}
+    - {type: button, label: ⟨buttons.discard.label⟩, style: danger, disabled: false}
+    components_v2: false
+  form.review:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - type: section
+        children:
+        - {type: text, content: '## ⟨notifications_kick.form.steps.form.title⟩'}
+        - {type: text, content: '⟨vocabulary.fallbacks.review_description: command=«⟨texts.groups.notifications⟩ ⟨notifications_kick.command.slash.subgroup⟩ ⟨notifications_kick.command.slash.name⟩»⟩'}
+        - {type: thumbnail, media: KEIKO_BOLO.png}
+      - type: section
+        children:
+        - {type: text, content: ':busts_in_silhouette: **⟨setup.ui.texts.categories.notifications⟩:** ⟨vocabulary.texts.set_up_counter: count=«1»; max=«3»⟩'}
+        - {type: button, label: ⟨buttons.add.label⟩, style: secondary, disabled: false}
+      - type: text
+        content: |-
+          ### ⟨setup.ui.texts.categories.notifications⟩ #1
+          📺 **⟨vocabulary.texts.text_channel⟩:** <#100>
+          🎮 **⟨notifications_twitch.ui.announcement.fields.streamer⟩:** xqcow
+          📣 **⟨vocabulary.texts.mention⟩:** ⟨vocabulary.texts.mention_everyone⟩
+          💬 **⟨vocabulary.texts.notification_messages⟩:** ```• {streamer} entrou ao vivo na Kick: {stream_link}```
+      - type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+        - {type: button, label: ⟨buttons.preview.label⟩, style: secondary, disabled: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.confirm.label⟩, style: success, disabled: false}
+      - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
+    components_v2: true
+    rendered:
+      en-us:
+      - '## 🟩 Kick Lives'
+      - Here's a summary of your choices so far. All set for me to turn on the `/notifications kick lives` command with the settings below? ✅
+      - ':busts_in_silhouette: **Notifications:** 1 of 3 set up'
+      - Add
+      - |-
+        ### Notifications #1
+        📺 **Text Channel:** <#100>
+        🎮 **Streamer:** xqcow
+        📣 **Mention:** @everyone
+        💬 **Notification Messages:** ```• {streamer} entrou ao vivo na Kick: {stream_link}```
+      - Edit
+      - Preview
+      - -# • Use the `/report` command to tell me a bug
+      - Confirm
+      - Cancel
+      pt-br:
+      - '## 🟩 Kick Lives'
+      - Esse é o resumo das suas escolhas até aqui. Tudo certo para eu ativar o comando `/notificações kick lives` com as configurações abaixo? ✅
+      - ':busts_in_silhouette: **Notificações:** 1 de 3 configurados'
+      - Adicionar
+      - |-
+        ### Notificações #1
+        📺 **Canal de Texto:** <#100>
+        🎮 **Streamer:** xqcow
+        📣 **Mencionar:** @everyone
+        💬 **Mensagens de Notificação:** ```• {streamer} entrou ao vivo na Kick: {stream_link}```
+      - Editar
+      - Pré-visualizar
+      - -# • Use o comando `/reportar` para me contar um bug
+      - Confirmar
+      - Cancelar
+  enabled:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.enabled.title⟩
+      description: |-
+        ⟨commands.responses.enabled.description: command_name=«⟨texts.groups.notifications⟩ ⟨notifications_kick.command.slash.subgroup⟩ ⟨notifications_kick.command.slash.name⟩»; date=«<t:1767268800:f>»; user=«<@555>»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+  streamer_not_found:
+    ephemeral: true
+    embed:
+      title: 🚨 ⟨errors.streamer_not_found.title⟩
+      description: |-
+        ⟨errors.streamer_not_found.message⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 16711680
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+flows:
+  manager_add_item.pt-br:
+  - start_command notifications_kick "pt-br":
+    - send M1 form.streamers_panel
+  - click add:
+    - send M2 notification.streamer_card+add
+    - delete M1
+  - select channel ["general"]:
+    - edit M2 notification.streamer_card+channel=general
+  - click customize:streamer:
+    - modal streamer
+  - 'modal_submit {"O nome do streamer na Kick": "amouranth"}':
+    - edit M2 notification.streamer_card+modal_submit@manager_add_item
+    - edit M2 notification.streamer_card+modal_submit@manager_add_item#2
+  - click customize:messages:
+    - modal notification_messages.random_message_1+customize:messages
+  - 'modal_submit {"Mensagem Aleatória #1": "{streamer} entrou ao vivo na Kick: {stream_link}"}':
+    - edit M2 notification.streamer_card+modal_submit@manager_add_item#3
+  - click done:
+    - edit M2 form.streamers_panel+done
+  manager_disable.pt-br:
+  - start_command notifications_kick "pt-br":
+    - send M1 form.streamers_panel
+  - click disable:
+    - send M2 delete
+    - delete M1
+  - click delete_all:
+    - send M3 disabled
+    - delete M2
+  manager_edit_one_step.pt-br:
+  - start_command notifications_kick "pt-br":
+    - send M1 form.streamers_panel
+  - click section:notifications$0:
+    - send M2 notification.streamer_card+section:notifications$0
+    - delete M1
+  - select channel ["announcements"]:
+    - edit M2 notification.streamer_card+channel=announcements
+  - click customize:streamer:
+    - modal streamer+customize:streamer
+  - 'modal_submit {"O nome do streamer na Kick": "xqcow"}':
+    - edit M2 notification.streamer_card+modal_submit@manager_edit_one_step
+    - edit M2 notification.streamer_card+modal_submit@manager_edit_one_step#2
+  - click customize:messages:
+    - modal notification_messages.random_message_1+customize:messages@manager_edit_one_step
+  - 'modal_submit {"Mensagem Aleatória #1": "{streamer} entrou ao vivo na Kick: {stream_link}"}':
+    - edit M2 notification.streamer_card+modal_submit@manager_edit_one_step#3
+  - click done:
+    - edit M2 form.streamers_panel+done@manager_edit_one_step
+  manager_history.pt-br:
+  - start_command notifications_kick "pt-br":
+    - send M1 form.streamers_panel
+  - click history:
+    - send M2 screen
+    - edit M2 changes.history
+  manager_pause.pt-br:
+  - start_command notifications_kick "pt-br":
+    - send M1 form.streamers_panel
+  - click pause:
+    - edit M1 form.streamers_panel+pause
+    - send M2 paused (delete_after 5)
+  manager_remove_item.pt-br:
+  - start_command notifications_kick "pt-br":
+    - send M1 form.streamers_panel+start_command
+  - click remove_this:notifications$0:
+    - send M2 remove
+    - delete M1
+  - click remove_items:
+    - send M3 form.streamers_panel+remove_items
+    - delete M2
+  manager_unpause.pt-br:
+  - start_command notifications_kick "pt-br":
+    - send M1 form.streamers_panel+pause
+  - click unpause:
+    - edit M1 form.streamers_panel
+    - send M2 unpaused (delete_after 5)
+  setup_back.pt-br:
+  - start_command notifications_kick "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 notification.streamer_card+continue
+    - delete M1
+  - select channel ["general"]:
+    - edit M2 notification.streamer_card
+  - click customize:streamer:
+    - modal streamer
+  - 'modal_submit {"O nome do streamer na Kick": "xqcow"}':
+    - edit M2 notification.streamer_card+modal_submit
+    - edit M2 notification.streamer_card+modal_submit@setup_back
+  - select channel ["announcements"]:
+    - edit M2 notification.streamer_card+channel=announcements@setup_back
+  - click customize:streamer:
+    - modal streamer+customize:streamer
+  - 'modal_submit {"O nome do streamer na Kick": "adinross"}':
+    - edit M2 notification.streamer_card+modal_submit@setup_back#2
+    - edit M2 notification.streamer_card+modal_submit@setup_back#3
+  setup_cancel_discard.pt-br:
+  - start_command notifications_kick "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 notification.streamer_card+continue
+    - delete M1
+  - select channel ["general"]:
+    - edit M2 notification.streamer_card
+  - click cancel:
+    - send M3 discard
+  - click Descartar tudo:
+    - edit M2 notification.streamer_card+Descartar_tudo
+    - delete M3
+  setup_cancel_keep.pt-br:
+  - start_command notifications_kick "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 notification.streamer_card+continue
+    - delete M1
+  - select channel ["general"]:
+    - edit M2 notification.streamer_card
+  - click cancel:
+    - send M3 discard
+  - click Continuar configurando:
+    - delete M3
+  setup_happy.en-us:
+  - start_command notifications_kick "en-us":
+    - send M1 form
+  - click continue:
+    - send M2 notification.streamer_card+continue
+    - delete M1
+  - select channel ["general"]:
+    - edit M2 notification.streamer_card
+  - click customize:streamer:
+    - modal streamer
+  - 'modal_submit {"The streamer''s name on Kick": "xqcow"}':
+    - edit M2 notification.streamer_card+modal_submit
+    - edit M2 notification.streamer_card+modal_submit@setup_back
+  - click customize:messages:
+    - modal notification_messages.random_message_1
+  - 'modal_submit {"Random Message #1": "{streamer} entrou ao vivo na Kick: {stream_link}"}':
+    - edit M2 notification.streamer_card+modal_submit@setup_happy
+  - click done:
+    - edit M2 form.review
+  - click continue:
+    - send M3 enabled
+    - delete M2
+    - send M4 form.streamers_panel+continue
+  setup_happy.pt-br:
+  - start_command notifications_kick "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 notification.streamer_card+continue
+    - delete M1
+  - select channel ["general"]:
+    - edit M2 notification.streamer_card
+  - click customize:streamer:
+    - modal streamer
+  - 'modal_submit {"O nome do streamer na Kick": "xqcow"}':
+    - edit M2 notification.streamer_card+modal_submit
+    - edit M2 notification.streamer_card+modal_submit@setup_back
+  - click customize:messages:
+    - modal notification_messages.random_message_1
+  - 'modal_submit {"Mensagem Aleatória #1": "{streamer} entrou ao vivo na Kick: {stream_link}"}':
+    - edit M2 notification.streamer_card+modal_submit@setup_happy
+  - click done:
+    - edit M2 form.review
+  - click continue:
+    - send M3 enabled
+    - delete M2
+    - send M4 form.streamers_panel+continue
+  setup_validation_error_and_recover.pt-br:
+  - start_command notifications_kick "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 notification.streamer_card+continue
+    - delete M1
+  - select channel ["general"]:
+    - edit M2 notification.streamer_card
+  - click customize:streamer:
+    - modal streamer
+  - 'modal_submit {"O nome do streamer na Kick": "naoexiste"}':
+    - edit M2 notification.streamer_card+modal_submit
+    - edit M2 notification.streamer_card
+    - send M3 streamer_not_found (delete_after 10)
+  - click customize:streamer:
+    - modal streamer+customize:streamer@setup_validation_error_and_recover
+  - 'modal_submit {"O nome do streamer na Kick": "xqcow"}':
+    - edit M2 notification.streamer_card+modal_submit
+    - edit M2 notification.streamer_card+modal_submit@setup_back

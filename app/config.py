@@ -69,6 +69,8 @@ class AppConfig:
         self.TWITCH_CLIENT_ID = os.getenv("TWITCH_CLIENT_ID")
         self.TWITCH_SECRET = os.getenv("TWITCH_SECRET")
         self.TWITCH_HMAC_SECRET = os.getenv("TWITCH_HMAC_SECRET")
+        self.KICK_CLIENT_ID = os.getenv("KICK_CLIENT_ID", "")
+        self.KICK_CLIENT_SECRET = os.getenv("KICK_CLIENT_SECRET", "")
         self.REDIS_URL = os.getenv("REDIS_URL")
         self.APPLICATION_ID = os.getenv("APPLICATION_ID")
         self.NOTION_TOKEN = os.getenv("NOTION_TOKEN")
@@ -103,6 +105,8 @@ class AppConfig:
         self.TWITCH_HMAC_SECRET = ssm.get_parameter(Name="/keiko/twitch/hmac_secret", WithDecryption=True)["Parameter"][
             "Value"
         ]
+        self.KICK_CLIENT_ID = self.get_optional_parameter(ssm, "/keiko/kick/client_id")
+        self.KICK_CLIENT_SECRET = self.get_optional_parameter(ssm, "/keiko/kick/client_secret")
         self.YOUTUBE_API_KEY = ssm.get_parameter(Name="/keiko/youtube/api_key", WithDecryption=True)["Parameter"]["Value"]
         try:
             self.YOUTUBE_HUB_SECRET = ssm.get_parameter(Name="/keiko/youtube/hub_secret", WithDecryption=True)[

@@ -15,7 +15,7 @@ from app.commands.admin.groups.configs import Configs
 from app.commands.admin.log_inspection import LogInspectionView
 from app.commands.birthdays.service import birthday_schedule_id
 from app.commands.config.service import update_status
-from app.commands.youtube.service import youtube_renewal_id
+from app.integrations.youtube.hub import youtube_renewal_id
 from app.config import AppConfig
 from app.core import analytics
 from app.core.commands import command_for

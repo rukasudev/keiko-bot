@@ -23,6 +23,8 @@ from tests.mocks.twitch import (
     UserInfo,
 )
 
+from tests.mocks.kick import MockKickAPI
+
 from tests.mocks.youtube import (
     MockYouTubeAPI,
     VideoInfo,
@@ -52,6 +54,8 @@ __all__ = [
     "MockTwitchAPI",
     "StreamInfo",
     "UserInfo",
+    # Kick
+    "MockKickAPI",
     # YouTube
     "MockYouTubeAPI",
     "VideoInfo",

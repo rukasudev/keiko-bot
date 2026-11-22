@@ -5,8 +5,7 @@ however slow reminders-api is; and removing a youtuber or turning YouTube off ne
 on YouTube."""
 import asyncio
 import base64
-import hashlib
-import hmac
+import importlib
 import logging
 import signal
 import traceback
@@ -15,7 +14,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from time import sleep
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
-from urllib.parse import parse_qsl, urlencode, urlsplit
+from urllib.parse import parse_qsl, urlsplit
 from zoneinfo import ZoneInfo
 
 import discord
@@ -25,23 +24,13 @@ import requests
 from botocore.exceptions import ClientError
 
 from app import config as config_module
-from app import integrations
 from app import logger as logger_module
-from app.commands.youtube import service as notifications_youtube_video
-from app.commands.youtube.service import (
-    HubAnswer,
-    HubOutcome,
-    ask_the_hub,
-    ensure_renewal,
-    find_reminder_by_id,
-    find_reminder_by_value,
-    insert_renewal_reminder,
-    renew_youtube_subscription,
-)
 from app.constants import Commands, DBConfigs
 from app.core import trace as trace_service
+from app.core.commands import Command, commands
 from app.core.utils import ml
 from app.data import bind_loop, data
+from app.forms.features.subscriptions import SubscriptionFeature
 from app.integrations import http as api_config
 from app.integrations.http import create_api
 from app.integrations.reminders import client as reminder_webhook
@@ -51,7 +40,17 @@ from app.integrations.reminders.client import (
     ReminderWebhook,
 )
 from app.integrations.youtube import client as youtube_integration
-from app.integrations.youtube.client import YoutubeClient
+from app.integrations.youtube import hub as youtube_hub
+from app.integrations.youtube.hub import (
+    HubAnswer,
+    HubOutcome,
+    ask_the_hub,
+    ensure_renewal,
+    find_reminder_by_id,
+    find_reminder_by_value,
+    insert_renewal_reminder,
+    renew_youtube_subscription,
+)
 from tests.behavioral.flows.common import GUILD_ID, open_manager, remove_item
 from tests.behavioral.flows.youtube import (
     FORM,
@@ -63,6 +62,22 @@ from tests.behavioral.flows.youtube import (
     submit_youtuber,
 )
 from tests.generators.moderations import recorded_server, seed_cog
+from tests.helpers.youtube import (
+    API_KEY,
+    MRBEAST,
+    PEWDIEPIE,
+    SECRET,
+    TOPIC,
+    URL,
+    WEBHOOK_URL,
+    atom,
+    callback,
+    notify,
+    on_fake_google,
+    settle,
+    sign,
+    token_of,
+)
 from tests.mocks.discord import create_guild
 
 pytestmark = [
@@ -71,15 +86,8 @@ pytestmark = [
     pytest.mark.shared_contract("webhooks"),
 ]
 
-URL = "/v1/webhooks/youtube"
-WEBHOOK_URL = "https://keiko.test/v1/webhooks"
-SECRET = "hub-secret-for-tests"
-API_KEY = "AIza-keiko-test-api-key-0042"
 HUB_SECRET_PARAMETER = "/keiko/youtube/hub_secret"
-PEWDIEPIE = "UC-lHJZR3Gqxm24_Vd_AJ5Yw"
-MRBEAST = "UCX6OQ3DkcsbYNE6H8uQQuVA"
 STRANGER = "UC-stranger-channel-0000"
-TOPIC = "https://www.youtube.com/xml/feeds/videos.xml?channel_id={}"
 VIDEO_LINK = "https://www.youtube.com/watch?v=video-1"
 CLAIM = "claim:youtube:video:video-1"
 HOSTILE_BODY = (
@@ -90,67 +98,6 @@ QUOTA_EXCEEDED = (403, {"error": {
     "message": "The request cannot be completed because you have exceeded your quota.",
     "errors": [{"reason": "quotaExceeded"}],
 }})
-
-
-class FakeGoogle:
-    """YouTube's Data API and its WebSub hub, answered from memory."""
-
-    def __init__(self):
-        self.channels = {
-            PEWDIEPIE: {"customUrl": "@pewdiepie", "title": "PewDiePie"},
-            MRBEAST: {"customUrl": "@mrbeast", "title": "MrBeast"},
-        }
-        self.videos = {}
-        self.hub_posts = []
-        self.hub_statuses = {}
-        self.timeouts = []
-        self.outages = {}
-        self.errors = {}
-
-    def get(self, url, params=None, timeout=None, **kwargs):
-        self.timeouts.append(timeout)
-        query = dict(parse_qsl(urlsplit(url).query))
-        query.update(params or {})
-        path = urlsplit(url).path
-        endpoint = path.rsplit("/", 1)[-1]
-        if self.outages.get(endpoint):
-            self.outages[endpoint] -= 1
-            raise requests.ConnectionError(
-                "HTTPSConnectionPool(host='www.googleapis.com', port=443): Max retries exceeded "
-                f"with url: {path}?{urlencode(query)} "
-                "(Caused by NewConnectionError('Failed to establish a new connection'))"
-            )
-        if endpoint in self.errors:
-            status, answer = self.errors[endpoint]
-            return SimpleNamespace(status_code=status, json=lambda: answer)
-
-        if endpoint == "videos":
-            owner = self.videos.get(query.get("id"))
-            snippet = {"title": "A new video", "channelId": owner, "description": "Hi"}
-            items = [{"id": query.get("id"), "snippet": snippet}] if owner else []
-        elif "forHandle" in query:
-            handle = f"@{query['forHandle']}".lower()
-            items = [
-                {"id": channel_id}
-                for channel_id, snippet in self.channels.items()
-                if snippet["customUrl"] == handle
-            ]
-        else:
-            snippet = self.channels.get(query.get("id"))
-            items = [{"id": query.get("id"), "snippet": snippet}] if snippet else []
-        return SimpleNamespace(status_code=200, json=lambda: {"items": items})
-
-    def post(self, url, data=None, timeout=None, **kwargs):
-        self.timeouts.append(timeout)
-        self.hub_posts.append(dict(data or {}))
-        if self.outages.get("hub"):
-            self.outages["hub"] -= 1
-            raise requests.Timeout(
-                "the hub did not answer in 10 s",
-                request=SimpleNamespace(body=urlencode(data or {})),
-            )
-        topic = (data or {}).get("hub.topic")
-        return SimpleNamespace(status_code=self.hub_statuses.get(topic, 202))
 
 
 class FakeSSM:
@@ -181,23 +128,11 @@ def traces():
 @pytest.fixture
 async def hub(deps, monkeypatch, traces):
     """The real API app, YouTube client and fan-out, with Google answered from memory."""
-    google = FakeGoogle()
-    monkeypatch.setattr(integrations, "requests", google)
-    deps.bot.config.WEBHOOK_URL = WEBHOOK_URL
-    deps.bot.config.YOUTUBE_API_KEY = API_KEY
-    deps.bot.config.YOUTUBE_HUB_SECRET = SECRET
-    deps.bot.config.is_dev = lambda: False
-    deps.bot.youtube = YoutubeClient(deps.bot)
-    deps.bot.loop = asyncio.get_running_loop()
+    google = on_fake_google(deps, monkeypatch)
     follow(deps, deps.guild.id, "pewdiepie")
 
     return SimpleNamespace(
-        client=create_api("dev").test_client(),
-        google=google,
-        youtube=deps.bot.youtube,
-        config=deps.bot.config,
-        channel=deps.guild.text_channels[0],
-        traces=traces,
+        **vars(google), channel=deps.guild.text_channels[0], traces=traces
     )
 
 
@@ -222,51 +157,6 @@ def follow(deps, guild_id, *youtubers, enabled=True):
             for youtuber in youtubers
         ]},
     })
-
-
-def atom(video_id="video-1", channel_id=PEWDIEPIE, edited_after=timedelta(minutes=1)):
-    published = datetime.now(timezone.utc).replace(microsecond=0)
-    updated = published + edited_after
-    return f"""<?xml version='1.0' encoding='UTF-8'?>
-<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns="http://www.w3.org/2005/Atom">
-  <link rel="hub" href="https://pubsubhubbub.appspot.com"/>
-  <link rel="self" href="{TOPIC.format(channel_id)}"/>
-  <title>YouTube video feed</title>
-  <updated>{updated.isoformat()}</updated>
-  <entry>
-    <id>yt:video:{video_id}</id>
-    <yt:videoId>{video_id}</yt:videoId>
-    <yt:channelId>{channel_id}</yt:channelId>
-    <title>A new video</title>
-    <link rel="alternate" href="https://www.youtube.com/watch?v={video_id}"/>
-    <author><name>PewDiePie</name></author>
-    <published>{published.isoformat()}</published>
-    <updated>{updated.isoformat()}</updated>
-  </entry>
-</feed>""".encode()
-
-
-def sign(body, secret=SECRET, method="sha1"):
-    return f"{method}={hmac.new(secret.encode(), body, getattr(hashlib, method)).hexdigest()}"
-
-
-def token_of(channel_id, secret=SECRET):
-    """The callback token of a channel: HMAC-SHA256 of the hub secret, 32 hex characters."""
-    message = f"youtube-callback:{channel_id}".encode()
-    return hmac.new(secret.encode(), message, hashlib.sha256).hexdigest()[:32]
-
-
-def callback(channel_id):
-    """The path and query of the callback Keiko gives the hub for a channel."""
-    return f"{URL}?token={token_of(channel_id)}"
-
-
-def notify(hub, body, signature=None, url=None):
-    """A delivery to a callback, by default the one Keiko gives the hub for PewDiePie."""
-    headers = {"Content-Type": "application/atom+xml"}
-    if signature is not None:
-        headers["X-Hub-Signature"] = signature
-    return hub.client.post(url or callback(PEWDIEPIE), data=body, headers=headers)
 
 
 def verify(hub, mode, topic, challenge="hub-challenge", url=URL, extra=None):
@@ -312,14 +202,6 @@ def logged_text(caplog, traces):
     """Everything written to the log: records, tracebacks and every trace's timeline."""
     timeline = [line["message"] for trace in traces for line in trace.lines]
     return "\n".join([caplog.text, *timeline])
-
-
-async def settle():
-    """Let the announcement the request handed to the bot's loop reach the channels."""
-    for _ in range(100):
-        await asyncio.sleep(0.01)
-        if all(task is asyncio.current_task() or task.done() for task in asyncio.all_tasks()):
-            return
 
 
 @contextmanager
@@ -488,6 +370,59 @@ async def test_a_video_from_another_channel_is_ignored(hub):
     )
 
 
+def live_details(state):
+    """What YouTube says of a live that is scheduled, on air or over."""
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    if state == "scheduled":
+        return "upcoming", {"scheduledStartTime": (now + timedelta(hours=2)).isoformat()}
+    if state == "live-now":
+        return "live", {"actualStartTime": (now - timedelta(minutes=1)).isoformat()}
+    return "none", {
+        "actualStartTime": (now - timedelta(hours=2)).isoformat(),
+        "actualEndTime": now.isoformat(),
+    }
+
+
+@pytest.mark.parametrize("state", ["scheduled", "live-now", "finished"])
+async def test_a_live_is_never_announced_as_a_new_video(hub, state):
+    """A live, scheduled, on air or over, never reaches the video announcement.
+
+    Broke as: the video command read only the snippet of the video a hub notice named and
+    announced it as a new video whatever it was, so a scheduled live was posted as a video
+    the moment it was scheduled, a live when YouTube sent its notice, and the moment a
+    scheduled live started was never announced.
+
+    Shared behaviour: the YouTube webhook (`app/integrations/youtube/webhook.py`), which
+    now reads the notice's video once, with its live details, and hands it to the command
+    of its kind. Exposed by: the PR12 plan, reading the code for YouTube lives.
+
+    Guaranteed: a notice whose video carries live details never posts the video
+    announcement, and the webhook answers it with 204.
+    """
+    hub.google.videos["video-1"] = PEWDIEPIE
+    hub.google.lives["video-1"] = live_details(state)
+    body = atom()
+
+    response = notify(hub, body, sign(body))
+    await settle()
+
+    assert response.status_code == 204
+    assert hub.channel.get_all_messages() == [], "a live is not a new video"
+
+
+async def test_a_notice_reads_its_video_once(hub):
+    """The webhook reads the video to tell a live from a video, and the announcement
+    reuses it: one Data API unit per notice for the video, never two."""
+    hub.google.videos["video-1"] = PEWDIEPIE
+    body = atom()
+
+    notify(hub, body, sign(body))
+    await settle()
+
+    assert len(hub.channel.get_all_messages()) == 1
+    assert hub.google.reads.count("videos") == 1
+
+
 async def test_a_video_youtube_cannot_see_yet_is_left_for_the_hub_to_retry(hub):
     """Any answer but 2xx makes the hub deliver again; a 204 here would lose the video."""
     body = atom()
@@ -500,6 +435,40 @@ async def test_a_video_youtube_cannot_see_yet_is_left_for_the_hub_to_retry(hub):
     assert first.status_code == 503
     assert retry.status_code == 204
     assert len(hub.channel.get_all_messages()) == 1, "the retry is not mistaken for a replay"
+
+
+async def test_a_video_youtube_never_shows_is_left_for_the_hub_to_retry_a_few_times(
+    hub, deps
+):
+    """A private or deleted video YouTube never shows again is not delivered forever:
+    the hub is asked to deliver it again a few times, then gets a 204."""
+    body = atom()
+
+    answers = [
+        notify(hub, body, sign(body)).status_code
+        for _ in range(Commands.YOUTUBE_UNSEEN_RETRIES + 1)
+    ]
+    await settle()
+
+    assert answers == [503] * Commands.YOUTUBE_UNSEEN_RETRIES + [204]
+    assert hub.channel.get_all_messages() == []
+    counted = Commands.REDIS_YOUTUBE_UNSEEN_WINDOW.format(video_id="video-1")
+    assert 0 < deps.redis_client.ttl(counted) <= Commands.YOUTUBE_UNSEEN_WINDOW_SECONDS
+
+
+async def test_a_video_youtube_does_not_show_while_redis_is_down_is_left_to_the_hub(
+    hub, deps, monkeypatch
+):
+    """Without Redis the deliveries cannot be counted, so the hub delivers again."""
+    def redis_is_down(*args, **kwargs):
+        raise redis.exceptions.ConnectionError("Connection refused")
+
+    monkeypatch.setattr(deps.redis_client, "pipeline", redis_is_down)
+    body = atom()
+
+    response = notify(hub, body, sign(body))
+
+    assert response.status_code == 503
 
 
 @pytest.mark.parametrize("endpoint", ["channels", "videos"])
@@ -1009,7 +978,7 @@ async def test_the_start_counts_only_the_channels_the_hub_accepted(hub, deps, ca
     hub.google.hub_statuses[TOPIC.format(MRBEAST)] = 503
 
     with caplog.at_level("INFO"):
-        renewed = await notifications_youtube_video.resubscribe_followed_channels()
+        renewed = await youtube_hub.resubscribe_followed_channels()
 
     assert renewed == 1
     assert "renewed — 1 of 2" in caplog.text
@@ -1030,7 +999,7 @@ async def test_the_start_stamps_every_youtuber_the_hub_took_again(hub, deps, mon
     await insert_renewal_reminder(7002, "mrbeast")
     hub.google.hub_statuses[TOPIC.format(MRBEAST)] = 503
 
-    await notifications_youtube_video.resubscribe_followed_channels()
+    await youtube_hub.resubscribe_followed_channels()
 
     stamped = (await data().keiko_subscriptions.subscription_state("youtube", "pewdiepie")).get("hub_confirmed_at")
     assert stamped is not None and stamped.astimezone(timezone.utc) == moment.astimezone(timezone.utc)
@@ -1070,7 +1039,7 @@ async def test_the_youtube_renewals_cog_renews_the_subscriptions_once_when_it_lo
 async def test_nothing_subscribes_at_start_in_dev(hub, deps):
     deps.bot.config.is_dev = lambda: True
 
-    assert await notifications_youtube_video.resubscribe_followed_channels() == 0
+    assert await youtube_hub.resubscribe_followed_channels() == 0
     assert hub.google.hub_posts == []
 
 
@@ -1126,7 +1095,7 @@ async def test_without_a_hub_secret_keiko_asks_the_hub_for_nothing(hub):
 
     hub.youtube.subscribe_to_new_video_event(PEWDIEPIE)
     hub.youtube.unsubscribe_from_new_video_event(PEWDIEPIE)
-    renewed = await notifications_youtube_video.resubscribe_followed_channels()
+    renewed = await youtube_hub.resubscribe_followed_channels()
 
     assert hub.google.hub_posts == []
     assert renewed == 0
@@ -1494,6 +1463,79 @@ async def test_removing_a_youtuber_a_paused_server_still_follows_keeps_the_hub_s
     assert await followed(deps) == ["mrbeast"]
     assert deps.youtube.unsubscribe_calls == [], "the paused server unpauses still subscribed"
     assert await find_reminder_by_value("pewdiepie") is not None
+
+
+class OtherYouTubeFeature(SubscriptionFeature):
+    """A second command that follows YouTube channels, as YouTube lives will."""
+
+    item_key = "youtuber"
+    external = "youtube"
+
+    def __init__(self):
+        super().__init__("other_youtube_feature")
+        self.names = set()
+
+        async def count(name):
+            return int(name in self.names)
+
+        self.followers = count
+        self.announcers = count
+
+    async def followed(self):
+        return sorted(self.names)
+
+
+@pytest.fixture
+def other_youtube_feature(monkeypatch):
+    """The other YouTube command, declared after every real one."""
+    feature = OtherYouTubeFeature()
+    listed = importlib.import_module("app.commands")
+    declared = (*listed.COMMANDS, Command("other_youtube_feature", feature=feature))
+    monkeypatch.setattr(listed, "COMMANDS", declared)
+    commands.cache_clear()
+    yield feature
+    commands.cache_clear()
+
+
+async def test_a_channel_another_youtube_command_follows_keeps_its_hub_subscription(
+    scenario_factory, deps, other_youtube_feature,
+):
+    """Letting a youtuber go from the videos never ends the hub subscription another
+    YouTube command still needs.
+
+    Broke as: the video command counted only its own followers before it unsubscribed a
+    channel from the hub, so a channel followed for its lives would stop sending notices
+    the moment its videos were unfollowed.
+
+    Shared behaviour: the subscription base (`SubscriptionFeature.release`) and the YouTube
+    hub follow (`app/integrations/youtube/hub.py`), counted over every command of the same
+    platform. Exposed by: the PR12 plan, which adds YouTube lives beside the videos.
+
+    Guaranteed: a channel stays subscribed, with its renewal, while any YouTube command
+    follows it.
+    """
+    other_youtube_feature.names.add("pewdiepie")
+    scenario = await open_manager(scenario_factory, deps, "en-us", FORM, seed_two_entries)
+    await insert_renewal_reminder(7001, "pewdiepie")
+
+    await remove_item(scenario, "notifications$0")
+
+    assert await followed(deps) == ["mrbeast"]
+    assert deps.youtube.unsubscribe_calls == [], "the other command still needs it"
+    assert await find_reminder_by_value("pewdiepie") is not None
+
+
+async def test_the_start_subscribes_the_channels_every_youtube_command_follows(
+    hub, deps, other_youtube_feature,
+):
+    other_youtube_feature.names.add("mrbeast")
+    from app.commands.youtube.cog import YoutubeRenewals
+
+    await YoutubeRenewals(deps.bot).resubscribe_youtube()
+
+    assert sorted(post["hub.topic"] for post in hub.google.hub_posts) == sorted([
+        TOPIC.format(MRBEAST), TOPIC.format(PEWDIEPIE),
+    ])
 
 
 def renewal_created(deps):

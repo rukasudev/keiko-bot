@@ -1,8 +1,8 @@
-"""keiko.schedules: what Keiko set on the reminders API for a time, one document per
-thing scheduled."""
+"""keiko.schedules: what Keiko set for a time, on the reminders API or due on its own
+loop, one document per thing scheduled."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from app.data.collection import Document, Repository
 from app.data.util import parse_update_timestamp
@@ -19,7 +19,7 @@ def schedule_subject(schedule: Dict[str, Any]) -> Tuple[str, ...]:
 
 
 class Schedules(Repository):
-    """Everything Keiko scheduled on the reminders API."""
+    """Everything Keiko scheduled for a time."""
 
     async def find_schedule(self, schedule_id: str) -> Optional[Document]:
         """The schedule saved under `schedule_id`."""
@@ -43,6 +43,15 @@ class Schedules(Repository):
             query["kind"] = kind
         return await self._collection.find(query).to_list()
 
+    async def find_due_schedules(
+        self, kinds: Sequence[str], now: datetime, limit: int
+    ) -> List[Document]:
+        """Schedules of `kinds` due at `now` or before, the longest overdue first."""
+        cursor = self._collection.find(
+            {"kind": {"$in": list(kinds)}, "due_at": {"$lte": now}}
+        )
+        return await cursor.sort("due_at", 1).limit(limit).to_list()
+
     async def find_schedules_missing_reminder(
         self, kind: str, limit: int
     ) -> List[Document]:
@@ -58,8 +67,10 @@ class Schedules(Repository):
         reminder_id: Any,
         due_at: Optional[datetime] = None,
         expires_at: Optional[datetime] = None,
+        attempt: Optional[int] = None,
     ) -> Document:
-        """Save a schedule; a `due_at` or `expires_at` left out keeps the stored one."""
+        """Save a schedule; a `due_at`, `expires_at` or `attempt` left out keeps the
+        stored one."""
         fields: Dict[str, Any] = {
             "kind": kind,
             "reminder_id": None if reminder_id is None else str(reminder_id),
@@ -68,6 +79,8 @@ class Schedules(Repository):
             fields["due_at"] = due_at
         if expires_at is not None:
             fields["expires_at"] = expires_at
+        if attempt is not None:
+            fields["attempt"] = attempt
 
         update = parse_update_timestamp(fields)
         await self._collection.update_one(

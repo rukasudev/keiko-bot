@@ -1,3 +1,24 @@
+live_notice:
+  footer:
+    en-us: 🟢 Online
+    pt-br: 🟢 Ao vivo
+  overrides:
+    - when:
+        all:
+          - key: global.facts.live_status
+            is: offline
+          - key: global.facts.duration
+            present: true
+      footer:
+        en-us: "🔴 Offline | ⌛️ Duration: $duration"
+        pt-br: "🔴 Live encerrada | ⌛️ Duração: $duration"
+    - when:
+        key: global.facts.live_status
+        is: offline
+      footer:
+        en-us: 🔴 Offline
+        pt-br: 🔴 Live encerrada
+
 # open: what each embed answers -> a response
 responses:
   admin_only:

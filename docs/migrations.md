@@ -23,6 +23,8 @@ app/migrations/
     0004_subscriptions_and_messages.py
     0005_events.py
     0006_analytics_and_traces.py
+    0007_youtube_lives.py
+    0008_kick_lives.py
   data/
     0001_bot_defaults.py
     0002_server_settings.py

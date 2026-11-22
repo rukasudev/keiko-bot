@@ -498,8 +498,10 @@ def test_setup_lists_the_features_in_the_order_it_always_did():
         "default_roles",
         "block_links",
         "notifications_twitch",
+        "notifications_kick",
         "notifications_youtube_video",
         "reminders_birthday",
+        "notifications_youtube_live",
         "stream_elements_commands",
     ]
     assert [spec.key for spec in setup_features() if spec.answers_prefix] == [

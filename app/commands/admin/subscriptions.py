@@ -9,7 +9,7 @@ import discord
 from app import bot
 from app.constants import ViewConstants as view_constants
 from app.core.threads import to_thread
-from app.forms.features.subscriptions import subscription_feature
+from app.forms.features.subscriptions import platform_announcers, subscription_feature
 from app.ui.buttons import GenericButton
 
 
@@ -60,7 +60,7 @@ async def _reminder_overview() -> ReminderOverview:
         )
 
     guilds_by_streamer = {
-        streamer: await youtube.announcers(streamer)
+        streamer: await platform_announcers(youtube.external, streamer)
         for streamer in reminders_count_by_streamers
     }
     return ReminderOverview(

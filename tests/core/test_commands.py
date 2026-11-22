@@ -2,13 +2,12 @@
 `app.commands.COMMANDS`.
 
 The registry reads the list lazily and once, so each test installs its own list as
-the `app.commands` module and forgets the cached read before and after.
+the `app.commands` module and forgets the cached read before and after (`declare`,
+in `tests/core/conftest.py`).
 """
 
 import logging
-import sys
-from types import ModuleType
-from typing import Any, Callable, List
+from typing import Any, List
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -32,6 +31,7 @@ from app.core.commands import (
     message_hooks,
     prefix_hooks,
     reminder_handlers,
+    schedule_handlers,
     setup_feature,
     setup_features,
     webhook_handlers,
@@ -52,20 +52,6 @@ class Stray(Group, name="stray", description="A subgroup for the tests."):
 
 class Loose(Cog):
     """A cog whose module has no `setup(bot)`."""
-
-
-@pytest.fixture
-def declare(monkeypatch) -> Callable[..., None]:
-    """Install `COMMANDS` as the list `app.commands` declares."""
-
-    def install(*declared: Command) -> None:
-        module = ModuleType("app.commands")
-        module.COMMANDS = list(declared)
-        monkeypatch.setitem(sys.modules, "app.commands", module)
-        commands.cache_clear()
-
-    yield install
-    commands.cache_clear()
 
 
 def _recorder(calls: List[str], name: str, answer: Any = None):
@@ -155,6 +141,21 @@ def test_a_webhook_event_owned_by_two_commands_is_refused(declare):
 
     with pytest.raises(ValueError, match="webhook event 'service.event'"):
         webhook_handlers()
+
+
+def test_a_schedule_kind_owned_by_two_commands_is_refused(declare):
+    async def due(_schedules: Any) -> None:
+        return None
+
+    declare(
+        Command("first", schedules={"live": due}),
+        Command("second", schedules={"live": due}),
+    )
+
+    with pytest.raises(ValueError, match="schedule kind 'live'"):
+        commands()
+    with pytest.raises(ValueError, match="schedule kind 'live'"):
+        schedule_handlers()
 
 
 @pytest.mark.parametrize("placement", [{"group": "moderation"}, {"category": "alerts"}])
@@ -472,3 +473,17 @@ def test_a_webhook_event_reaches_the_command_that_registered_it(declare):
         200, "service.online someone"
     )
     assert dispatch.webhook(WebhookEvent("service.offline", "someone")) is None
+
+
+async def test_due_schedules_reach_the_command_that_owns_their_kind(declare):
+    handled: List[Any] = []
+
+    async def due(schedules: Any) -> None:
+        handled.append(list(schedules))
+
+    declare(Command("owner", schedules={"live": due}))
+
+    assert dispatch.schedule_kinds() == ("live",)
+    assert await dispatch.schedules("live", [{"_id": "live:1"}])
+    assert not await dispatch.schedules("unknown", [{"_id": "unknown:1"}])
+    assert handled == [[{"_id": "live:1"}]]

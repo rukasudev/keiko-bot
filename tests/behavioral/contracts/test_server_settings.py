@@ -355,8 +355,10 @@ def test_the_operator_lists_are_every_declared_feature():
         "default_roles",
         "block_links",
         "notifications_twitch",
+        "notifications_kick",
         "notifications_youtube_video",
         "reminders_birthday",
+        "notifications_youtube_live",
         "stream_elements_commands",
     ]
     assert "stream_elements_commands" in list(feature_keys())

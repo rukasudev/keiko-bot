@@ -300,19 +300,19 @@ TYPOS = [
         "did you mean ${context.members_count}?",
     ),
     (
-        "notifications_youtube_video",
+        "reminders_birthday",
         "$item",
         "$itme",
         "$itme is no fact of app/core/global.yml; did you mean $item?",
     ),
     (
-        "notifications_youtube_video",
+        "block_links",
         "$max",
         "$maxx",
         "$maxx is no fact of app/core/global.yml; did you mean ${max}x or $max?",
     ),
     (
-        "notifications_youtube_video",
+        "block_links",
         "$count",
         "$counts",
         "did you mean ${count}s or $count?",

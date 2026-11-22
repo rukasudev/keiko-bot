@@ -97,17 +97,44 @@ the helpers it calls, and the whole of `app/commands` is linted by ruff and type
 | Field | What it holds |
 | --- | --- |
 | `key` | The immutable key: the `_id` in `guild.cogs` and the analytics `cog`. |
-| `cogs` | The cog classes of the command (one or more). An `app_commands.Group` is attached under the command's `group` by `app/core/groups.py`, which refuses one whose command names no group; any other cog loads through the `setup(bot)` of its module, and a module without one is refused. |
+| `cogs` | The cog classes of the command (one or more). An `app_commands.Group` is attached under the command's `group` by `app/core/groups.py`, which refuses one whose command names no group; any other cog loads through the `setup(bot)` of its module, and a module without one is refused. A loop only one command runs is such a cog, beside its subgroup in its `cog.py`, never in the shared `app/core/jobs.py`: `YoutubeRenewals` subscribes YouTube again at start, `KickResyncLoop` leaves Kick one live subscription per followed streamer at start and every `Commands.KICK_RESYNC_HOURS`, each pass traced as a job. |
 | `feature` | Its `FeatureModule`, the typed contract with the form engine, declared as `FEATURE` at the end of its `service.py`, or `None`: a command with a form and no feature is saved by `GenericCogFeature`. A feature whose storage is not the plain `guild.cogs` document overrides `config_states`, the read of every server's configuration the reports use. |
 | `hooks` | A `Hooks`: what it does on the Discord events every command shares. |
 | `reminders` | Reminder title → sync handler, run on the Flask thread. |
-| `webhooks` | Webhook event name (`<service>.<event>`) → sync handler, run on the Flask thread. |
+| `webhooks` | Webhook event name (`<service>.<event>`) → sync handler, run on the Flask thread (`kick.stream.online` and `kick.stream.offline` of `notifications_kick`, dispatched by `app/integrations/kick/webhook.py` with the lowercased channel slug as the subject). |
+| `schedules` | Schedule kind (the `kind` of a `keiko.schedules` entry) → async handler, run on the bot's loop with the entries of that kind that are due; the handler deletes or moves each one it took (`youtube_live` of `notifications_youtube_live`, a scheduled live read again at its time). |
 | `opens` | What a button on another command's screen opens of this one: `async (interaction, source)`. |
 | `group` | The parent slash group, a key of `PARENT_GROUPS` in `app/core/commands.py` (`moderations`, `notifications`, `integrations`, typed `ParentGroup`). |
 | `on_setup`, `emoji` | Its row on /setup and the greeting; a command without `on_setup` is not offered there. |
 | `category` | Where /setup places it, a key of `PARENT_GROUPS`; the `group` unless declared. A command on /setup needs one. |
 | `channel_permissions`, `server_permissions`, `assigns_roles` | What Keiko needs for it, checked by the feature health line. |
 | `lazy` | `True` for a command whose cogs load once Keiko is ready instead of at startup (admin, config). |
+
+A command may have no cog of its own when its slash command sits in another
+command's subgroup, since Discord takes one subgroup object per name: `/notifications
+youtube lives` is a method of the YouTube video command's `Youtube` subgroup
+(`app/commands/youtube/cog.py`) that opens `notifications_youtube_live`, the first
+declared exception of PR12. The method is named after the key it opens, and
+`app/core/app_commands.py` keys a leaf by its callback's name when that name is a
+declared key, so /help and /report file it under the right command. Its copy is still
+its own (`notifications_youtube_live.command.slash`).
+
+The second declared exception of PR12 is the upkeep of YouTube's hub, which belongs
+to the platform but lives in the video command. The hub follow is shared by every
+command that follows a YouTube channel (`app/integrations/youtube/hub.py`, its
+followers summed over every `SubscriptionFeature` of the platform), yet a reminder
+reaches only the one command that declares its title and a loop runs only as a
+command's cog, and no shared layer declares either: so the renewal reminder the hub
+creates, titled `Commands.YOUTUBE_RENEWAL_REMINDER_TITLE`, is registered in the
+`reminders` of `notifications_youtube_video` (`renew_on_reminder`), and the
+resubscribe at start, `YoutubeRenewals`, is one of its cogs. Both call the hub alone
+and serve the lives command exactly as the video one: a channel followed only for its
+lives keeps its subscription and its renewal. Isolation: one entry of the video
+command's `reminders` and one cog in its `cog.py`, neither reading anything of the
+video command. Debt: small, the same as the subgroup's; deleting the video command
+would take the hub's upkeep with it. Recommended later: let a platform declare its
+reminders and loops once in a shared place, with the shared subgroup in
+`app/core/groups.py`.
 
 `Command` lives in `app/core/commands.py`, and it carries what the command's row on
 /setup needs, so each command is declared once. Its copy and its form are not fields:
@@ -133,7 +160,12 @@ objects in it are typed `Any`.
 Reminder handlers take a `Reminder(id, title, notes)`; webhook handlers take a
 `WebhookEvent(name, subject, payload)` and return a `WebhookReply(status, body)`.
 Both run on the Flask thread, so the reminders retry and the service's redelivery see
-their outcome.
+their outcome. A schedule handler is async and takes the due `keiko.schedules`
+entries of its kind, at most `Commands.SCHEDULES_DUE_LIMIT`, the longest overdue
+first: `DueSchedules` (`app/core/jobs.py`) reads them every
+`Commands.SCHEDULES_CHECK_SECONDS` and runs each kind's batch as a job of its own, so
+one that fails never stops the next. An entry the handler leaves due is handed again
+on the next pass.
 
 ## The registry
 
@@ -150,7 +182,8 @@ the standard library, so the form engine may read it like the pure calendar.
 - `member_hooks()`, `message_hooks()`, `prefix_hooks()`, `edit_hooks()`,
   `guild_join_hooks()`, `view_hooks()`, `dynamic_item_hooks()`: `(key, hook)` pairs in
   dispatch order.
-- `reminder_handlers()`, `webhook_handlers()`: name → handler, one owner each.
+- `reminder_handlers()`, `webhook_handlers()`, `schedule_handlers()`: name → handler,
+  one owner each.
 - `opener(key)`: what the command `key` opens from another command's screen; how
   /help and /setup open each other without importing each other.
 - `copy_file(key)` and `form_file(key)`: the `copy.yml` and the `form.yml` of the
@@ -177,8 +210,9 @@ prefix it cannot read skips the prefix hooks),
 `message_edited`, `guild_joined`. `persistent_views()` gathers the views;
 `dynamic_items()` gathers the routed items, which `registered_items()` (`app/bot.py`)
 registers in `setup_hook`;
-`reminder(fired)` and `webhook(event)` hand one item to its owner and say when no
-command owns it.
+`reminder(fired)`, `webhook(event)` and `schedules(kind, due)` hand one item (or one
+kind's due entries) to its owner and say when no command owns it; `schedule_kinds()`
+is every kind a command runs.
 
 ## Where the data goes
 
@@ -363,7 +397,12 @@ send theirs beside it, gone after a few seconds), `mention_removed`, the member 
 a feature's History, and `commands.records.changes`, every change of a server, both
 one numbered field per change named by what changed, the change's feature first on
 the server's list (`change_label` in `app/core/manager.py`, the name /setup gives
-it), and valued by `lines.by`, who and when as a Discord timestamp). Every
+it), and valued by `lines.by`, who and when as a Discord timestamp), and
+`live_notice`, the footer of the live notice every streaming command posts (Twitch,
+YouTube lives, Kick): `stream_status` (`app/core/lives.py`) passes
+`global.facts.live_status` (`online` or `offline`) and `$duration` (how long the live
+ran, empty while unknown), and the block's `overrides` pick "🔴 Live encerrada", with
+"⌛️ Duração: $duration" once it is known, over the default "🟢 Ao vivo". Every
 copy file is read against its schema at load, and `i18n.block(key, Model)` returns a
 typed block (or raises when no copy file writes it). `description` names a block's
 body of text (an embed's, a list's, a card's, a slash command's or a button's caption),
@@ -385,7 +424,7 @@ that writes no footer, as every form step does.
 | `ui.responses.<name>` | `Response` | `response_embed`, `block_texts` (the form engine) | an answer, a confirmation question, an aside's result |
 | `ui.errors.<name>` | `ErrorBlock` | `response_error_embed`, `error_message`, a form's `error:` | a red error embed, or the plain line of a form |
 | `ui.buttons.<name>` | `ButtonCopy` | `panel_asides`, `panel_button`, the command's views | a button's label and its Help caption (`description`) |
-| `ui.announcement` | `Announcement` | `announcement_embed` and the command | `fields`, `states`, `samples`, `defaults` of what it posts in a channel |
+| `ui.announcement` | `Announcement` | `announcement_embed` and the command | `fields`, `samples`, `defaults` of what it posts in a channel |
 
 - `response_embed("<key>.ui.responses.<name>", locale, facts=..., fields=...,
   empty=..., thumbnail=..., inline=...)` reads a `Response` block: the item of its
@@ -427,8 +466,14 @@ that writes no footer, as every form step does.
 - `announcement_embed(title, message, footer, image, copy="<key>.ui.announcement",
   locale=..., fields=..., url=..., colour=..., thumbnail=...)` posts what a command
   announces: each of `fields` is an inline field labelled by `fields.<name>` of the
-  `Announcement` block, left out while its value is empty; its `states`, `samples` and
-  `defaults` (an admin template, braces allowed) are read by the command.
+  `Announcement` block, left out while its value is empty; its `samples` and
+  `defaults` (an admin template, braces allowed) are read by the command. A live
+  notice's footer is not a command's: it is `commands.live_notice`, above. What a live
+  notice sends is `app/core/lives.py` too: each command declares its `LiveNotices`
+  (its key, the item key that is also its messages' variable for the account, the
+  live's link with `{name}` for the account and the link's variable) and keeps only
+  its embed and its preview's embed; `one_message` fills one of a notice's messages
+  and `send_preview` sends the preview of the card.
 - Statistics: `figure_lines(key, [Figure(name, emoji, value), ...], locale)` draws each
   figure as `emoji **label:** value` with the label from `command.stats.figures.<name>`
   of the `Stats` block, or `command.stats.empty` alone while there is no figure; a
