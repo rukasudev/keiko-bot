@@ -6,6 +6,7 @@ posts one message, only when something failed.
 """
 import asyncio
 import logging
+import re
 import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -36,6 +37,7 @@ from app.exceptions import ErrorContext
 from app.forms.discord import callbacks
 from app.integrations.http import schedule_webhook_job, webhooks
 from app.logger import StoredLogsHandler
+from tests.behavioral.flows import report as reports
 from tests.behavioral.harness.driver import FormScenario
 from tests.behavioral.harness.fake_interaction import FakeResponse
 from tests.generators.moderations import seed_cog
@@ -996,38 +998,22 @@ def timed_out():
 
 
 @pytest.fixture
-def report(deps, guild, monkeypatch):
-    from app.commands.report.cog import Report
-
-    reports = MagicMock()
-    reports.send = AsyncMock()
-    notion = SimpleNamespace(create_report=None)
-    bot = SimpleNamespace(
-        notion=notion,
-        config=SimpleNamespace(ADMIN_REPORTS_CHANNEL_ID=1),
-        get_channel=lambda channel_id: reports,
-    )
-    direct_messages = AsyncMock()
-    monkeypatch.setattr(Report, "_send_report_dm", direct_messages)
-    interaction = MockInteraction(user=create_member(guild), guild=guild)
-    interaction.command = SimpleNamespace(qualified_name="report")
+def report(scenario_factory):
+    report = reports.reporting(scenario_factory)
 
     async def send(answer):
-        notion.create_report = lambda **fields: answer()
-        await Report.report.callback(
-            Report(bot), interaction, "title", "description", "block_links"
-        )
+        report.notion.answer = answer
+        await reports.send_report(report)
 
-    return SimpleNamespace(
-        send=send, reports=reports, interaction=interaction, direct_messages=direct_messages
-    )
+    report.send = send
+    return report
 
 
 @pytest.mark.behavioral
 @pytest.mark.parametrize(
     "answer",
-    [timed_out, refused, a_gateway_page],
-    ids=["timeout", "error-answer", "gateway-page"],
+    [timed_out, refused, a_gateway_page, reports.page_without_its_number],
+    ids=["timeout", "error-answer", "gateway-page", "no-ticket-number"],
 )
 async def test_a_report_notion_does_not_take_still_arrives(report, answer, caplog):
     """A `/report` Notion does not take still reaches the team and the person who sent it.
@@ -1035,24 +1021,30 @@ async def test_a_report_notion_does_not_take_still_arrives(report, answer, caplo
     Reported in the v1 review, once every outside call got a time limit: Notion that does
     not answer in time now raises where it used to hang the bot, and `/report` raised with
     it, so the report was lost and the person saw an error. A Notion error answer was
-    already lost the same way: the ticket number was read from a body that has none.
+    already lost the same way: the ticket number was read from a body that has none. The
+    review of PR9 found the last way: a page Notion created on a database with no `ID`
+    property answered 200 without its number, and reading it raised after the ticket was
+    posted.
 
-    Shared behaviour: `Report.report`, the one way a server reports a bug. Exposed by: the
+    Shared behaviour: `submit_report`, the one way a server reports a bug. Exposed by: the
     timeouts of the shared HTTP client.
 
     Guaranteed: when Notion fails or refuses, the report still goes to the reports channel
-    under a Keiko ticket number, the person is answered and gets the copy in their DMs, and
-    the failure is an error in the error channel: an exception named by its type only, a
-    refusal by its status code and the start of its body, which may not be JSON at all (the
-    gateway page of a 502 or 504 once made the error log itself raise and lose the report).
+    under a Keiko ticket number, the same one the person gets in their DMs, the person is
+    answered, and the failure is an error in the error channel: an exception named by its
+    type only, a refusal by its status code and the start of its body, which may not be
+    JSON at all (the gateway page of a 502 or 504 once made the error log itself raise and
+    lose the report).
     """
     with caplog.at_level("INFO"):
         await report.send(answer)
 
-    posted = report.reports.send.await_args.kwargs["embed"]
+    [posted] = [ticket.embeds[0] for ticket in report.channel.tickets]
     assert "KEIKO-" in posted.title, "the report carries a ticket number of Keiko's"
-    assert report.interaction.get_last_response()["type"] == "followup_send"
-    report.direct_messages.assert_awaited_once()
+    assert report.scenario.outputs[-1]["kind"] == "followup_send"
+    [dm] = report.reporter.dms
+    [number] = re.findall(r"#(KEIKO-\d+)", posted.title)
+    assert f"#{number}" in dm.title, "the person quotes the number the team reads"
     errors = [record for record in caplog.records if record.levelname == "ERROR"]
     assert errors and all("Notion" in record.getMessage() for record in errors)
 

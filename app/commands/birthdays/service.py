@@ -38,7 +38,7 @@ from app.data import data
 from app.data.collection import Document
 from app.data.keiko import schedules as schedules_data
 from app.exceptions import ServerSettingsMissing
-from app.forms import document_values, item_values, open_feature
+from app.forms import document_values, item_values
 from app.forms.features.feature import (
     AsideAction,
     CommitContext,
@@ -117,11 +117,6 @@ class BirthdayStats:
     busiest_month: tuple[int, int] | None
     quietest_month: tuple[int, int] | None
     most_common_date: tuple[str, int] | None
-
-
-async def manager(interaction: discord.Interaction) -> None:
-    """The slash command: the setup form, or the manager of what is saved."""
-    await open_feature(interaction, "reminders_birthday")
 
 
 def _mb(key: str, locale: str) -> str:

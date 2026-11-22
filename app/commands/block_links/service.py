@@ -26,7 +26,7 @@ from app.core.utils import (
 )
 from app.data import data
 from app.exceptions import ErrorContext
-from app.forms import document_values, list_values, open_feature
+from app.forms import document_values, list_values
 from app.forms.features.feature import (
     AsideAction,
     CommitContext,
@@ -769,11 +769,6 @@ async def send_blocked_links_message(
         copy="block_links.ui.records.blocked_list",
     )
     await browser.send(interaction, user_id=user_id)
-
-
-async def manager(interaction: discord.Interaction) -> None:
-    """The slash command: the setup form, or the manager of what is saved."""
-    await open_feature(interaction, "block_links")
 
 
 class BlockLinksFeature(GenericCogFeature):

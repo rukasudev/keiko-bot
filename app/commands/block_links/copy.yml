@@ -22,8 +22,8 @@ command:
       en-us: links
       pt-br: links
     description:
-      en-us: Keiko blocks links your way, everything with exceptions or only the links you choose
-      pt-br: Keiko bloqueia links do seu jeito, tudo com exceções ou só os links que você escolher
+      en-us: Keiko blocks links your way, every link or only the links you choose
+      pt-br: Keiko bloqueia links do seu jeito, todos os links ou só os links que você escolher
     # open: the folder's other app commands -> their name and caption
     commands:
       check:

@@ -3,6 +3,16 @@ facts:
   ticket:
     type: text
     description: The id of the ticket a report opened.
+  dm_sent:
+    type: boolean
+    description: Whether the author got the copy of the ticket by DM.
+  status:
+    type: enum
+    values: [review, resolved, details]
+    description: The status the team gave a report on its ticket.
+  question:
+    type: text
+    description: What the team asked the author of a report, quoted line by line.
 
 command:
   slash:
@@ -14,6 +24,49 @@ command:
       pt-br: Keiko ajuda você a relatar quaisquer bugs ou problemas que encontrar
 
 ui:
+  # open: text names -> a text, or a table of texts
+  texts:
+    # open: the parts of the report's modal -> a text
+    modal:
+      title:
+        en-us: 🐞 Report a bug
+        pt-br: 🐞 Reportar um bug
+      text_label:
+        en-us: What happened?
+        pt-br: O que aconteceu?
+      text_description:
+        en-us: Tell me what you did and what went wrong. The more details, the faster I can help!
+        pt-br: Me conta o que você fez e o que deu errado. Quanto mais detalhes, mais rápido eu consigo ajudar!
+      text_placeholder:
+        en-us: I turned on the Twitch notifications, but the live alert never reached the channel
+        pt-br: Ativei as notificações da Twitch, mas o aviso da live não chegou no canal
+      command_label:
+        en-us: Which command?
+        pt-br: Em qual comando?
+      command_placeholder:
+        en-us: Pick the command
+        pt-br: Escolha o comando
+      other_label:
+        en-us: 🤷 Something else
+        pt-br: 🤷 Outra coisa
+      other_description:
+        en-us: It's not about one command
+        pt-br: Não é de um comando só
+      file_label:
+        en-us: Screenshot or file
+        pt-br: Print ou arquivo
+      file_description:
+        en-us: "Optional: a picture really helps me understand the problem!"
+        pt-br: "Opcional: uma imagem me ajuda muito a entender o problema!"
+    # open: the parts of the modal the author answers the team in -> a text
+    answer_modal:
+      title:
+        en-us: 💬 Answer my team
+        pt-br: 💬 Responder a minha equipe
+      text_label:
+        en-us: Your answer
+        pt-br: Sua resposta
+
   # open: response names -> a Response
   responses:
     sent:
@@ -24,6 +77,21 @@ ui:
         en-us: I've passed your report to my team! Check your DMs, I just sent you a message with more details 💌
         pt-br: Passei seu report para a minha equipe! Olha sua DM, acabei de te mandar uma mensagem com mais detalhes 💌
       footer: ${ref.support_footer}
+      overrides:
+        - when:
+            key: report.facts.dm_sent
+            is: false
+          description:
+            en-us: I've passed your report **#$ticket** to my team! I couldn't send you a DM, so keep this number in case you need to talk to us 💌
+            pt-br: Passei seu report **#$ticket** para a minha equipe! Não consegui te mandar uma DM, então guarde esse número caso precise falar com a gente 💌
+    limit:
+      title:
+        en-us: ⏳ You've Reached Your Report Limit
+        pt-br: ⏳ Você chegou ao limite de reports
+      description:
+        en-us: I'm sorry, but you've already sent me $count reports in the last 24 hours, and that's as many as I can take for now. You can send me a new one $date!
+        pt-br: Sinto muito, mas você já me mandou $count reports nas últimas 24 horas, e esse é o máximo que eu consigo receber por enquanto. Você pode me mandar um novo $date!
+      footer: ${ref.support_footer}
     ticket:
       title:
         en-us: "📝 Your ticket has been created! [Ticket ID: #$ticket]"
@@ -31,8 +99,6 @@ ui:
       footer: ${ref.support_footer}
       # open: field names -> a ResponseField
       fields:
-        title:
-          title: ${ref.title}
         command:
           title:
             en-us: Command
@@ -48,3 +114,49 @@ ui:
           title:
             en-us: Description
             pt-br: Descrição
+    status:
+      title:
+        en-us: "📬 News about your report #$ticket!"
+        pt-br: "📬 Novidade no seu report #$ticket!"
+      description:
+        en-us: "🔎 **In review:** I've started looking into the problem you told me about. As soon as I know more, I'll tell you right here! 🐶"
+        pt-br: "🔎 **Em análise:** comecei a olhar o problema que você me contou. Assim que eu tiver novidades, te aviso por aqui! 🐶"
+      footer: ${ref.support_footer}
+      overrides:
+        - when:
+            key: report.facts.status
+            is: resolved
+          description:
+            en-us: "✅ **Resolved:** I fixed the problem you told me about. Thank you so much for helping me get better! 🐶"
+            pt-br: "✅ **Resolvido:** corrigi o problema que você me contou. Agradeço muito por me ajudar a melhorar! 🐶"
+        - when:
+            key: report.facts.status
+            is: details
+          description:
+            en-us: "❓ **I need details:** I want to understand what happened better. My team would like to know:\n\n> $question\n\nTap **Answer** below to tell me! 💌"
+            pt-br: "❓ **Preciso de detalhes:** quero entender melhor o que aconteceu. Minha equipe quer saber:\n\n> $question\n\nToque em **Responder** abaixo para me contar! 💌"
+    answered:
+      title:
+        en-us: 📨 Answer sent!
+        pt-br: 📨 Resposta enviada!
+      description:
+        en-us: I've passed your answer to my team! Thank you for helping me get better 🐶
+        pt-br: Passei sua resposta para a minha equipe! Obrigado por me ajudar a melhorar 🐶
+      footer: ${ref.support_footer}
+
+  # open: error names -> an ErrorBlock
+  errors:
+    not_author:
+      title:
+        en-us: Not Your Report
+        pt-br: Esse Report Não É Seu
+      message:
+        en-us: "I'm sorry, but only the person who sent this report can answer my team here. If you found a problem too, send me your own with the `${context.commands.report}` command!"
+        pt-br: "Sinto muito, mas só quem enviou esse report pode responder a minha equipe por aqui. Se você também encontrou um problema, me mande o seu com o comando `${context.commands.report}`!"
+
+  # open: button names -> a ButtonCopy
+  buttons:
+    answer:
+      label:
+        en-us: Answer
+        pt-br: Responder

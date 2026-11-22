@@ -738,7 +738,7 @@ async def test_a_confirmation_view_can_run_its_callback_under_a_trace_of_its_own
     view = ConfirmActionView(on_confirm=on_confirm, locale="pt-br", trace_name="birthday")
     interaction = SimpleNamespace(
         guild_id=1,
-        user=SimpleNamespace(id=9, guild_permissions=SimpleNamespace(administrator=False)),
+        user=SimpleNamespace(id=9, guild_permissions=SimpleNamespace(administrator=False, manage_guild=False)),
     )
     await view.confirm.callback(interaction)
 

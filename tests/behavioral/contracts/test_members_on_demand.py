@@ -21,6 +21,7 @@ import pytest
 
 from app.constants import Commands
 from app.core import members
+from app.core.utils import find_user
 from tests.mocks.discord import MockRole, create_guild, create_member, create_message
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("members")]
@@ -352,19 +353,21 @@ async def test_a_joiner_gets_the_roles_without_any_request(deps, mock_cache, mon
     assert guild.pages_fetched == 0 and guild.fetched == []
 
 
-async def test_a_logged_user_discord_py_never_cached_is_asked_to_the_api(monkeypatch):
-    from app.commands.admin import log_inspection
-
+async def test_a_logged_user_discord_py_never_cached_is_asked_to_the_api():
+    """The user a log or a report names (the admin's inspection, a report's author)."""
     user = SimpleNamespace(id=777, name="Amiga")
     bot = SimpleNamespace(get_user=lambda _id: None, fetch_user=AsyncMock(return_value=user))
-    monkeypatch.setattr(log_inspection, "bot", bot)
 
-    assert await log_inspection.get_user(777) is user
+    assert await find_user(bot, 777) is user
 
     bot.fetch_user.side_effect = discord.NotFound(
         SimpleNamespace(status=404, reason="Not Found"), "Unknown User"
     )
-    assert await log_inspection.get_user(404) is None
+    assert await find_user(bot, 404) is None
+    bot.fetch_user.side_effect = discord.DiscordServerError(
+        SimpleNamespace(status=503, reason="Service Unavailable"), "upstream"
+    )
+    assert await find_user(bot, 503) is None
 
 
 async def test_an_edit_by_an_exempt_member_nobody_cached_stays(deps, mock_cache):

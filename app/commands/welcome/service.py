@@ -22,7 +22,7 @@ from app.core.commands import MemberJoined
 from app.core.threads import to_thread
 from app.core.utils import fill_placeholders, ml, split_messages, values_of
 from app.exceptions import ErrorContext
-from app.forms import document_values, open_feature
+from app.forms import document_values
 from app.forms.features.feature import (
     AsideAction,
     GenericCogFeature,
@@ -42,11 +42,6 @@ class WelcomeSettings:
     footer: str
     design: str
     custom_image: Optional[str]
-
-
-async def manager(interaction: discord.Interaction) -> None:
-    """The slash command: the setup form, or the manager of what is saved."""
-    await open_feature(interaction, "welcome_messages")
 
 
 def render_welcome_message(welcome_message: str, member: discord.Member) -> str:

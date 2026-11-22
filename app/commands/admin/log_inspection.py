@@ -13,7 +13,7 @@ from app.constants import LogTypes as logconstants
 from app.core.cogs import features_on, find_changes
 from app.core.dates import parse_if_time
 from app.core.manager import change_label, parse_history_data
-from app.core.utils import format_relative_time
+from app.core.utils import find_user, format_relative_time
 from app.data import data
 from app.forms.features import feature_keys
 from app.ui.buttons import GenericButton, HistoryButton
@@ -318,18 +318,6 @@ class UserInspectionView(discord.ui.View):
         )
 
 
-async def get_user(user_id: int) -> Optional[discord.User]:
-    """The user from discord.py's cache, else from the API, or None."""
-    cached = bot.get_user(user_id)
-    if cached is not None:
-        return cached
-
-    try:
-        return await bot.fetch_user(user_id)
-    except discord.NotFound:
-        return None
-
-
 async def parse_log_message_to_embed(
     interaction: discord.Interaction, message: discord.Message
 ) -> None:
@@ -355,7 +343,7 @@ async def parse_log_message_to_embed(
         return
 
     guild = bot.get_guild(int(guild_id))
-    user = await get_user(int(user_id)) if user_id else None
+    user = await find_user(bot, int(user_id)) if user_id else None
 
     view = LogInspectionView(user, guild, guild_id)
     await view.send(interaction)

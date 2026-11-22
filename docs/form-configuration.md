@@ -47,8 +47,7 @@ lines are enforced by `tests/forms/test_boundary.py` and, for the key literals,
 
 ## 2. Load and execution path
 
-1. A command's slash command (`app/commands/<command>/cog.py`) calls its
-   service's `manager(interaction)`, which calls
+1. A command's slash command (`app/commands/<command>/cog.py`) calls
    `open_feature(interaction, key)`
    (`app/forms/discord/callbacks.py`). The `/setup` buttons reach
    the same function through `run_feature_command`, beside it

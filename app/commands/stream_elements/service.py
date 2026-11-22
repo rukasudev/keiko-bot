@@ -23,7 +23,7 @@ from app.core.trace import outside_any_trace
 from app.core.utils import fill, ml
 from app.data import data
 from app.exceptions import ErrorContext, StreamElementsUnavailable
-from app.forms import document_values, open_feature
+from app.forms import document_values
 from app.forms.features.feature import (
     AsideAction,
     CommitContext,
@@ -43,11 +43,6 @@ from app.ui.records import RecordsBrowser
 def command_facts(**values: Any) -> Facts:
     """The facts the StreamElements commands pass their copy, each under its address."""
     return facts("stream_elements_commands", **values)
-
-
-async def manager(interaction: discord.Interaction) -> None:
-    """The slash command: the setup form, or the manager of what is saved."""
-    await open_feature(interaction, "stream_elements_commands")
 
 
 async def answer_prefix(sent: MessageSent) -> bool:

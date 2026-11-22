@@ -205,6 +205,7 @@ class Commands:
     TRACE_RUNS_QUEUE_MAXSIZE: Final[int] = 1000
     STREAM_ELEMENTS_TIMEOUT_SECONDS: Final[float] = 5.0
     REDIS_ATTEMPTS_WINDOW: Final[str] = "window:attempts:{guild_id}:{feature}"
+    REDIS_REPORT_WINDOW: Final[str] = "window:report:{user_id}"
 
     # debug logs — the hot window of "why did it break?", queried directly in
     # Mongo. Anything older lives in the daily file on the Discord logs channel.
@@ -275,6 +276,8 @@ class Commands:
     STREAM_ELEMENTS_FAILURE_SECONDS: Final[int] = 60 * 30
 
     REMINDERS_BIRTHDAY_REACTION: Final[str] = "🎉"
+    MENTION_REACTION: Final[str] = "🐶"
+    MENTION_WOOF_CHANCE: Final[float] = 0.1
     REMINDER_API_TITLE_BIRTHDAY: Final[str] = "birthday_reminder"
 
     SELF_BIRTHDAY_EDIT_LIMIT: Final[int] = 1
@@ -310,6 +313,22 @@ class Commands:
         "UTC": "utc",
     }
     SUPPORT_SERVER_URL: Final[str] = "https://discord.gg/Hdg239Cvbd"
+
+    # report
+    REPORT_TEXT_MAX: Final[int] = 1000
+    REPORT_TITLE_MAX: Final[int] = 80
+    REPORT_DAILY_LIMIT: Final[int] = 5
+    REPORT_DAILY_WINDOW_SECONDS: Final[int] = 60 * 60 * 24
+    REPORT_STATUSES: Final[Dict[str, str]] = {
+        "review": "Em análise",
+        "resolved": "Resolvido",
+        "details": "Preciso de detalhes",
+    }
+    REPORT_STATUS_COLORS: Final[Dict[str, discord.Color]] = {
+        "review": discord.Color(int(Style.BACKGROUND_COLOR, 16)),
+        "resolved": discord.Color.green(),
+        "details": discord.Color(int(Style.WARNING_COLOR, 16)),
+    }
 
 
 class CogsConstants:
@@ -350,9 +369,12 @@ class ViewConstants:
     COMPOSITION_PREVIEW_LIMIT: Final[int] = 10
     COMMANDS_PREVIEW_LIMIT: Final[int] = 5
     DEFER_AFTER_SECONDS: Final[float] = 1.5
+    READ_BEFORE_ANSWER_SECONDS: Final[float] = 1.0
     GROUP_ITEMS_SHOWN: Final[int] = 3
     COMMANDS_PAGE_SIZE: Final[int] = 5
     SETUP_PAGE_SIZE: Final[int] = 4
+    HELP_PAGE_SIZE: Final[int] = 2
+    MEMBER_HELP_PAGE_SIZE: Final[int] = 1
     SETUP_CATEGORY_EXAMPLES: Final[int] = 3
     EDIT_BY_ITEM_MAX: Final[int] = 3
     CHOICE_BUTTONS_PER_ROW: Final[int] = 4
@@ -368,15 +390,18 @@ class DiscordLimits:
     MODAL_INPUTS: Final[int] = 5
     MODAL_TITLE: Final[int] = 45
     MODAL_INPUT_LABEL: Final[int] = 45
+    MODAL_INPUT_DESCRIPTION: Final[int] = 100
     EMBED_DESCRIPTION: Final[int] = 4096
     EMBED_FIELDS: Final[int] = 25
     EMBED_FIELD_NAME: Final[int] = 256
     EMBED_FIELD_VALUE: Final[int] = 1024
     SELECT_OPTION_TEXT: Final[int] = 100
+    SELECT_OPTIONS: Final[int] = 25
     AUTOCOMPLETE_CHOICES: Final[int] = 25
     BUTTONS_PER_ROW: Final[int] = 5
     INTERACTION_TOKEN_SECONDS: Final[int] = 900
     CUSTOM_ID: Final[int] = 100
+    THREAD_NAME: Final[int] = 100
     ATTACHMENT_URL_SECONDS: Final[int] = 86400
     ATTACHMENT_URL_REFRESH_SECONDS: Final[int] = 82800  # an hour before the link dies
 

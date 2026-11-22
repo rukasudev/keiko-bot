@@ -6,6 +6,7 @@ from discord import app_commands
 from app.bot import DiscordBot
 from app.commands.block_links import service as block_links_service
 from app.decorators import keiko_admin_only, keiko_command
+from app.forms import open_feature
 from app.translator import locale_str
 from app.types.cogs import Cog, Group
 
@@ -27,7 +28,7 @@ class Block(  # noqa: D101 - discord.py sends a Group's docstring as its descrip
     @keiko_admin_only
     async def block_links(self, interaction: discord.Interaction) -> None:
         """Open the setup form, or the manager of the blocked links."""
-        await block_links_service.manager(interaction)
+        await open_feature(interaction, "block_links")
 
 
 class LinkCheck(Cog):
@@ -37,7 +38,7 @@ class LinkCheck(Cog):
         self.bot = bot
         super().__init__()
 
-    @app_commands.default_permissions(administrator=True)
+    @app_commands.default_permissions(manage_guild=True)
     @keiko_admin_only
     async def validate_block_link(
         self, interaction: discord.Interaction, message: discord.Message

@@ -1,9 +1,11 @@
-"""The pure helpers of app/core/utils.py: links, lists, message splitting,
-durations, HMAC, and `ml`/`parse_locale` agreeing with the form platform."""
+"""The helpers of app/core/utils.py: links, lists, message splitting, durations,
+HMAC, `ml`/`parse_locale` agreeing with the form platform, who configures Keiko, a
+DM and a re-posted upload, and a text kept inside a quote."""
 
 import hashlib
 import hmac
 from datetime import timedelta
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import discord
@@ -13,7 +15,11 @@ from app.core.utils import (
     check_two_lists_intersection,
     format_datetime_output,
     get_message_links,
+    inside_quote,
     list_roles_id,
+    postable_file,
+    quoted_lines,
+    send_dm,
     split_messages,
     verify_hmac_sha256,
 )
@@ -498,3 +504,123 @@ class TestLocaleCopyAgreesWithThePlatform:
         from app.forms.form.copy import text
 
         assert ml(key, locale) == text(key, locale)
+
+
+class TestWhoConfiguresKeiko:
+    """Whoever may set Keiko up in a server: an Administrator, or a member with Manage
+    Server (a moderator the owner trusts with the server's settings)."""
+
+    @pytest.mark.parametrize(
+        ("permissions", "configures"),
+        [
+            pytest.param(
+                discord.Permissions(administrator=True), True, id="administrator"
+            ),
+            pytest.param(
+                discord.Permissions(manage_guild=True), True, id="manage-server"
+            ),
+            pytest.param(discord.Permissions.all(), True, id="every-permission"),
+            pytest.param(
+                discord.Permissions(manage_messages=True), False, id="moderator"
+            ),
+            pytest.param(discord.Permissions.none(), False, id="member"),
+        ],
+    )
+    def test_administrator_or_manage_server_configures_keiko(
+        self, permissions, configures
+    ):
+        from app.core.utils import is_guild_admin
+
+        member = MagicMock(guild_permissions=permissions)
+
+        assert is_guild_admin(member) is configures
+
+    def test_a_user_outside_a_server_configures_nothing(self):
+        from types import SimpleNamespace
+
+        from app.core.utils import is_guild_admin
+
+        assert is_guild_admin(SimpleNamespace(id=1)) is False
+
+
+def _refused(status=403, code=50007):
+    response = SimpleNamespace(status=status, reason="Forbidden")
+    return discord.Forbidden(response, {"code": code, "message": "Cannot send"})
+
+
+class TestDirectMessagesAndUploads:
+    """A DM Keiko sends says whether it arrived, and a file someone uploaded is posted
+    again only when the channel takes it."""
+
+    async def test_a_dm_says_whether_it_reached_the_user(self):
+        sent = []
+
+        async def send(*, embed):
+            sent.append(embed)
+
+        async def refuse(*, embed):
+            raise _refused()
+
+        embed = discord.Embed(title="t")
+
+        assert await send_dm(SimpleNamespace(send=send), embed) is True
+        assert sent == [embed]
+        assert await send_dm(SimpleNamespace(send=refuse), embed) is False
+        assert await send_dm(None, embed) is False
+
+    async def test_a_dm_carries_the_view_it_is_given(self):
+        sent = []
+
+        async def send(**kwargs):
+            sent.append(kwargs)
+
+        embed = discord.Embed(title="t")
+        view = discord.ui.View()
+
+        assert await send_dm(SimpleNamespace(send=send), embed, view=view) is True
+        assert sent == [{"embed": embed, "view": view}]
+
+    async def test_an_upload_is_posted_again_only_within_the_channels_cap(self):
+        async def read():
+            return b"picture"
+
+        async def unreadable():
+            raise discord.NotFound(SimpleNamespace(status=404, reason="Not Found"), "")
+
+        channel = SimpleNamespace(guild=SimpleNamespace(filesize_limit=10))
+        upload = SimpleNamespace(filename="print.png", size=7, read=read)
+
+        file = await postable_file(upload, channel)
+
+        assert file is not None and file.filename == "print.png"
+        assert file.fp.read() == b"picture"
+        assert (
+            await postable_file(
+                SimpleNamespace(**{**vars(upload), "size": 11}), channel
+            )
+            is None
+        )
+        gone = SimpleNamespace(**{**vars(upload), "read": unreadable})
+        assert await postable_file(gone, channel) is None
+        assert await postable_file(None, channel) is None
+
+
+class TestInsideAQuote:
+    """A text written after `> ` in a copy stays inside the quote on every line, and
+    reads back whole from the quote."""
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            pytest.param("Em qual servidor?", id="one-line"),
+            pytest.param("Em qual servidor?\nE qual canal?", id="two-lines"),
+            pytest.param("Primeiro\n\nDepois de uma linha vazia", id="a-blank-line"),
+        ],
+    )
+    def test_every_line_stays_inside_the_quote_and_reads_back_whole(self, text):
+        written = f"Minha equipe quer saber:\n\n> {inside_quote(text)}\n\nToque abaixo"
+
+        quoted = [line for line in written.splitlines() if line.startswith("> ")]
+
+        assert len(quoted) == len(text.splitlines())
+        assert quoted_lines(written) == text

@@ -3,8 +3,8 @@
 import discord
 
 from app.bot import DiscordBot
-from app.commands.birthdays import service as birthdays_service
 from app.decorators import keiko_admin_only, keiko_command
+from app.forms import open_feature
 from app.translator import locale_str
 from app.types.cogs import Group
 
@@ -30,4 +30,4 @@ class Birthdays(  # noqa: D101 - discord.py sends a Group's docstring as its des
     @keiko_admin_only
     async def reminders(self, interaction: discord.Interaction) -> None:
         """Open the setup form, or the manager of the birthday reminders."""
-        await birthdays_service.manager(interaction)
+        await open_feature(interaction, "reminders_birthday")

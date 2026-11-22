@@ -14,6 +14,7 @@ from app.core.commands import (
     Reminder,
     WebhookEvent,
     WebhookReply,
+    dynamic_item_hooks,
     edit_hooks,
     guild_join_hooks,
     member_hooks,
@@ -71,6 +72,11 @@ async def guild_joined(work: GuildWork, context: GuildJoined) -> None:
 def persistent_views() -> tuple[Any, ...]:
     """Every view Keiko keeps listening to after a restart."""
     return tuple(view for _key, hook in view_hooks() for view in hook())
+
+
+def dynamic_items() -> tuple[type[Any], ...]:
+    """Every item Keiko routes by its custom id alone, whatever message it sits on."""
+    return tuple(item for _key, hook in dynamic_item_hooks() for item in hook())
 
 
 def reminder(fired: Reminder) -> bool:

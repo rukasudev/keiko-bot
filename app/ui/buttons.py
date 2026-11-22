@@ -5,6 +5,7 @@ from typing import Any, Callable
 import discord
 from pydantic import Field
 
+from app.constants import Commands
 from app.core.i18n import CopyBlock, CopyText
 from app.core.servers import interaction_language
 from app.core.utils import ml
@@ -52,6 +53,18 @@ class HistoryButton(discord.ui.Button):
             emoji="📜",
             style=discord.ButtonStyle.grey,
         )
+
+class SupportButton(discord.ui.Button):
+    """A link to Keiko's official server, where the team answers."""
+
+    def __init__(self, locale: str | discord.Locale) -> None:
+        super().__init__(
+            label=ml("buttons.support.label", locale=locale),
+            emoji="💬",
+            style=discord.ButtonStyle.link,
+            url=Commands.SUPPORT_SERVER_URL,
+        )
+
 
 class GenericButton(discord.ui.Button):
     def __init__(self, label: str, callback: Callable, style: discord.ButtonStyle, **kwargs):

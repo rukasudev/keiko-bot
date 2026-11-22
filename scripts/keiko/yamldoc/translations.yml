@@ -1740,6 +1740,11 @@ copy.yml/Records.detail:
 copy.yml/Records.filter:
   en-us: The member filter; absent, the list has no filter button.
   pt-br: O filtro por membro; se ausente, a lista não tem botão de filtro.
+copy.yml/Records.overrides:
+  en-us: The title or description drawn while a rule on the facts holds, the first item whose
+    rule holds winning (/help for a member, who may not configure Keiko).
+  pt-br: O título ou a descrição desenhados enquanto uma regra sobre os fatos vale, vencendo
+    o primeiro item cuja regra vale (o /help para um membro, que não pode configurar o Keiko).
 copy.yml/Records.lines:
   en-us: Line templates the formatter fills once per record ($user, $channel, $date), keyed
     by the part of the record each draws.
@@ -1930,6 +1935,18 @@ copy.yml/RecordsFilter.description:
 copy.yml/RecordsFilter.empty:
   en-us: Drawn alone when the member picked has no record.
   pt-br: Desenhado sozinho quando o membro escolhido não tem registro.
+copy.yml/RecordsOverride:
+  en-us: What a list draws while a rule holds, in place of its own title or description.
+  pt-br: O que uma lista desenha enquanto uma regra vale, no lugar do próprio título ou descrição.
+copy.yml/RecordsOverride.when:
+  en-us: The rule under which this item's fields replace the block's.
+  pt-br: A regra sob a qual os campos deste item substituem os do bloco.
+copy.yml/RecordsOverride.title:
+  en-us: The title drawn while the rule holds; absent keeps the list's.
+  pt-br: O título desenhado enquanto a regra vale; se ausente, mantém o da lista.
+copy.yml/RecordsOverride.description:
+  en-us: The description drawn while the rule holds; absent keeps the list's.
+  pt-br: A descrição desenhada enquanto a regra vale; se ausente, mantém a da lista.
 copy.yml/CardOverride:
   en-us: What a card draws while a rule holds, in place of its own title, intro or note.
   pt-br: O que um card desenha enquanto uma regra vale, no lugar do próprio título, introdução
@@ -2151,6 +2168,11 @@ languages/commands.yml/Records.detail:
 languages/commands.yml/Records.filter:
   en-us: The member filter; absent, the list has no filter button.
   pt-br: O filtro por membro; se ausente, a lista não tem botão de filtro.
+languages/commands.yml/Records.overrides:
+  en-us: The title or description drawn while a rule on the facts holds, the first item whose
+    rule holds winning (/help for a member, who may not configure Keiko).
+  pt-br: O título ou a descrição desenhados enquanto uma regra sobre os fatos vale, vencendo
+    o primeiro item cuja regra vale (o /help para um membro, que não pode configurar o Keiko).
 languages/commands.yml/Records.lines:
   en-us: Line templates the formatter fills once per record ($user, $channel, $date), keyed
     by the part of the record each draws.
@@ -2234,6 +2256,18 @@ languages/commands.yml/RecordsFilter.description:
 languages/commands.yml/RecordsFilter.empty:
   en-us: Drawn alone when the member picked has no record.
   pt-br: Desenhado sozinho quando o membro escolhido não tem registro.
+languages/commands.yml/RecordsOverride:
+  en-us: What a list draws while a rule holds, in place of its own title or description.
+  pt-br: O que uma lista desenha enquanto uma regra vale, no lugar do próprio título ou descrição.
+languages/commands.yml/RecordsOverride.when:
+  en-us: The rule under which this item's fields replace the block's.
+  pt-br: A regra sob a qual os campos deste item substituem os do bloco.
+languages/commands.yml/RecordsOverride.title:
+  en-us: The title drawn while the rule holds; absent keeps the list's.
+  pt-br: O título desenhado enquanto a regra vale; se ausente, mantém o da lista.
+languages/commands.yml/RecordsOverride.description:
+  en-us: The description drawn while the rule holds; absent keeps the list's.
+  pt-br: A descrição desenhada enquanto a regra vale; se ausente, mantém a da lista.
 languages/commands.yml/Leaf:
   en-us: One test on one key of the scope chain, with exactly one operator.
   pt-br: Um teste sobre uma chave da cadeia de escopos, com exatamente um operador.

@@ -92,7 +92,7 @@ def web(monkeypatch):
             return Answer({"items": [], "data": [], "id": 1}, status=200)
         return send
 
-    for method in ("get", "post", "put", "delete"):
+    for method in ("get", "post", "put", "patch", "delete"):
         monkeypatch.setattr(requests, method, answer(method))
     return sent
 
@@ -155,8 +155,9 @@ def test_a_dependency_keiko_does_not_name_is_refused_before_anything_is_sent(web
     ("youtube", lambda bot: YoutubeClient(bot).get_video_info("video-1")),
     ("reminders", lambda bot: ReminderWebhook(bot).get_reminders()),
     ("notion", lambda bot: NotionIntegration(bot.config).create_report("t", "d", "c", "1", None)),
+    ("notion", lambda bot: NotionIntegration(bot.config).update_status("0" * 32, "Resolvido")),
     ("stream_elements", lambda bot: StreamElementsClient().send_chat_command("c", "!mouse")),
-], ids=["twitch", "youtube", "reminders", "notion", "stream_elements"])
+], ids=["twitch", "youtube", "reminders", "notion", "notion-status", "stream_elements"])
 def test_every_integration_sends_through_the_shared_client(web, config, dependency, call):
     before = calls(dependency)
 
@@ -447,7 +448,7 @@ class Web:
 @pytest.fixture
 def recording_web(monkeypatch):
     sent = Web()
-    for method in ("get", "post", "put", "delete"):
+    for method in ("get", "post", "put", "patch", "delete"):
         monkeypatch.setattr(
             requests,
             method,
@@ -530,9 +531,10 @@ def test_no_secret_reaches_a_url_any_integration_requests(recording_web, secrets
     reminders.update_reminder("7001", "2026-05-12", time_tz="08:00")
     reminders.delete_reminder("7001")
     NotionIntegration(secrets_config).create_report("title", "description", "command", "1", None)
+    NotionIntegration(secrets_config).update_status("0" * 32, "Resolvido")
 
     urls = recording_web.requested_urls()
-    assert len(urls) == 11, "the token request comes first, then every call above"
+    assert len(urls) == 12, "the token request comes first, then every call above"
     leaked = [(secret, url) for url in urls for secret in SECRETS if secret in url]
     assert leaked == []
 

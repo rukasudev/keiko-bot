@@ -15,7 +15,7 @@ from app.core.facts import Facts, facts
 from app.core.members import every_member
 from app.core.utils import at_least, ensure_list, get_available_roles_by_guild
 from app.exceptions import ErrorContext
-from app.forms import document_values, open_feature
+from app.forms import document_values
 from app.forms.features.feature import (
     AsideAction,
     CommitContext,
@@ -246,11 +246,6 @@ def filter_roles(roles: SavedRoles, available_roles: Dict[str, str]) -> List[str
     if not available_roles:
         return []
     return [role for role in ensure_list(roles) if role in available_roles.values()]
-
-
-async def manager(interaction: discord.Interaction) -> None:
-    """The slash command: the setup form, or the manager of what is saved."""
-    await open_feature(interaction, "default_roles")
 
 
 def get_not_available_roles(

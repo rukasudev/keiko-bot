@@ -32,7 +32,7 @@ from app.data import data, wait
 from app.data.collection import Document
 from app.data.keiko import schedules
 from app.exceptions import ErrorContext
-from app.forms import item_values, items_of, list_values, open_feature
+from app.forms import item_values, items_of, list_values
 from app.forms.features.subscriptions import Account, SubscriptionFeature
 from app.integrations.reminders.client import REMINDER_TIMEZONE, reminder_time
 from app.integrations.youtube.client import VideoNotice
@@ -84,11 +84,6 @@ async def find_followed_youtubers() -> List[str]:
             if notice.get("youtuber")
         }
     )
-
-
-async def manager(interaction: discord.Interaction) -> None:
-    """The slash command: the setup form, or the manager of what is saved."""
-    await open_feature(interaction, "notifications_youtube_video")
 
 
 @dataclass(frozen=True)

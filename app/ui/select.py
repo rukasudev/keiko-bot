@@ -18,14 +18,12 @@ def _fit(text: Optional[str]) -> Optional[str]:
 
 
 class Select(discord.ui.Select[V]):
-    def __init__(self, placeholder: str, options: Dict[str, str], custom_callback=None, unique=False, custom_id=None, row=None):
+    def __init__(self, placeholder: str, options: Dict[str, str], custom_callback=None, unique=False, custom_id=None):
         self.parsed_options = self.parse_options(options)
         self.custom_callback = custom_callback
         kwargs = {}
         if custom_id:
             kwargs["custom_id"] = custom_id
-        if row is not None:
-            kwargs["row"] = row
         super().__init__(
             placeholder=placeholder,
             options=self.parsed_options,

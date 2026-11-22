@@ -133,7 +133,7 @@ def normalize_modal(modal: discord.ui.Modal) -> Dict[str, Any]:
             inner = child.component
         if isinstance(inner, discord.ui.TextInput):
             fields.append({
-                "label": inner.label if isinstance(inner, discord.ui.TextInput) else getattr(child, "text", None),
+                "label": getattr(child, "text", None) or inner.label,
                 "required": inner.required,
                 "style": inner.style.name,
                 "max_length": inner.max_length,

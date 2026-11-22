@@ -434,14 +434,23 @@ async def test_edit_and_guild_join_hooks_run_in_the_declared_order(declare):
     assert calls == ["edit-1", "edit-2", "join-1", "join-2"]
 
 
-def test_persistent_views_gather_every_command_view(declare):
+@pytest.mark.parametrize(
+    "hook, gathered",
+    [
+        ("persistent_views", dispatch.persistent_views),
+        ("dynamic_items", dispatch.dynamic_items),
+    ],
+)
+def test_the_views_and_dynamic_items_of_every_command_are_gathered(
+    declare, hook, gathered
+):
     declare(
-        Command("one", hooks=Hooks(persistent_views=lambda: ["view-a", "view-b"])),
+        Command("one", hooks=Hooks(**{hook: lambda: ["item-a", "item-b"]})),
         Command("none"),
-        Command("two", hooks=Hooks(persistent_views=lambda: ["view-c"])),
+        Command("two", hooks=Hooks(**{hook: lambda: ["item-c"]})),
     )
 
-    assert dispatch.persistent_views() == ("view-a", "view-b", "view-c")
+    assert gathered() == ("item-a", "item-b", "item-c")
 
 
 def test_a_reminder_reaches_the_command_that_owns_its_title(declare):

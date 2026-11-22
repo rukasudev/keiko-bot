@@ -16,6 +16,7 @@ from tests.behavioral.harness import golden as golden_module
 from tests.behavioral.harness.driver import FormScenario
 from tests.behavioral.flows.birthdays import birthday_command_on  # noqa: F401
 from tests.helpers.logs import discord_logs  # noqa: F401
+from tests.helpers.slash_tree import synced_tree
 from tests.mocks.discord import create_guild, create_member
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -45,14 +46,22 @@ def _fresh_runtime():
 
 
 @pytest.fixture
-def scenario_factory(deps):
-    """Build FormScenario instances bound to a fresh mock guild + Mongo."""
+async def app_command_tree():
+    """Keiko's app command tree as the bot syncs it, built once per run: what the
+    harness's client holds as `tree`."""
+    return (await synced_tree()).tree
+
+
+@pytest.fixture
+def scenario_factory(deps, app_command_tree):
+    """Build FormScenario instances bound to a fresh mock guild + Mongo, whose client
+    holds Keiko's app command tree."""
 
     def factory(locale: str = "pt-br", guild=None, user=None) -> FormScenario:
         guild = guild or create_guild()
         user = user or create_member(guild, id=555, name="Tester")
         return FormScenario(guild=guild, user=user, locale=locale,
-                            mongo=deps.mongo_client)
+                            mongo=deps.mongo_client, tree=app_command_tree)
 
     return factory
 

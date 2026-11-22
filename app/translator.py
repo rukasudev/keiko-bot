@@ -144,15 +144,6 @@ class Translator(app_commands.Translator):
         context.data.extras[locale.value]["locale_qualified_name"] = locale_qualified_name
         context.data.extras[locale.value]["locale_qualified_desc"] = locale_qualified_desc
 
-        if not self.bot.all_cogs.get(locale.value):
-            self.bot.all_cogs[locale.value] = []
-
-        self.bot.all_cogs[locale.value].append({
-            "key": context.data._attr,
-            "name": locale_qualified_name,
-            "desc": locale_qualified_desc
-        })
-
         return ml(f"{ns}.{tp}", locale=locale)
 
 

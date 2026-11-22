@@ -3,8 +3,8 @@
 import discord
 
 from app.bot import DiscordBot
-from app.commands.roles import service as default_roles_service
 from app.decorators import keiko_admin_only, keiko_command
+from app.forms import open_feature
 from app.translator import locale_str
 from app.types.cogs import Group
 
@@ -28,4 +28,4 @@ class Roles(  # noqa: D101 - discord.py sends a Group's docstring as its descrip
     @keiko_admin_only
     async def default_roles(self, interaction: discord.Interaction) -> None:
         """Open the setup form, or the manager of the default roles."""
-        await default_roles_service.manager(interaction)
+        await open_feature(interaction, "default_roles")

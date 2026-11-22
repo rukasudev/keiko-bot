@@ -43,7 +43,10 @@ LOCALE = "pt-br"
 
 def greeted_guild(db, *channels):
     guild = SimpleNamespace(
-        id=GREETED_GUILD, text_channels=list(channels), me=SimpleNamespace()
+        id=GREETED_GUILD,
+        system_channel=None,
+        text_channels=list(channels),
+        me=SimpleNamespace(),
     )
     recorded_server(db, guild.id)
     return guild

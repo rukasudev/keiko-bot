@@ -24,6 +24,9 @@ facts:
   documents:
     type: number
     description: How many documents a database backup holds.
+  emoji:
+    type: text
+    description: The emoji of the parent group a line or a title names, as /setup shows it beside the group.
   feature:
     type: text
     description: The name of the feature a list's last-item warning turns off, the intro's title without its emoji.
@@ -55,6 +58,9 @@ facts:
   month_name:
     type: text
     description: The name of a month, for an English date label.
+  name:
+    type: text
+    description: The name a line or a title names, of a command or of a parent group, in the reader's language.
   permission:
     type: text
     description: The name of a Discord permission Keiko is missing.

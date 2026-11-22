@@ -42,7 +42,7 @@ from app.core.utils import (
 from app.data import data
 from app.exceptions import InvalidServerSetting
 from app.integrations.google_translate import GoogleTranslate
-from app.ui.buttons import GenericButton
+from app.ui.buttons import GenericButton, SupportButton
 from app.ui.embed import (
     card_copy,
     card_footer,
@@ -233,12 +233,7 @@ def _card_buttons(locale: str) -> List[discord.ui.Item[Any]]:
             grey,
             emoji="🩺",
         ),
-        discord.ui.Button(
-            label=ml("setup.ui.buttons.support.label", locale),
-            emoji="💬",
-            style=discord.ButtonStyle.link,
-            url=Commands.SUPPORT_SERVER_URL,
-        ),
+        SupportButton(locale),
     ]
 
 
@@ -620,7 +615,6 @@ class DashboardButton(discord.ui.Button[Any]):
             emoji="🔧",
             style=discord.ButtonStyle.primary,
             custom_id="greetings:setup:dashboard",
-            row=1,
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
@@ -638,7 +632,6 @@ class CommandsButton(discord.ui.Button[Any]):
             emoji="📚",
             style=discord.ButtonStyle.secondary,
             custom_id="greetings:commands",
-            row=1,
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
@@ -673,13 +666,13 @@ def _build_language_select(locale: str, callback: Opens) -> Select[discord.ui.Vi
         placeholder,
         options,
         custom_callback=callback,
+        unique=1,
         custom_id="greetings:language_select",
-        row=0,
     )
 
 
 def _category_lines(locale: str) -> str:
-    line = ml("setup.ui.responses.greeting.lines.category", locale)
+    line = ml("setup.ui.texts.greeting_category", locale)
     lines = []
     for category, emoji in PARENT_GROUPS.items():
         names = [
@@ -694,34 +687,43 @@ def _category_lines(locale: str) -> str:
     return "\n".join(lines)
 
 
-def greeting_embed(locale: str) -> discord.Embed:
-    """The greeting a server gets when Keiko joins, in `locale`, each category
-    naming the features /setup places in it."""
-    return response_embed(
-        "setup.ui.responses.greeting",
-        locale,
-        image=True,
-        facts=command_facts(categories=_category_lines(locale)),
+def greeting_card(locale: str) -> discord.ui.Container[Any]:
+    """The greeting a server gets when Keiko joins, in `locale`: Keiko beside its
+    title, the tricks of each category naming the features /setup places in it, how
+    to start and where the commands are."""
+    rows = "setup.ui.cards.greeting.rows"
+    copy = card_copy("setup.ui.cards.greeting", locale)
+    tricks = ml(f"{rows}.tricks.description", locale)
+
+    card = card_frame()
+    card_header(card, copy.title, copy.description, KeikoIcons.IMAGE_01)
+    card_row(card, fill(tricks, categories=_category_lines(locale)))
+    card_row(card, ml(f"{rows}.start.description", locale))
+    card_row(card, ml(f"{rows}.help.description", locale))
+    _footer(card, copy.footer)
+    return card
+
+
+def _greeting_channel(guild: discord.Guild) -> Optional[discord.TextChannel]:
+    channels = [guild.system_channel, *guild.text_channels]
+    for channel in channels:
+        if channel is not None and channel.permissions_for(guild.me).send_messages:
+            return channel
+    return None
+
+
+def _greeting_failed(interaction: discord.Interaction, error: Exception) -> None:
+    logger.error(
+        f"GreetingsView error: {type(error).__name__}: {error}",
+        interaction=interaction,
+        log_type=logconstants.COMMAND_ERROR_TYPE,
+        exc_info=True,
     )
 
 
-class _PersistentGreeting(discord.ui.View):
-    async def on_error(
-        self,
-        interaction: discord.Interaction,
-        error: Exception,
-        _item: discord.ui.Item[Any],
-    ) -> None:
-        logger.error(
-            f"GreetingsView error: {type(error).__name__}: {error}",
-            interaction=interaction,
-            log_type=logconstants.COMMAND_ERROR_TYPE,
-            exc_info=True,
-        )
-
-
-class GreetingsView(_PersistentGreeting):
-    """The greeting a new server gets: its language, the /setup card, the commands."""
+class GreetingsView(discord.ui.LayoutView):
+    """The greeting a new server gets: Keiko's card, then its language, the /setup
+    card and the commands."""
 
     def __init__(self, locale: str = "en-us") -> None:
         super().__init__(timeout=None)
@@ -730,31 +732,44 @@ class GreetingsView(_PersistentGreeting):
         self._build(locale)
 
     def _build(self, locale: str) -> None:
-        self.add_item(_build_language_select(locale, self.language_callback))
+        self.add_item(greeting_card(locale))
+        language = _build_language_select(locale, self.language_callback)
+        self.add_item(discord.ui.ActionRow(language))
 
         dashboard_label = ml("setup.ui.buttons.dashboard.label", locale)
-        self.add_item(DashboardButton(label=dashboard_label, locale=locale))
-        self.add_item(CommandsButton(ml("buttons.help.label", locale)))
+        self.add_item(
+            discord.ui.ActionRow(
+                DashboardButton(label=dashboard_label, locale=locale),
+                CommandsButton(ml("buttons.help.label", locale)),
+            )
+        )
+
+    async def on_error(
+        self,
+        interaction: discord.Interaction,
+        error: Exception,
+        _item: discord.ui.Item[Any],
+    ) -> None:
+        """Log what failed on the greeting, with the interaction that reached it."""
+        _greeting_failed(interaction, error)
 
     async def send(self, guild: discord.Guild) -> Optional[discord.Message]:
-        """Greet `guild` on the first channel Keiko may write in, in its language."""
+        """Greet `guild` in its language, in its system channel when Keiko may write
+        there, otherwise on the first channel he may."""
         locale = await server_language(str(guild.id))
         self.locale = locale
 
         self.clear_items()
         self._build(locale)
 
-        embed = greeting_embed(locale)
+        channel = _greeting_channel(guild)
+        if channel is None:
+            self._emit_greeting_sent(guild, channel_found=False)
+            return None
 
-        for channel in guild.text_channels:
-            if not channel.permissions_for(guild.me).send_messages:
-                continue
-            sent = await channel.send(embed=embed, view=self)
-            self._emit_greeting_sent(guild, channel_found=True)
-            return sent
-
-        self._emit_greeting_sent(guild, channel_found=False)
-        return None
+        sent = await channel.send(view=self)
+        self._emit_greeting_sent(guild, channel_found=True)
+        return sent
 
     def _emit_greeting_sent(self, guild: discord.Guild, channel_found: bool) -> None:
         analytics.record(
@@ -767,19 +782,18 @@ class GreetingsView(_PersistentGreeting):
         )
 
     async def language_callback(self, interaction: discord.Interaction) -> None:
-        """Draw the greeting again in the language picked."""
+        """Turn the greeting into the card in the language picked, an old embed
+        greeting included, leaving this view to answer every other greeting; when
+        Discord refuses that edit, the clicker gets the card privately."""
         selected = parse_locale(self.selected_options[0])
-        self.locale = selected
-
-        new_embed = greeting_embed(selected)
-
-        self.clear_items()
-        self._build(selected)
-
-        await interaction.response.edit_message(embed=new_embed, view=self)
+        card = GreetingsView(selected)
+        try:
+            await interaction.response.edit_message(embed=None, view=card)
+        except discord.HTTPException:
+            await interaction.response.send_message(view=card, ephemeral=True)
 
 
-class LegacyGreetingButtons(_PersistentGreeting):
+class LegacyGreetingButtons(discord.ui.View):
     """The feature buttons of greetings sent before beta.2: registered, never sent."""
 
     def __init__(self) -> None:
@@ -787,12 +801,21 @@ class LegacyGreetingButtons(_PersistentGreeting):
         for button in _build_setup_buttons("en-us"):
             self.add_item(button)
 
+    async def on_error(
+        self,
+        interaction: discord.Interaction,
+        error: Exception,
+        _item: discord.ui.Item[Any],
+    ) -> None:
+        """Log what failed on an old greeting, with the interaction that reached it."""
+        _greeting_failed(interaction, error)
+
 
 async def greet_server(joined: GuildJoined) -> None:
     """Greet the server that added Keiko, leading it to /setup."""
     await GreetingsView().send(joined.guild)
 
 
-def greeting_views() -> List[discord.ui.View]:
+def greeting_views() -> List[discord.ui.View | discord.ui.LayoutView]:
     """Every persistent view a greeting message may still carry a button of."""
     return [GreetingsView(), LegacyGreetingButtons()]

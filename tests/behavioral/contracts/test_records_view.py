@@ -19,6 +19,8 @@ pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form"
 
 FILTERED = "block_links.ui.records.blocked_list"
 LISTS = """\
+facts:
+  done: {type: boolean, description: Whether every record is reviewed.}
 ui:
   records:
     listed:
@@ -29,6 +31,12 @@ ui:
       empty: {en-us: Nothing here yet!, pt-br: Nada por aqui ainda!}
     bare:
       title: {en-us: Anything, pt-br: Qualquer coisa}
+    reviewed:
+      title: {en-us: Records, pt-br: Registros}
+      description: {en-us: Some to review, pt-br: Alguns para revisar}
+      overrides:
+        - when: {key: lists.facts.done, is: true}
+          description: {en-us: Every one reviewed, pt-br: Todos revisados}
 """
 
 
@@ -284,3 +292,20 @@ async def test_a_records_block_no_copy_writes_is_refused(scenario_factory):
 
     with pytest.raises(CopyError, match="no copy file writes it"):
         await scenario.run(browser.send, name="/records")
+
+
+@pytest.mark.parametrize(
+    "done, intro",
+    [(False, "Alguns para revisar"), (True, "Todos revisados")],
+    ids=["default", "override"],
+)
+async def test_a_records_block_draws_the_description_its_facts_choose(
+    lists, scenario_factory, done, intro
+):
+    scenario = scenario_factory(locale="pt-br")
+    browser = _browser(copy="lists.ui.records.reviewed", facts=facts("lists", done=done))
+
+    await browser.send(scenario.interaction())
+
+    listing = scenario.expect_message(ephemeral=True, title_contains="Registros")
+    assert listing["embed"]["description"] == intro

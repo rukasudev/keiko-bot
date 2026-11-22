@@ -55,7 +55,7 @@ FEATURE_KEYS = {spec.key for spec in setup_features()}
 
 
 class FormScenario:
-    def __init__(self, *, guild, user, locale: str, mongo=None):
+    def __init__(self, *, guild, user, locale: str, mongo=None, tree=None):
         self.locale_str = locale
         self.locale = _LOCALES[locale]
         self.guild = guild
@@ -64,6 +64,8 @@ class FormScenario:
         if mongo is not None:
             recorded_server(mongo, guild.id, language=locale)
         self.store = MessageStore()
+        # The app command tree Keiko's client holds (`app_command_tree`), read by the help.
+        self.tree = tree
         self.command_key: Optional[str] = None
         # How long each first answer takes to reach Discord (FakeResponse).
         self.latency = 0.0
@@ -72,6 +74,8 @@ class FormScenario:
         # The caller's card a command opens from (`open_from`), and its message.
         self._caller: Optional[tuple] = None
         self.launcher: Optional[FakeMessage] = None
+        # The bot every interaction reaches (`interaction.client`), when a test gives one.
+        self.client: Any = None
 
     # ------------------------------------------------------------------ setup
 
@@ -120,6 +124,23 @@ class FormScenario:
         await entry(self.interaction(), *args)
         self.store.step_provider = self._current_step_key
         return self
+
+    async def run_command(self, command, binding, *args) -> FakeInteraction:
+        """A member runs the app command `command` of `binding` (its cog), as
+        discord.py runs it: the interaction carries the command and passes
+        Keiko's tree check (the server's language spoken from then on, the
+        member's own kept as the reader's), then the callback gets `args`.
+        Returns the interaction sent."""
+        from tests.mocks.discord import the_tree_checks
+
+        self.store.record("command", actor="user", target=f"/{command.qualified_name}")
+        interaction = self.interaction()
+        interaction.command = command
+        interaction.extras = {}
+        await the_tree_checks(interaction)
+        await command.callback(binding, interaction, *args)
+        self.store.step_provider = self._current_step_key
+        return interaction
 
     def post(self, view: discord.ui.View, *, embed=None) -> FakeMessage:
         """The bot posts `view` outside any command (the greeting it sends on
@@ -171,8 +192,10 @@ class FormScenario:
         interaction = FakeInteraction(
             self.store, guild=self.guild, user=self.user, locale=self.locale,
             message=on, data={"custom_id": custom_id} if custom_id else {},
-            latency=self.latency,
+            latency=self.latency, tree=self.tree,
         )
+        if self.client is not None:
+            interaction.client = self.client
         if at is not None:
             interaction.created_at = at
         return interaction
@@ -263,7 +286,7 @@ class FormScenario:
             raise LocatorError("no modal is pending", self.transcript)
         self.store.pending_modal = None
         self.store.record("modal_submit_after_restart", actor="user")
-        interaction = self.interaction(on=self.current_message)
+        interaction = self.interaction(on=self._opened_from(modal))
         interaction.data = {"custom_id": modal.custom_id}
         interaction.type = discord.InteractionType.modal_submit
         await Events(SimpleNamespace()).on_interaction(interaction)
@@ -289,18 +312,38 @@ class FormScenario:
                           values=[self._display_value(v) for v in resolved])
         await select.callback(self.interaction(on=message))
 
-    async def submit_modal(self, fields: Dict[str, str]) -> None:
-        modal = self.store.pending_modal
+    async def submit_modal(self, fields: Dict[str, str], *, modal=None) -> None:
+        """Submit the pending modal with `fields`, each named by its label
+        (exact, then contains): a text input gets the text, a select the
+        option whose label or value it names, a file upload a small PNG named
+        by it (`fake_attachment`). `modal` submits one the user opened earlier
+        and still holds on another screen (a later one replaced it as pending).
+        What `on_submit` raises reaches the modal's own `on_error`, as discord.py
+        routes it; a modal that keeps discord.py's default raises it here, so a
+        failure never passes for a submit."""
+        modal = modal or self.store.pending_modal
         if modal is None:
             raise LocatorError("no modal is pending", self.transcript)
-        inputs = self._modal_inputs(modal)
+        labelled = self._modal_fields(modal)
         for key, value in fields.items():
-            matched = self._match_input(inputs, key)
-            matched._value = value
-        self.store.pending_modal = None
+            self._fill(self._match_input(labelled, key), value)
+        if self.store.pending_modal is modal:
+            self.store.pending_modal = None
         self.store.record("modal_submit", actor="user",
                           fields={k: v for k, v in fields.items()})
-        await modal.on_submit(self.interaction(on=self.current_message))
+        interaction = self.interaction(on=self._opened_from(modal))
+        try:
+            await modal.on_submit(interaction)
+        except Exception as error:
+            if type(modal).on_error is discord.ui.Modal.on_error:
+                raise
+            await modal.on_error(interaction, error)
+
+    def _opened_from(self, modal: discord.ui.Modal) -> Optional[FakeMessage]:
+        opened = self.store.modal_messages.get(id(modal))
+        if opened is None or opened.deleted:
+            return self.current_message
+        return opened
 
     def dismiss_modal(self) -> None:
         """The user closes the modal without submitting (Esc / clicking away).
@@ -312,14 +355,13 @@ class FormScenario:
         self.store.record("modal_dismiss", actor="user")
 
     def pending_modal_fields(self) -> List[str]:
-        return [i.label for i in self.pending_modal_inputs()]
+        """The label of every input of the pending modal, in order."""
+        return [label for label, _item in self._pending_fields()]
 
-    def pending_modal_inputs(self) -> List[discord.ui.TextInput]:
-        """The text inputs of the pending modal, in the order the admin sees them."""
-        modal = self.store.pending_modal
-        if modal is None:
-            raise LocatorError("no modal is pending", self.transcript)
-        return self._modal_inputs(modal)
+    def pending_modal_inputs(self) -> List[Any]:
+        """The inputs of the pending modal in the order the user sees them: its
+        text inputs, selects and file uploads."""
+        return [item for _label, item in self._pending_fields()]
 
     def dismiss(self, message: Optional[FakeMessage] = None) -> None:
         """The admin closes an ephemeral message (Discord's "Dismiss message"),
@@ -341,18 +383,14 @@ class FormScenario:
         if modal is None or getattr(modal, "file_upload", None) is None:
             raise LocatorError("no file-upload modal is pending", self.transcript)
 
-        async def read():
-            return content
-
-        attachment = SimpleNamespace(
-            read=read, filename=filename,
-            size=len(content) if size is None else size,
-            width=width, height=height, content_type=content_type,
+        attachment = fake_attachment(
+            filename, content=content, size=size, width=width, height=height,
+            content_type=content_type,
         )
         modal.file_upload._values = [attachment]
         self.store.pending_modal = None
         self.store.record("modal_submit", actor="user", fields={"file": filename})
-        await modal.on_submit(self.interaction(on=self.current_message))
+        await modal.on_submit(self.interaction(on=self._opened_from(modal)))
 
     async def confirm(self) -> None:
         await self.click("continue")
@@ -539,7 +577,7 @@ class FormScenario:
         if title_contains is not None and title_contains not in (modal.title or ""):
             self._fail(f"modal title {modal.title!r} does not contain {title_contains!r}")
         if field_labels is not None:
-            labels = [getattr(i, "label", None) for i in self._modal_inputs(modal)]
+            labels = [label for label, _item in self._modal_fields(modal)]
             missing = [label for label in field_labels if label not in labels]
             if missing:
                 self._fail(f"modal is missing fields {missing} (has {labels})")
@@ -788,26 +826,55 @@ class FormScenario:
                 return event
         self._fail("no bot message event recorded yet")
 
-    def _modal_inputs(self, modal) -> List[Any]:
-        inputs = []
+    @staticmethod
+    def _modal_fields(modal) -> List[tuple]:
+        """(label, input) of every input of `modal`: a `discord.ui.Label` names
+        the input it wraps, a bare text input carries its own label."""
+        fields = []
         for child in modal.children:
-            inner = getattr(child, "component", child)
-            if isinstance(inner, discord.ui.TextInput):
-                inputs.append(inner)
-        return inputs
+            if isinstance(child, discord.ui.Label):
+                fields.append((child.text, child.component))
+            elif isinstance(child, discord.ui.TextInput):
+                fields.append((child.label, child))
+        return fields
 
-    def _match_input(self, inputs: List[Any], key: str):
-        for text_input in inputs:
-            if (text_input.label or "").lower() == key.lower():
-                return text_input
-        for text_input in inputs:
-            if key.lower() in (text_input.label or "").lower():
-                return text_input
+    def _pending_fields(self) -> List[tuple]:
+        modal = self.store.pending_modal
+        if modal is None:
+            raise LocatorError("no modal is pending", self.transcript)
+        return self._modal_fields(modal)
+
+    def _match_input(self, fields: List[tuple], key: str):
+        for label, item in fields:
+            if (label or "").lower() == key.lower():
+                return item
+        for label, item in fields:
+            if key.lower() in (label or "").lower():
+                return item
         raise LocatorError(
             f"modal has no field matching {key!r} "
-            f"(fields: {[i.label for i in inputs]})",
+            f"(fields: {[label for label, _item in fields]})",
             self.transcript,
         )
+
+    def _fill(self, item, value: str) -> None:
+        if isinstance(item, discord.ui.TextInput):
+            item._value = value
+        elif isinstance(item, discord.ui.Select):
+            option = next(
+                (o for o in item.options if value in (o.label, o.value)), None
+            )
+            if option is None:
+                raise LocatorError(
+                    f"the select offers no option {value!r} "
+                    f"(options: {[o.label for o in item.options]})",
+                    self.transcript,
+                )
+            item._values = [option.value]
+        elif isinstance(item, discord.ui.FileUpload):
+            item._values = [fake_attachment(value)]
+        else:
+            raise LocatorError(f"cannot fill {type(item).__name__}", self.transcript)
 
     def _resolve_select_value(self, select, value: Any):
         if not isinstance(value, str):
@@ -837,6 +904,26 @@ class FormScenario:
         raise ScenarioAssertionError(message, self.transcript)
 
 
+def fake_attachment(filename: str = "image.png", *,
+                    content: bytes = b"fake-image-bytes",
+                    size: Optional[int] = None,
+                    width: Optional[int] = 800, height: Optional[int] = 400,
+                    content_type: Optional[str] = "image/png") -> SimpleNamespace:
+    """A file a user uploaded, described the way Discord describes one: its
+    bytes (`read()` runs for real), its measures, and its signed CDN link,
+    which Discord lets live a day."""
+
+    async def read():
+        return content
+
+    return SimpleNamespace(
+        read=read, filename=filename,
+        size=len(content) if size is None else size,
+        width=width, height=height, content_type=content_type,
+        url=f"https://cdn.discordapp.com/attachments/1/2/{filename}?ex=1&is=1&hm=signed",
+    )
+
+
 def _routes(custom_id: str) -> bool:
     """Whether discord.py would route a click on `custom_id` to a dynamic item."""
     return any(
@@ -856,9 +943,8 @@ async def _route(interaction: FakeInteraction, custom_id: str, base) -> None:
 
 
 def _dynamic_items() -> List[type]:
-    """What discord.py tries on a click no view holds: every dynamic item Keiko declares."""
-    return [
-        factory
-        for factory in discord.ui.DynamicItem.__subclasses__()
-        if factory.__module__.startswith("app.")
-    ]
+    """What discord.py tries on a click no view holds: the dynamic items the bot
+    registers at startup."""
+    from app.bot import registered_items
+
+    return list(registered_items())

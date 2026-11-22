@@ -92,6 +92,7 @@ class FakeResponse:
     async def send_modal(self, modal: discord.ui.Modal):
         await self._mark("response.send_modal")
         self._interaction.store.pending_modal = modal
+        self._interaction.store.modal_messages[id(modal)] = self._interaction.message
         self._interaction.store.record("modal", modal=modal)
 
 
@@ -160,7 +161,8 @@ class FakeInteraction:
 
     def __init__(self, store: MessageStore, *, guild, user, locale: discord.Locale,
                  message: Optional[FakeMessage] = None,
-                 data: Optional[Dict[str, Any]] = None, latency: float = 0.0):
+                 data: Optional[Dict[str, Any]] = None, latency: float = 0.0,
+                 tree=None):
         FakeInteraction._next_id += 1
         self.id = FakeInteraction._next_id
         self.store = store
@@ -174,7 +176,8 @@ class FakeInteraction:
         self.latency = latency
         # When Discord created the click: the snowflake time of a real interaction.
         self.created_at = FIXED_MESSAGE_TIME
-        self.client = SimpleNamespace(app_commands=[], user=BOT_USER)
+        self.client = SimpleNamespace(app_commands=[], user=BOT_USER, tree=tree)
+        self.command = None
         self.response = FakeResponse(self)
         self.followup = FakeFollowup(self)
         self._original_response: Optional[FakeMessage] = None

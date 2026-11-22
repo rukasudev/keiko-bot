@@ -1,6 +1,6 @@
 """Where cogs and buttons enter the platform, and where every click comes back.
 
-`open_feature` replaces the seven `service.manager` functions: it asks the
+`open_feature` is what the slash command of every feature calls: it asks the
 feature what is saved, opens a setup or a manage session, and draws the first
 screen. `handle` is the single callback of every component the renderer
 built: decode, lock, prefetch, decide, run.

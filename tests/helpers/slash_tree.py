@@ -1,13 +1,15 @@
 """The slash tree the bot syncs at startup, built offline with `app/translator.py`:
 the payload Discord receives for each app command, the class each slash command is
-bound to, and the path a member types for each command and group, in each locale.
+bound to, the path a member types for each command and group, in each locale, the
+commands a reader is listed (`app/core/app_commands.py`), and a tree that keeps every
+global app command for the code that reads Keiko's own tree (the help).
 
 The bot is never ready offline, so the analytics flush never starts and nothing is
 under way when the cogs unload: a build does not wait
 `Dependencies.BLOCKING_IO_STOP_WAIT_SECONDS` for it."""
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib import import_module
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -18,6 +20,7 @@ from discord.ext import commands as ext
 from discord.ext import tasks
 
 from app.constants import Dependencies
+from app.core.app_commands import Listed, listed_commands
 from app.core.utils import startup_extensions
 from app.translator import Translator
 
@@ -36,6 +39,8 @@ class SyncedTree:
 
     payloads: list[dict[str, Any]]
     owners: dict[str, type]
+    listed: dict[str, tuple[Listed, ...]] = field(default_factory=dict)
+    tree: app_commands.CommandTree | None = None
 
     def paths(self) -> dict[str, dict[str, str]]:
         """Every slash command and group by its qualified name, with the path a member
@@ -78,7 +83,6 @@ async def built_tree(loops: list) -> SyncedTree:
 
 
 async def _translated(bot: ext.Bot, loops: list) -> SyncedTree:
-    bot.all_cogs = {}
     bot.app_commands = []
     for name in ("twitch", "youtube", "reminder", "notion", "config"):
         setattr(bot, name, MagicMock())
@@ -96,7 +100,11 @@ async def _translated(bot: ext.Bot, loops: list) -> SyncedTree:
             for command in bot.tree.walk_commands()
             if isinstance(command, app_commands.Command) and command.binding is not None
         }
-        return SyncedTree(payloads, owners)
+        listed = {
+            locale: await listed_commands(bot.tree, discord_locale)
+            for locale, discord_locale in DISCORD_LOCALES.items()
+        }
+        return SyncedTree(payloads, owners, listed, await _kept(bot.tree, translator))
     finally:
         loops += [
             value
@@ -108,6 +116,20 @@ async def _translated(bot: ext.Bot, loops: list) -> SyncedTree:
             await bot.remove_cog(name)
         for _ in range(3):
             await asyncio.sleep(0)
+
+
+async def _kept(
+    built: app_commands.CommandTree, translator: Translator
+) -> app_commands.CommandTree:
+    """A tree of its own holding every global app command of `built`, translated, so it
+    still lists them once the cogs that own them are unloaded."""
+    tree: app_commands.CommandTree = app_commands.CommandTree(
+        discord.Client(intents=discord.Intents.default())
+    )
+    for command in built.get_commands():
+        tree.add_command(command)
+    await tree.set_translator(translator)
+    return tree
 
 
 def _walk(

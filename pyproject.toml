@@ -29,6 +29,7 @@ files = [
     "app/ui/pagination.py",
     "app/ui/embed.py",
     "app/ui/records.py",
+    "app/core/app_commands.py",
     "app/core/calendar.py",
     "app/core/commands.py",
     "app/core/conditions.py",

@@ -143,7 +143,10 @@ class MockRedisClient:
 
 
 class MockRedisPipeline:
-    """Queues the commands it is given and runs them, in order, on `execute`."""
+    """Queues the commands it is given and runs them, in order and as one transaction
+    (Redis's MULTI/EXEC, so two threads never interleave them), on `execute`."""
+
+    _transactions = threading.Lock()
 
     def __init__(self, client):
         self._client = client
@@ -160,7 +163,8 @@ class MockRedisPipeline:
 
     def execute(self):
         queued, self._queued = self._queued, []
-        return [method(*args, **kwargs) for method, args, kwargs in queued]
+        with self._transactions:
+            return [method(*args, **kwargs) for method, args, kwargs in queued]
 
 
 class MockCursor:

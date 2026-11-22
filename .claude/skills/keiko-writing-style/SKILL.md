@@ -176,7 +176,7 @@ of text is a bug, not a style choice.
 Everything above governs what a Discord **user** sees. Two surfaces are read only by whoever runs the bot, and they are a taxonomy for on-call, not Keiko talking:
 
 - the `/admin` commands, restricted to `ADMIN_GUILD_ID` (`app/commands/admin/analytics.py`, `app/commands/admin/digest.py`);
-- the admin log channels: trace and journey messages, the ticket `/report` posts in the reports channel, and the labels around them (`app/logger.py`, `app/core/journey.py`, `Report._create_report_embed` in `app/commands/report/cog.py`). The author's own copy of that ticket, sent by DM, is user-facing.
+- the admin log channels: trace and journey messages, the ticket `/report` posts in the reports channel, and the labels around them (`app/logger.py`, `app/core/journey.py`, `team_ticket`, `set_status`, `QuestionModal` and `team_answer` in `app/commands/report/service.py`). The author's own copy of that ticket, sent by DM, is user-facing.
 
 On those two surfaces only: English only, no `ml()` and no pt-br counterpart; no personality, no 1st person, no apology-plus-recovery shape; structural punctuation such as `—` and `·` is allowed, because the line is a record, not a sentence; and `• ` opens each item of a list in the body, which is how the weekly digest and every `/admin` report are already written. Keep every other habit — one leading emoji on a title, `"• "` on a footer, `**bold**` for names — so the messages still read as one product.
 

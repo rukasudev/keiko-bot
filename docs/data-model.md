@@ -206,6 +206,7 @@ that starts again.
 | `throttle:` | do not try again yet | `throttle:stream_elements:channel:{streamer}` (`Commands.REDIS_STREAM_ELEMENTS_CHANNEL_THROTTLE`) | 5 min |
 | | | `throttle:stream_elements:warned:{streamer}` (`Commands.REDIS_STREAM_ELEMENTS_WARNED_THROTTLE`) | 30 min |
 | `window:` | a count over a fixed period | `window:attempts:{guild_id}:{feature}` (`Commands.REDIS_ATTEMPTS_WINDOW`) | 24 h from the first count |
+| | | `window:report:{user_id}` (`Commands.REDIS_REPORT_WINDOW`), the reports a member sent that reached the team: counted before the post, given back (`INCRBY -1`) when the send is refused or nothing is posted | 24 h from the first count |
 
 - A key template lives in `app/constants.py`, named `REDIS_*` or `CACHE_*`, and
   starts with its role. Every write goes through `app/core/cache.py`.

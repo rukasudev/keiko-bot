@@ -10,7 +10,10 @@ from datetime import datetime, timezone
 
 import discord
 import pytest
+from discord import app_commands
+from discord.ext import commands
 
+from app.core.app_commands import listed_commands
 from app.core.utils import ml
 from app.forms.form.form_yaml import DiskSource
 from tests.behavioral.flows import block_links, module_of, twitch
@@ -25,6 +28,7 @@ from tests.behavioral.harness.errors import (
 from tests.behavioral.harness.fake_interaction import FakeInteraction
 from tests.behavioral.harness.message_store import MessageStore
 from tests.behavioral.harness import copy_keys, golden, locators
+from tests.helpers.slash_tree import synced_tree
 from tests.mocks.discord import create_guild, create_member
 from types import SimpleNamespace
 
@@ -53,6 +57,21 @@ async def test_response_is_done_flips_after_each_initial_response():
         else:
             await getattr(interaction.response, api)(**kwargs)
         assert interaction.response.is_done()
+
+
+def test_an_interaction_outside_an_app_command_carries_no_command():
+    """A click or a modal submit carries no app command, as Discord's does.
+
+    Broke as: `FakeInteraction` had no `command` attribute where a real
+    `discord.Interaction` holds None outside an app command, so once a test had
+    installed the Discord log handler, whose `is_muted` reads it, an error logged
+    with `interaction=` raised AttributeError in whatever test ran next (the
+    report's ticket in English, run after `tests/test_commands.py`). Shared
+    behaviour: the harness's interaction. Consumer that exposed it: /reportar's
+    Notion error log. Guaranteed: every interaction the harness builds answers
+    `command`, None until an app command runs.
+    """
+    assert _interaction().command is None
 
 
 async def test_second_initial_response_raises_protocol_error():
@@ -571,6 +590,176 @@ async def test_an_entry_point_gets_a_fresh_interaction_and_a_posted_view_is_clic
     assert reached == [(None, "slash")]
     assert scenario.outputs[0]["target"] == "/configurar"
     assert scenario.current_message is posted and hits[0].message is posted
+    assert posted.jump_url.endswith(f"/{posted.channel.id}/{posted.id}")
+
+
+class _Probe(commands.Cog):
+    """A cog with one slash command that keeps every interaction it runs with."""
+
+    def __init__(self):
+        self.ran = []
+
+    @app_commands.command(name="probe", description="probe")
+    async def probe(self, interaction, word: str):
+        self.ran.append((interaction, word))
+
+
+async def test_a_slash_command_runs_after_the_tree_check_on_the_client_given(
+    scenario_factory,
+):
+    scenario = scenario_factory(locale="en-us")
+    scenario.client = SimpleNamespace(name="the bot")
+    probe = _Probe()
+
+    sent = await scenario.run_command(_Probe.probe, probe, "hi")
+
+    assert probe.ran == [(sent, "hi")]
+    assert sent.command is _Probe.probe and sent.client is scenario.client
+    assert sent.extras["reader_locale"] == discord.Locale.american_english
+    assert scenario.outputs[0]["target"] == "/probe"
+
+
+class _LabelledModal(discord.ui.Modal):
+    """A text, a select and a file, each under a label, as a command's modal draws
+    them; keeps what each submit carried."""
+
+    def __init__(self):
+        super().__init__(title="Modal")
+        self.text = discord.ui.TextInput()
+        self.pick = discord.ui.Select(options=[
+            discord.SelectOption(label="Um", value="one"),
+            discord.SelectOption(label="Dois", value="two"),
+        ])
+        self.file = discord.ui.FileUpload(required=False)
+        for text, component in (
+            ("Texto", self.text), ("Escolha", self.pick), ("Arquivo", self.file),
+        ):
+            self.add_item(discord.ui.Label(text=text, component=component))
+        self.submitted = []
+
+    async def on_submit(self, interaction):
+        files = [attachment.filename for attachment in self.file.values]
+        self.submitted.append((self.text.value, self.pick.values, files))
+        await interaction.response.defer()
+
+
+async def test_a_modal_of_labels_is_read_and_submitted_by_its_labels(scenario_factory):
+    scenario = scenario_factory()
+    modal = _LabelledModal()
+
+    async def entry(interaction):
+        await interaction.response.send_modal(modal)
+
+    await scenario.run(entry)
+    scenario.expect_modal(field_labels=["Texto", "Escolha", "Arquivo"])
+    assert scenario.pending_modal_fields() == ["Texto", "Escolha", "Arquivo"]
+    assert scenario.pending_modal_inputs() == [modal.text, modal.pick, modal.file]
+    await scenario.submit_modal({"Texto": "oi", "Escolha": "Dois", "Arquivo": "print.png"})
+
+    assert modal.submitted == [("oi", ["two"], ["print.png"])]
+    await scenario.run(entry)
+    await scenario.submit_modal({"Texto": "de novo"}, modal=modal)
+    assert modal.submitted[-1][0] == "de novo" and scenario.pending_modal is None
+    await scenario.run(entry)
+    with pytest.raises(LocatorError, match="offers no option 'Três'"):
+        await scenario.submit_modal({"Escolha": "Três"})
+
+
+class _FailingModal(_LabelledModal):
+    """A modal whose submit raises, with discord.py's default `on_error`."""
+
+    async def on_submit(self, interaction):
+        raise RuntimeError("the submit broke")
+
+
+class _AnsweringModal(_FailingModal):
+    """A modal whose submit raises and that answers the failure itself."""
+
+    def __init__(self):
+        super().__init__()
+        self.failures = []
+
+    async def on_error(self, interaction, error):
+        self.failures.append((interaction, error))
+
+
+async def test_a_submit_that_raises_reaches_the_modals_own_on_error(scenario_factory):
+    """As discord.py routes it; a modal with discord.py's default `on_error` raises
+    in the test instead, so its failure never passes for a submit."""
+    scenario = scenario_factory()
+    answering = _AnsweringModal()
+
+    async def entry(interaction):
+        await interaction.response.send_modal(answering)
+
+    await scenario.run(entry)
+    await scenario.submit_modal({"Texto": "oi"})
+
+    [(interaction, error)] = answering.failures
+    assert isinstance(error, RuntimeError) and interaction.command is None
+    with pytest.raises(RuntimeError, match="the submit broke"):
+        await scenario.submit_modal({"Texto": "oi"}, modal=_FailingModal())
+
+
+class _WhereModal(_LabelledModal):
+    """A modal that keeps the message each submit carried."""
+
+    def __init__(self):
+        super().__init__()
+        self.messages = []
+
+    async def on_submit(self, interaction):
+        self.messages.append(interaction.message)
+        await interaction.response.defer()
+
+
+class _AskingView(discord.ui.View):
+    """One button, `Perguntar`, that opens `modal`."""
+
+    def __init__(self, modal):
+        super().__init__()
+        button = discord.ui.Button(label="Perguntar", custom_id="ask")
+
+        async def callback(interaction):
+            await interaction.response.send_modal(modal)
+
+        button.callback = callback
+        self.add_item(button)
+
+
+async def test_a_modal_is_submitted_from_the_message_whose_button_opened_it(
+    scenario_factory,
+):
+    """As Discord sends it, whatever the bot posted since; a modal a slash command
+    opened is submitted from the message on screen."""
+    scenario = scenario_factory()
+    modal = _WhereModal()
+    asked = scenario.post(_AskingView(modal))
+    await scenario.click("Perguntar", on=asked)
+    newer = scenario.post(_RecordingView([]))
+
+    await scenario.submit_modal({"Texto": "oi"})
+
+    assert modal.messages == [asked] and scenario.current_message is newer
+
+    async def entry(interaction):
+        await interaction.response.send_modal(modal)
+
+    await scenario.run(entry)
+    await scenario.submit_modal({"Texto": "de novo"})
+    assert modal.messages[-1] is scenario.current_message
+
+
+async def test_every_interaction_holds_keikos_app_command_tree(scenario_factory):
+    """What reads Keiko's own tree (the help) finds every global app command the bot
+    syncs, on a slash command's interaction and on a click alike."""
+    scenario = scenario_factory()
+    posted = scenario.post(_RecordingView([]))
+    synced = await synced_tree()
+
+    for interaction in (scenario.interaction(), scenario.interaction(on=posted)):
+        tree = interaction.client.tree
+        assert await listed_commands(tree, scenario.locale) == synced.listed["pt-br"]
 
 
 async def test_a_dismissed_message_leaves_the_screen_and_the_modal_inputs_are_read(

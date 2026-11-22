@@ -49,6 +49,12 @@ def http_put(dependency: str, url: str, **options: Any) -> requests.Response:
         return requests.put(url, **_bounded(options))
 
 
+def http_patch(dependency: str, url: str, **options: Any) -> requests.Response:
+    """PATCH `url` on `dependency`."""
+    with metrics.timed(dependency):
+        return requests.patch(url, **_bounded(options))
+
+
 def http_delete(dependency: str, url: str, **options: Any) -> requests.Response:
     """DELETE `url` on `dependency`."""
     with metrics.timed(dependency):
