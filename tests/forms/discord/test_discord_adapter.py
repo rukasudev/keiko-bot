@@ -18,12 +18,20 @@ from app.constants import ViewConstants
 from app.core.utils import fill, ml
 from app.forms.discord.interactions import decode, encode, is_ours
 from app.forms.discord.views import Dispatcher, modal_of
-from app.forms.form.components import FileInput, Input, Screen, TextInputs
+from app.forms.form.components import (
+    ChoiceOption,
+    FileInput,
+    Input,
+    Screen,
+    SelectInput,
+    TextInputs,
+)
 from tests.behavioral.flows.block_links import seed as seed_block_links
 from tests.behavioral.flows.common import seed_document
 from tests.behavioral.flows.welcome import ENABLED as WELCOME_ENABLED
 from tests.behavioral.harness import locators
 from tests.behavioral.harness.driver import FormScenario
+from tests.helpers.components import button_labels, card_texts
 from tests.mocks.discord import create_guild, create_member
 
 pytestmark = pytest.mark.behavioral
@@ -216,6 +224,36 @@ def test_the_yes_and_no_of_a_card_are_two_buttons_inside_it():
         ("Sim", discord.ButtonStyle.primary, "k:s:1:set:mention_everyone=true"),
         ("Não", discord.ButtonStyle.secondary, "k:s:1:set:mention_everyone=false"),
     ]
+
+
+@pytest.mark.parametrize(("declared", "drawn"), [({}, 25), ({"max": 10}, 10)])
+def test_a_roles_select_takes_at_most_the_max_its_form_declares(declared, drawn):
+    """A select of a card's selects section takes at most its `max` roles, and
+    Discord's 25 when it declares none."""
+    from app.forms.discord.views import layout_of
+    from app.forms.form.actions.selects import select_picker
+    from app.forms.form.components import Card, CardHeader, SectionView
+    from app.forms.form.form_yaml import Select
+
+    named = {"en-us": "Roles", "pt-br": "Cargos"}
+    select = Select(
+        type="assignable_roles", key="roles", label=named, placeholder=named, **declared
+    )
+    picker = select_picker("card", select, None, "pt-br")
+    section = SectionView(0, "roles", "👥 **Cargos**", (), (), None, controls=(picker,))
+    card = Card("card", CardHeader("T", ""), (section,))
+    view = layout_of(
+        Screen(components=(card,), flavour="components_v2"),
+        lambda action, arg=None: f"k:s:1:{action}:{arg}",
+        None,
+    )
+
+    drawn_selects = [
+        item
+        for item in locators.walk_items(view.children[0])
+        if isinstance(item, discord.ui.RoleSelect)
+    ]
+    assert [item.max_values for item in drawn_selects] == [drawn]
 
 
 # ------------------------------------------------------------ hostile clicks
@@ -459,6 +497,97 @@ async def test_an_upload_is_checked_with_the_params_its_declaration_gives(
     assert seen == [{"bytes": "100"}]
     assert [payload["url"] for payload in reported] == [None]
     assert uploads == [], "a refused file stays put"
+
+
+async def test_a_text_modal_with_an_image_reports_both_and_the_image_is_optional(
+    v2, monkeypatch
+):
+    """A modal of text inputs that also takes an image draws the image last, not
+    required, and reports the typed inputs with the url of the file, if any."""
+    from app.forms.discord import views
+
+    reported = []
+
+    async def upload(_attachment):
+        return "https://cdn.test/kept.png"
+
+    async def handle(_interaction, _custom_id, payload):
+        reported.append(payload)
+
+    monkeypatch.setattr(views, "upload_attachment", upload)
+    screen = Screen(
+        modal_title="Content",
+        flavour="modal",
+        components=(
+            TextInputs("s", (Input("Title"), Input("Text"))),
+            FileInput("s", "Image", required=False),
+        ),
+    )
+
+    def opened():
+        return modal_of(
+            screen,
+            lambda action, arg=None: f"k:s:1:{action}",
+            Dispatcher(handle),
+            "m",
+            "s",
+        )
+
+    modal = opened()
+    *_inputs, label = modal.children
+    assert isinstance(label.component, discord.ui.FileUpload)
+    assert label.component.required is False
+    scenario = v2()
+    await scenario.interaction().response.send_modal(modal)
+    await scenario.submit_modal({"Title": "Hi", "Text": "There"})
+    await scenario.interaction().response.send_modal(opened())
+    await scenario.submit_modal({"Title": "Hi", "Text": "There", "Image": "a.png"})
+
+    assert [payload["inputs"] for payload in reported] == [["Hi", "There"]] * 2
+    assert [payload["url"] for payload in reported] == [
+        None,
+        "https://cdn.test/kept.png",
+    ]
+
+
+async def test_a_modal_select_is_drawn_under_its_inputs_and_reports_its_choice(v2):
+    """A modal that holds a select of declared options draws it in a Label under the
+    text inputs, required and on the saved option, and reports the typed inputs with
+    the option chosen, by its key."""
+    reported = []
+
+    async def handle(_interaction, _custom_id, payload):
+        reported.append(payload)
+
+    options = (
+        ChoiceOption("Days", "days"),
+        ChoiceOption("Months", "months", selected=True),
+    )
+    screen = Screen(
+        modal_title="Time",
+        flavour="modal",
+        components=(
+            TextInputs("s", (Input("How long", key="amount"),)),
+            SelectInput("s", "Unit", "unit", options, "Choose the unit"),
+        ),
+    )
+    modal = modal_of(
+        screen, lambda action, arg=None: f"k:s:1:{action}", Dispatcher(handle), "m", "s"
+    )
+    _amount, label = modal.children
+    select = label.component
+    assert (label.text, select.required, select.placeholder) == (
+        "Unit",
+        True,
+        "Choose the unit",
+    )
+    assert [option.default for option in select.options] == [False, True]
+
+    scenario = v2()
+    await scenario.interaction().response.send_modal(modal)
+    await scenario.submit_modal({"How long": "5", "Unit": "Days"})
+
+    assert reported == [{"inputs": ["5"], "chosen": {"unit": "days"}}]
 
 
 def test_a_text_modal_carries_only_text_inputs():
@@ -865,8 +994,8 @@ async def test_an_aside_that_asks_first_spends_its_cooldown_only_when_confirmed(
     await scenario.click(sync_label, on=panel)
     ask = scenario.current_message
     assert ask is not panel
-    assert ask.embeds[0].title == ml(f"{question}.title", "pt-br")
-    described = ask.embeds[0].description
+    title, described, *_rest = card_texts(ask.view)
+    assert title == f"## {ml(f'{question}.title', 'pt-br')}"
     assert described.startswith(
         fill(
             ml(f"{question}.description", "pt-br"),
@@ -888,6 +1017,53 @@ async def test_an_aside_that_asks_first_spends_its_cooldown_only_when_confirmed(
     cooling = ml("commands.responses.cooldown.title", "pt-br")
     assert scenario.outputs[-1]["embed"]["title"] == cooling
     assert sync.await_count == 1, "a confirmed sync spent its cooldown"
+
+
+@pytest.mark.parametrize("card", [True, False], ids=["card", "embed"])
+async def test_an_aside_asks_on_a_card_only_when_its_copy_says_so(
+    v2, deps, monkeypatch, card
+):
+    """The owner's mark (PR10 round 6): a question whose copy asks for a card, the
+    Sincronizar of auto roles, is a Components V2 card under its title with Confirm
+    and Cancel in a row below it, and Cancel leaves the card on screen without its
+    buttons; a question whose copy does not stays an embed with its buttons under
+    it. Both wait the short timeout for an answer."""
+    from unittest.mock import AsyncMock
+
+    from app.commands.roles import service as default_roles_feature
+    from tests.behavioral.flows.roles import ENABLED as ROLES_ENABLED
+
+    question = "default_roles.ui.responses." + ("sync_confirm" if card else "synced")
+    feature = default_roles_feature.FEATURE
+    asides = feature.asides()
+    asked = replace(asides["sync"], confirm=question)
+    monkeypatch.setattr(
+        type(feature), "asides", lambda _self: {**asides, "sync": asked}
+    )
+    monkeypatch.setattr(default_roles_feature, "set_on_default_roles_sync", AsyncMock())
+    seed_document(deps, "default_roles", ROLES_ENABLED)
+    scenario = await v2().start_command("default_roles")
+
+    await scenario.click(ml("default_roles.ui.buttons.sync.label", "pt-br"))
+
+    ask = scenario.current_message
+    title = ml(f"{question}.title", "pt-br")
+    labels = [ml("buttons.confirm.label", "pt-br"), ml("buttons.cancel.label", "pt-br")]
+    assert ask.view.timeout == ViewConstants.SHORT_TIMEOUT_SECONDS
+    if card:
+        frame, row = ask.view.children
+        assert isinstance(frame, discord.ui.Container) and not ask.embeds
+        assert card_texts(ask.view)[0] == f"## {title}"
+        assert [button.label for button in row.children] == labels
+    else:
+        assert ask.embeds[0].title == title
+        assert button_labels(ask) == labels
+
+    await scenario.cancel()
+
+    shown = card_texts(ask.view)[0] if card else ask.embeds[0].title
+    assert shown == (f"## {title}" if card else title)
+    assert button_labels(ask) == [], "the question keeps its words, not its buttons"
 
 
 async def test_a_modal_that_needs_a_lookup_is_answered_before_the_lookup_runs(

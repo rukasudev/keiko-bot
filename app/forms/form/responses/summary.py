@@ -13,9 +13,10 @@ from typing import Any
 
 from app.constants import Emojis
 from app.constants import ViewConstants as view_constants
-from app.core.conditions import EMPTY, Scope, When, evaluate
+from app.core.conditions import EMPTY, Scope, When, count_of, evaluate
 from app.core.facts import filled
-from app.forms.form.components import Button, ChoiceOption, PanelGroup, PanelPart
+from app.core.tokens import Token, resolved
+from app.forms.form.components import Button, ChoiceOption, PanelGroup, PanelPart, Style
 from app.forms.form.copy import text
 from app.forms.form.form_state import Answer
 from app.forms.form.form_yaml import (
@@ -35,7 +36,12 @@ from app.forms.form.form_yaml import (
     picks_a_member,
     produced_keys,
 )
-from app.forms.form.responses.styles import empty_value, format_value
+from app.forms.form.responses.styles import (
+    empty_value,
+    format_value,
+    token_text,
+    worded,
+)
 from app.forms.form.responses.transforms import transform
 
 BOOKKEEPING = (
@@ -276,6 +282,7 @@ class PanelRow:
     edit_label: str | None = None
     group_order: int = 0
     group_screen: bool = False
+    group_collapsed: bool = False
     group_footer: str = ""
     composition: ListStep | None = None
 
@@ -420,6 +427,7 @@ def _declared_group(
         "declared": "1",
         "order": group.order,
         "own_screen": group.opens_own_screen(),
+        "collapsed": "1" if group.collapsed else "",
         "footer": footer,
     }
 
@@ -550,10 +558,29 @@ def item_name(
     value = entry.get("value") if isinstance(entry, Mapping) else entry
     if value in (None, ""):
         return f"{composition.title.get(locale)} #{index + 1}"
-    if not styled:
-        return str(value)
     style = entry.get("style") if isinstance(entry, Mapping) else None
+    if not styled:
+        return worded(value, style, locale)
+    if composition.items.name is not None:
+        return _named(composition.items.name.get(locale), item, locale)
     return str(format_value(value, style, locale)).strip()
+
+
+def _named(name: str, item: Mapping[str, Any], locale: str) -> str:
+    def raw(key: str) -> Any:
+        entry = item.get(key)
+        if isinstance(entry, Mapping):
+            return entry.get("_raw_value", entry.get("value"))
+        return entry
+
+    def value(token: Token) -> str | None:
+        if token.kind == "answer":
+            return token_text(token, raw(token.name), locale)
+        if token.kind == "plural":
+            return token.many if count_of(raw(token.name)) > 1 else token.one
+        return None
+
+    return resolved(name, value).strip()
 
 
 def kept_items(composition: ListStep) -> int:
@@ -634,6 +661,7 @@ def panel_rows(
                 edit_label=edit_labels.get(key),
                 group_order=int(group.get("order") or 0),
                 group_screen=bool(group.get("own_screen")),
+                group_collapsed=bool(group.get("collapsed")),
                 group_footer=str(group.get("footer") or ""),
                 composition=listing,
             )
@@ -662,6 +690,7 @@ def placed(
                 group_icon=group.get("group_icon"),
                 group_order=int(group.get("order") or 0),
                 group_screen=bool(group.get("own_screen")),
+                group_collapsed=bool(group.get("collapsed")),
                 group_footer=str(group.get("footer") or ""),
                 group_declared=bool(group.get("declared")),
             )
@@ -751,7 +780,8 @@ def list_remover(composition: ListStep, count: int, locale: str) -> tuple[Button
     return (_list_button("remove", f"remove:{composition.key}", "🗑️", locale),)
 
 
-def _title_value(composition: ListStep, count: int, locale: str) -> str:
+def list_count(composition: ListStep, count: int, locale: str) -> str:
+    """What a list reads beside its title: its counter, or the empty value."""
     if not count:
         return empty_value(locale)
     if composition.counter is None:
@@ -761,19 +791,29 @@ def _title_value(composition: ListStep, count: int, locale: str) -> str:
     return filled(composition.counter.get(locale), {"count": count, "max": limit})
 
 
-def list_head(row: PanelRow, composition: ListStep, locale: str) -> PanelPart:
-    """The title of a list with its count beside it and Add, off once full."""
+def list_head(
+    row: PanelRow, composition: ListStep, locale: str, titled: bool = True
+) -> PanelPart:
+    """The title of a list with its count beside it, or the count alone, and Add,
+    off once full."""
     count = len(row.value or [])
     add = list_adder(composition, count, f"add:{row.key}", locale)
+    counted = list_count(composition, count, locale)
+    line = _list_title(row, counted) if titled else counted or str(count)
     return PanelPart(
         row.key,
-        (_list_title(row, _title_value(composition, count, locale)),),
+        (line,),
         add.label,
         add.action,
         add.emoji or "",
         disabled=add.disabled,
         description=add.description,
     )
+
+
+def _list_line(row: PanelRow, composition: ListStep, locale: str) -> str:
+    count = len(row.value or [])
+    return _list_title(row, list_count(composition, count, locale) or str(count))
 
 
 def _list_part(row: PanelRow, composition: ListStep, locale: str) -> PanelPart:
@@ -809,16 +849,22 @@ def item_heading(title: str, index: int) -> str:
     return f"### {title} #{index + 1}"
 
 
-def _item_actions(
-    composition: ListStep, target: str, locale: str, managed: bool
+def item_actions(
+    composition: ListStep,
+    target: str,
+    locale: str,
+    removed: bool = False,
+    remove_style: Style = "danger",
 ) -> tuple[Button, ...]:
+    """The buttons beside one item: Edit, Preview when its card previews, and Remove
+    in `remove_style` when `removed`."""
     actions = [Button(text("buttons.edit.label", locale), f"edit:{target}", emoji="✏️")]
     if _previews_items(composition):
         preview = text("buttons.preview.label", locale)
         actions.append(Button(preview, f"aside:preview:{target}", emoji="👁️"))
-    if managed and composition.remove == "item":
+    if removed:
         remove = text("buttons.remove.label", locale)
-        actions.append(Button(remove, f"remove_this:{target}", "danger", "🗑️"))
+        actions.append(Button(remove, f"remove_this:{target}", remove_style, "🗑️"))
     return tuple(actions)
 
 
@@ -828,13 +874,24 @@ def item_groups(
     managed: bool,
     limit: int | None = None,
     headed: bool = True,
+    titled: bool = True,
+    removes_each: bool = False,
+    remove_style: Style = "danger",
 ) -> list[PanelGroup]:
-    """A list's title, then one block per item (the first `limit`), then Remove."""
+    """A list's title, or only its count under a screen of the same title, then one
+    block per item (the first `limit`), then Remove: on the panel beside each item of
+    a list that removes by item, or with `removes_each` while it holds more than it
+    must keep, and under the items otherwise."""
     composition = row.composition
     assert composition is not None
     items = list(row.value or [])
     shown = items[:limit]
-    blocks = [PanelGroup(None, "", (), (list_head(row, composition, locale),))]
+    head = list_head(row, composition, locale, titled)
+    blocks = [PanelGroup(None, "", (), (head,))]
+    each = managed and (
+        composition.remove == "item"
+        or (removes_each and len(items) > kept_items(composition))
+    )
 
     for index, item in enumerate(shown):
         target = f"{row.key}${index}"
@@ -845,7 +902,7 @@ def item_groups(
                 None,
                 heading,
                 (heading, *lines) if headed else tuple(lines),
-                actions=_item_actions(composition, target, locale, managed),
+                actions=item_actions(composition, target, locale, each, remove_style),
                 keys=(target,),
             )
         )
@@ -854,11 +911,28 @@ def item_groups(
         more = filled(text("texts.and_more", locale), {"count": hidden})
         blocks.append(PanelGroup(None, "", (more,)))
 
-    each = managed and composition.remove == "item"
     remover = () if each else list_remover(composition, len(items), locale)
     if remover:
         blocks.append(PanelGroup(None, "", (), actions=remover))
     return blocks
+
+
+def group_list(
+    row: PanelRow, locale: str, title: str, collapsed: bool, setup: bool = False
+) -> list[PanelGroup]:
+    """A list on a group's own screen titled `title`, the same on a setup and a panel
+    but for its grey Remove on a `setup`: every item, each with its own Remove, on a
+    `collapsed` group's, the first few otherwise."""
+    return item_groups(
+        row,
+        locale,
+        True,
+        limit=None if collapsed else view_constants.GROUP_ITEMS_SHOWN,
+        headed=False,
+        titled=row.title != title,
+        removes_each=collapsed,
+        remove_style="secondary" if setup else "danger",
+    )
 
 
 def _composition_lines(values: Sequence[Mapping[str, Any]], locale: str) -> list[str]:
@@ -978,6 +1052,9 @@ def _laid_out(
     apart = bool(drawn[0][0].group_screen)
     targets = [row.target for row, _, _ in drawn]
     for row, value, is_block in drawn:
+        if row.composition is not None and apart and row.group_collapsed:
+            lines.append(_list_line(row, row.composition, locale))
+            continue
         if row.composition is not None:
             parts[f"list:{row.key}"] = _list_part(row, row.composition, locale)
             continue
@@ -1078,7 +1155,8 @@ def _all_shown(key: str, document: Mapping[str, Any]) -> bool:
     """True when a heading's own screen buttons every item saved under `key`.
 
     The screen draws only the first `GROUP_ITEMS_SHOWN` items, so a longer
-    list still needs the panel's Edit to reach the rest.
+    list still needs the panel's Edit to reach the rest; a collapsed group's screen
+    draws them all.
     """
     stored = document.get(key)
     if not isinstance(stored, Mapping) or stored.get("style") != "composition":
@@ -1122,7 +1200,8 @@ def every_setting_has_a_button(
         target.split(":", 1)[1] for target in buttons if target.startswith("group:")
     }
     for row in rows:
-        if row.group in apart and _all_shown(row.key, document):
+        shown = row.group_collapsed or _all_shown(row.key, document)
+        if row.group in apart and shown:
             buttons |= _opened_by(definition, row)
     covered = frozenset(buttons)
     return (

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 import discord
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from app.constants import KeikoIcons as icons
 from app.constants import Style as constants
@@ -31,8 +31,8 @@ class FieldOverride(Override):
 
 
 class ResponseOverride(Override):
-    """What a response draws while a rule holds, in place of its own title or
-    description."""
+    """What a response draws while a rule holds, in place of its own title,
+    description or closing note."""
 
     title: CopyText | None = Field(
         None,
@@ -43,6 +43,12 @@ class ResponseOverride(Override):
         None,
         description="The description drawn while the rule holds; absent keeps the "
         "block's.",
+        json_schema_extra={"role": "copy"},
+    )
+    info: CopyText | None = Field(
+        None,
+        description="The closing note of the card drawn while the rule holds; absent "
+        "keeps the block's.",
         json_schema_extra={"role": "copy"},
     )
 
@@ -85,7 +91,8 @@ class ResponseField(CopyBlock):
 
 class Response(CopyBlock):
     """One embed Keiko answers with, drawn by `response_embed`: an answer, a
-    `ConfirmActionView` question or the confirmation of a panel aside."""
+    `ConfirmActionView` question or the confirmation of a panel aside, which `card`
+    draws as a Components V2 card through `response_card` instead."""
 
     title: CopyText = Field(
         description="The embed's title, with one leading emoji; `$name` marks a value "
@@ -102,11 +109,32 @@ class Response(CopyBlock):
         ],
         json_schema_extra={"role": "copy"},
     )
+    info: CopyText | None = Field(
+        None,
+        description="The note that closes the card, after a divider and above its "
+        "footer; `$name` marks a fact the code passes; absent draws none, and only a "
+        "block with `card` writes it.",
+        examples=[
+            {
+                "en-us": "🔎 To see every member, click **See all** below!",
+                "pt-br": "🔎 Para ver todos, clique em **Ver todos** abaixo!",
+            }
+        ],
+        json_schema_extra={"role": "copy"},
+    )
     tone: Literal["default", "warning"] = Field(
         "default",
         description="The embed's colour: Keiko's blue, or the yellow of a warning, for "
         "a message that tells the admin Keiko changed what they did (a mention taken "
         "out of a text).",
+        json_schema_extra={"role": "visual"},
+    )
+    card: bool = Field(
+        False,
+        description="Asks the question as a Components V2 card like Keiko's other "
+        "cards, its title and text beside Keiko's picture and its buttons in a row "
+        "below it, instead of an embed (a panel aside's confirmation, the question a "
+        "save asks).",
         json_schema_extra={"role": "visual"},
     )
     footer: CopyText | None = Field(
@@ -140,6 +168,13 @@ class Response(CopyBlock):
         "keyed by the value the code gives each.",
         json_schema_extra={"role": "structure"},
     )
+
+    @model_validator(mode="after")
+    def _info_closes_a_card(self) -> Response:
+        written = [self.info, *(override.info for override in self.overrides)]
+        if not self.card and any(note is not None for note in written):
+            raise ValueError("`info` closes a card: the block writes `card: true`")
+        return self
 
 
 class ErrorBlock(CopyBlock):
@@ -346,6 +381,35 @@ def response_embed(
 def _tone_color(copy: Response) -> int:
     warning = copy.tone == "warning"
     return int(constants.WARNING_COLOR if warning else constants.BACKGROUND_COLOR, 16)
+
+
+def response_card(
+    multilang_key: str,
+    locale: str | discord.Locale,
+    image: bool = False,
+    *,
+    facts: Facts | None = None,
+) -> discord.ui.Container[Any]:
+    """The Components V2 card of the Response block `multilang_key`: its title and
+    body, beside Keiko's picture when `image`, its closing note after a divider and the
+    footer its copy decides, with the overrides its `facts` choose in place."""
+    copy, values = i18n.resolved(multilang_key, Response, facts)
+    language = parse_locale(locale)
+    body = copy.description
+    frame = card_frame(discord.Colour(_tone_color(copy)))
+    card_header(
+        frame,
+        fill(copy.title.get(language), **values),
+        fill(body.get(language), **values) if body else "",
+        icons.IMAGE_01 if image else "",
+    )
+
+    if copy.info:
+        card_row(frame, fill(copy.info.get(language), **values))
+    footer = _footer(copy.footer, "footer" in copy.model_fields_set, locale)
+    if footer:
+        card_footer(frame, _bulleted(footer))
+    return frame
 
 
 def announcement_embed(

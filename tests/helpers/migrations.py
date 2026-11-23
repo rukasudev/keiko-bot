@@ -81,3 +81,10 @@ def migrate(client, label):
         out.getvalue()
     )
     return client.migrations.changelog.find_one({"_id": label})["counts"]
+
+
+def forget_from(client, label):
+    """Take the data file `label` (`data/0008`) and every later data file out of the
+    ledger, so the next run applies them again in order, never below one still
+    applied."""
+    client.migrations.changelog.delete_many({"_id": {"$gte": label, "$lt": "data/~"}})

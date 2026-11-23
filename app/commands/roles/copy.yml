@@ -6,37 +6,55 @@ facts:
   bots_count:
     type: text
     description: How many bots receive the roles, as its label.
+  climbed:
+    type: number
+    description: How many members got the time role they reached.
+  climbers:
+    type: text
+    description: The first members a time role goes to, one line each with when they joined and their time in the server, and how many more.
+  groups:
+    type: text
+    description: The members a yes gives a time role, one block per role, its mention and count over the first members' lines.
   members:
     type: text
     description: The roles given to the members, as mentions.
   members_count:
     type: text
     description: How many members receive the roles, as its label.
+  members_left_out:
+    type: boolean
+    description: Whether a time role the question shows leaves out some of its members.
+  roles_left_out:
+    type: text
+    description: The time roles the question leaves out, as mentions joined into one phrase, empty when it shows every one.
+  time_in_server:
+    type: text
+    description: How long a member has been in the server, as the reader's words.
 
 command:
   slash:
     subgroup:
-      en-us: default
+      en-us: roles
       pt-br: cargos
     name:
-      en-us: roles
-      pt-br: padrão
+      en-us: auto
+      pt-br: automáticos
     description:
-      en-us: Keiko warmly welcomes new members by automatically assigning roles when they join the server
-      pt-br: Keiko recebe calorosamente novos membros atribuindo cargos automaticamente ao entrarem no servidor
+      en-us: Keiko warmly welcomes new members with roles when they join, and gives more as time goes by
+      pt-br: Keiko recebe novos membros com cargos ao entrarem no servidor e dá mais conforme o tempo passa
 
   setup:
     label:
-      en-us: Default Roles
-      pt-br: Cargos Padrão
+      en-us: Auto Roles
+      pt-br: Cargos Automáticos
     description:
-      en-us: Roles given to new members automatically
-      pt-br: Cargos automáticos para novos membros
+      en-us: Roles for new members, and by time in the server
+      pt-br: Cargos para quem entra e por tempo no servidor
 
   stats:
     title:
-      en-us: 📊 Default Roles Statistics
-      pt-br: 📊 Estatísticas de Cargos Padrão
+      en-us: 📊 Auto Roles Statistics
+      pt-br: 📊 Estatísticas de Cargos Automáticos
     delivered:
       one:
         en-us: ✅ I gave roles to 1 member in the last $days days!
@@ -52,6 +70,50 @@ command:
         pt-br: "Não tenho mais permissão para atribuir os seguintes cargos: **$roles**\n\nNa hierarquia de cargos do servidor, me dê um cargo **acima** desses 🧑‍⚖️"
 
 ui:
+  # open: the lines the ladder question is built from -> a text
+  texts:
+    ladder_group:
+      en-us: "<@&$role> ($count)\n$climbers"
+      pt-br: "<@&$role> ($count)\n$climbers"
+    ladder_member:
+      en-us: "- $user (joined on $date): $time_in_server"
+      pt-br: "- $user (entrou em $date): $time_in_server"
+    ladder_uncounted:
+      en-us: "⏳ How many: **$members_count**"
+      pt-br: "⏳ Quantidade: **$members_count**"
+
+  # open: list names -> a records list
+  records:
+    climbers:
+      title:
+        en-us: ⏳ Who gets the roles by time
+        pt-br: ⏳ Quem recebe os cargos por tempo
+      description:
+        en-us: Every member who already reached the time of a time role, grouped by the role I give each one!
+        pt-br: Todos os membros que já completaram o tempo de um cargo por tempo, separados pelo cargo que eu dou para cada um!
+      empty:
+        en-us: Nobody has reached the time of a time role yet! 🐶
+        pt-br: Ninguém completou o tempo de um cargo por tempo ainda! 🐶
+      filter:
+        label:
+          en-us: Filter by role
+          pt-br: Filtrar por cargo
+        clear_label:
+          en-us: See every role
+          pt-br: Ver todos os cargos
+        title:
+          en-us: 🔎 Filter by role
+          pt-br: 🔎 Filtrar por cargo
+        description:
+          en-us: Pick the role and I'll show you only who gets it!
+          pt-br: Escolha o cargo e eu te mostro só quem vai ganhar ele!
+        empty:
+          en-us: Nobody gets this role right now! 🐶
+          pt-br: Ninguém recebe esse cargo agora! 🐶
+        every:
+          en-us: All roles
+          pt-br: Todos os cargos
+
   # open: response names -> a response embed
   responses:
     sync_confirm:
@@ -59,22 +121,58 @@ ui:
         en-us: 🔄 Sync roles?
         pt-br: 🔄 Sincronizar cargos?
       description:
-        en-us: "I'll sync the default roles now for **every member and bot** already in the server, not only for whoever joins from now on. Here is how it turns out:\n\n👥 **Members**\n- How many: **$members_count**\n- Roles: $members\n\n🤖 **Bots**\n- How many: **$bots_count**\n- Roles: $bots\n\nThis may take a few minutes. Do you want to continue?"
-        pt-br: "Vou sincronizar agora os cargos padrão para **todos os membros e bots** que já estão no servidor, não só para quem entrar daqui pra frente. Veja como fica:\n\n👥 **Membros**\n- Quantidade: **$members_count**\n- Cargos: $members\n\n🤖 **Bots**\n- Quantidade: **$bots_count**\n- Cargos: $bots\n\nIsso pode levar alguns minutos. Quer continuar?"
+        en-us: "I'll sync the join roles now for **every member and bot** already in the server, not only for whoever joins from now on. Here is how it turns out:\n\n👥 **Members**\n- How many: **$members_count**\n- Roles: $members\n\n🤖 **Bots**\n- How many: **$bots_count**\n- Roles: $bots\n\nThis may take a few minutes. Do you want to continue?"
+        pt-br: "Vou sincronizar agora os cargos de entrada para **todos os membros e bots** que já estão no servidor, não só para quem entrar daqui pra frente. Veja como fica:\n\n👥 **Membros**\n- Quantidade: **$members_count**\n- Cargos: $members\n\n🤖 **Bots**\n- Quantidade: **$bots_count**\n- Cargos: $bots\n\nIsso pode levar alguns minutos. Quer continuar?"
+      card: true
     syncing:
       title:
         en-us: 🔄 Syncing roles...
         pt-br: 🔄 Sincronizando cargos...
       description:
-        en-us: I'm assigning the default roles to all members of the server! This may take a few minutes...
-        pt-br: Estou atribuindo os cargos padrão a todos os membros do servidor! Isso pode levar alguns minutos...
+        en-us: I'm assigning the join roles to all members of the server! This may take a few minutes...
+        pt-br: Estou atribuindo os cargos de entrada a todos os membros do servidor! Isso pode levar alguns minutos...
     synced:
       title:
         en-us: ✨ Roles synced successfully!
         pt-br: ✨ Cargos sincronizados com sucesso!
       description:
-        en-us: "Done! I gave the default roles to everyone who was already in the server. Now everyone is even cuter! 🐶\n\n👥 Members: **$members**\n🤖 Bots: **$bots**"
-        pt-br: "Pronto! Dei os cargos padrão para todo mundo que já estava no servidor. Agora todos estão ainda mais fofos! 🐶\n\n👥 Membros: **$members**\n🤖 Bots: **$bots**"
+        en-us: "Done! I gave the join roles to everyone who was already in the server. Now everyone is even cuter! 🐶\n\n👥 Members: **$members**\n🤖 Bots: **$bots**"
+        pt-br: "Pronto! Dei os cargos de entrada para todo mundo que já estava no servidor. Agora todos estão ainda mais fofos! 🐶\n\n👥 Membros: **$members**\n🤖 Bots: **$bots**"
+    ladder_confirm:
+      title:
+        en-us: ⏳ Give the roles by time now?
+        pt-br: ⏳ Dar os cargos por tempo agora?
+      description:
+        en-us: "Some members already reached the time of a time role! Here's who gets each role:\n\n$groups\n\nDo you want me to give these roles now? If not, I leave them as they are and only give the roles to whoever reaches the time from now on."
+        pt-br: "Tem membros que já completaram o tempo de um cargo por tempo! Veja quem recebe cada cargo:\n\n$groups\n\nQuer que eu dê esses cargos agora? Se não, eu deixo esses membros como estão e só dou os cargos para quem completar o tempo daqui pra frente."
+      card: true
+      overrides:
+        - when:
+            key: default_roles.facts.roles_left_out
+            present: true
+          info:
+            en-us: 🔎 For the other roles (like $roles_left_out), click **See all** below and filter!
+            pt-br: 🔎 Para os cargos restantes (como $roles_left_out), clique em **Ver todos** abaixo e filtre!
+        - when:
+            key: default_roles.facts.members_left_out
+            is: true
+          info:
+            en-us: 🔎 To see every member, click **See all** below!
+            pt-br: 🔎 Para ver todos os membros, clique em **Ver todos** abaixo!
+    ladder_giving:
+      title:
+        en-us: ⏳ Giving the roles by time...
+        pt-br: ⏳ Dando os cargos por tempo...
+      description:
+        en-us: I'm giving each member their time role! This may take a few minutes...
+        pt-br: Estou dando para cada membro o cargo por tempo dele! Isso pode levar alguns minutos...
+    ladder_given:
+      title:
+        en-us: ✨ Roles by time given successfully!
+        pt-br: ✨ Cargos por tempo entregues com sucesso!
+      description:
+        en-us: "Done! Everyone who had already reached the time has their time role now. 🐶\n\n⏳ Members: **$climbed**"
+        pt-br: "Pronto! Quem já tinha completado o tempo está com o cargo por tempo agora. 🐶\n\n⏳ Membros: **$climbed**"
 
   # open: error names -> an error embed
   errors:
@@ -87,11 +185,18 @@ ui:
         pt-br: "Ops, parece que eu não tenho permissão para dar cargos nesse servidor :/\n\nMe dê algum cargo acima dos que você quer que eu atribua! 🐶"
     deactivated:
       title:
-        en-us: Default Roles Disabled
-        pt-br: Cargos Padrão Desativados
+        en-us: Auto Roles Disabled
+        pt-br: Cargos Automáticos Desativados
       message:
-        en-us: I'm sorry, but I can't sync the roles while default roles are turned off in this server. Turn them on with `${context.commands.default_roles}` and try again 🐶
-        pt-br: Desculpe, mas não consigo sincronizar os cargos enquanto os cargos padrão estão desativados neste servidor. Ative pelo `${context.commands.default_roles}` e tente de novo 🐶
+        en-us: I'm sorry, but I can't sync the roles while auto roles are turned off in this server. Turn them on with `${context.commands.default_roles}` and try again 🐶
+        pt-br: Desculpe, mas não consigo sincronizar os cargos enquanto os cargos automáticos estão desativados neste servidor. Ative pelo `${context.commands.default_roles}` e tente de novo 🐶
+    ladder_deactivated:
+      title:
+        en-us: Auto Roles Disabled
+        pt-br: Cargos Automáticos Desativados
+      message:
+        en-us: I'm sorry, but I can't give the roles by time while auto roles are turned off in this server. Turn them on with `${context.commands.default_roles}` and try again 🐶
+        pt-br: Desculpe, mas não consigo dar os cargos por tempo enquanto os cargos automáticos estão desativados neste servidor. Ative pelo `${context.commands.default_roles}` e tente de novo 🐶
 
   # open: the panel asides -> the button that runs each
   buttons:
@@ -100,5 +205,5 @@ ui:
         en-us: Sync
         pt-br: Sincronizar
       description:
-        en-us: Keiko immediately assigns the default roles to all server users
-        pt-br: Keiko atribui imediatamente os cargos padrão a todos os usuários do servidor
+        en-us: Keiko immediately gives the join roles to everyone in the server
+        pt-br: Keiko dá imediatamente os cargos de entrada para todo mundo do servidor

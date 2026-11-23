@@ -31,6 +31,7 @@ from app.constants import Commands, Migrations
 from app.core import analytics
 from app.core.cogs import LIFECYCLE_ANALYTICS_EVENTS
 from app.migrations import runner
+from tests.helpers.migrations import forget_from
 
 MIGRATION = importlib.import_module("app.migrations.data.0006_events")
 MARKER = "keiko_migrations_test"
@@ -445,7 +446,7 @@ def test_the_copied_events_are_what_the_readers_find(server, monkeypatch):
 def test_a_second_run_over_the_same_rows_writes_nothing_new(server):
     production_shaped(server)
     migrate(server)
-    server.migrations.changelog.delete_many({"_id": {"$gte": "data/0006", "$lt": "data/~"}})
+    forget_from(server, "data/0006")
 
     counts = migrate(server)
 

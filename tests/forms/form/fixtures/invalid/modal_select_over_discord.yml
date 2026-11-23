@@ -1,0 +1,55 @@
+steps:
+  - type: intro
+    key: form
+    title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
+    description: {en-us: intro, pt-br: intro}
+  - type: card
+    key: card
+    title: {en-us: Card, pt-br: Card}
+    description: {en-us: card, pt-br: card}
+    fields:
+      - {key: one, label: {en-us: One, pt-br: Um}}
+    sections:
+      - key: text
+        emoji: "💬"
+        type: modal_input
+        label: {en-us: Text, pt-br: Texto}
+        keys: {value: one}
+        modal:
+          title: {en-us: Text, pt-br: Texto}
+          inputs:
+            - {key: one, label: {en-us: One, pt-br: Um}}
+          select:
+            key: unit
+            label: {en-us: Unit, pt-br: Unidade}
+            options:
+              - {label: {en-us: Option 0, pt-br: Opção 0}, value: option_0}
+              - {label: {en-us: Option 1, pt-br: Opção 1}, value: option_1}
+              - {label: {en-us: Option 2, pt-br: Opção 2}, value: option_2}
+              - {label: {en-us: Option 3, pt-br: Opção 3}, value: option_3}
+              - {label: {en-us: Option 4, pt-br: Opção 4}, value: option_4}
+              - {label: {en-us: Option 5, pt-br: Opção 5}, value: option_5}
+              - {label: {en-us: Option 6, pt-br: Opção 6}, value: option_6}
+              - {label: {en-us: Option 7, pt-br: Opção 7}, value: option_7}
+              - {label: {en-us: Option 8, pt-br: Opção 8}, value: option_8}
+              - {label: {en-us: Option 9, pt-br: Opção 9}, value: option_9}
+              - {label: {en-us: Option 10, pt-br: Opção 10}, value: option_10}
+              - {label: {en-us: Option 11, pt-br: Opção 11}, value: option_11}
+              - {label: {en-us: Option 12, pt-br: Opção 12}, value: option_12}
+              - {label: {en-us: Option 13, pt-br: Opção 13}, value: option_13}
+              - {label: {en-us: Option 14, pt-br: Opção 14}, value: option_14}
+              - {label: {en-us: Option 15, pt-br: Opção 15}, value: option_15}
+              - {label: {en-us: Option 16, pt-br: Opção 16}, value: option_16}
+              - {label: {en-us: Option 17, pt-br: Opção 17}, value: option_17}
+              - {label: {en-us: Option 18, pt-br: Opção 18}, value: option_18}
+              - {label: {en-us: Option 19, pt-br: Opção 19}, value: option_19}
+              - {label: {en-us: Option 20, pt-br: Opção 20}, value: option_20}
+              - {label: {en-us: Option 21, pt-br: Opção 21}, value: option_21}
+              - {label: {en-us: Option 22, pt-br: Opção 22}, value: option_22}
+              - {label: {en-us: Option 23, pt-br: Opção 23}, value: option_23}
+              - {label: {en-us: Option 24, pt-br: Opção 24}, value: option_24}
+              - {label: {en-us: Option 25, pt-br: Opção 25}, value: option_25}
+  - type: review
+    key: confirm
+    title: {en-us: "ok?", pt-br: "ok?"}
+    description: {en-us: review, pt-br: review}

@@ -6,7 +6,7 @@ import asyncio
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, ClassVar, Protocol
+from typing import Any, ClassVar, Protocol, TypeVar
 
 from pydantic import Field
 
@@ -172,15 +172,31 @@ class CommitContext:
 
 
 @dataclass(frozen=True)
+class FollowUp:
+    """A question asked right after a save: one aside's confirmation, with the values
+    its text reads, about the item `target` names (`key$index`) when given, and the
+    See all that opens what its text cuts short, `see_all` called with the click."""
+
+    aside: str
+    values: Mapping[str, str | bool] = field(default_factory=dict)
+    target: str = ""
+    see_all: Callable[[Any], Awaitable[None]] | None = None
+
+
+@dataclass(frozen=True)
 class CommitResult:
     """What a commit wrote, so a failure midway can say what did happen."""
 
     written: tuple[str, ...] = ()
     external: tuple[str, ...] = ()
     document: Mapping[str, Any] | None = None
+    asks: FollowUp | None = None
 
 
 AsideHandler = Callable[[Any, Sequence[Mapping[str, Any]]], Awaitable[None]]
+
+
+Result = TypeVar("Result")
 
 
 ConfirmValues = Callable[[Mapping[str, Any], str, Any], Awaitable[Mapping[str, str]]]
@@ -265,7 +281,7 @@ class GenericCogFeature:
 
     def __init__(self, key: str) -> None:
         self.key = key
-        self.running: set[asyncio.Task[None]] = set()
+        self.running: set[asyncio.Task[object]] = set()
 
     @property
     def definition(self) -> FormDefinition:
@@ -586,9 +602,13 @@ class GenericCogFeature:
     async def commit_edit_item(
         self, payload: Mapping[str, Any], context: CommitContext
     ) -> CommitResult:
-        """Replace the edited item, while it is saved as the admin's panel showed it."""
+        """Replace the edited item, while it is saved as the admin's panel showed it,
+        keeping the `state` Keiko keeps about it."""
         edited = self.shown_item(context, payload.get("index"))
         replacement = self.item_document(payload["answers"], context.locale)
+        state = self.edited_state(edited, replacement)
+        if state is not None:
+            replacement["state"] = state
         saved, items = await self.saved_list(context)
         position = _position(items, edited)
         self.refuse_duplicate([*items[:position], *items[position + 1 :]], replacement)
@@ -600,6 +620,13 @@ class GenericCogFeature:
             self.after_item_replaced(edited, replacement, context), context
         )
         return CommitResult((self.key,), document=document)
+
+    def edited_state(
+        self, old: Mapping[str, Any], new: Mapping[str, Any]
+    ) -> Mapping[str, Any] | None:
+        """The `state` an edited item keeps: the one Keiko kept about the old item."""
+        state = old.get("state")
+        return state if isinstance(state, Mapping) else None
 
     async def commit_remove_item(
         self, payload: Mapping[str, Any], context: CommitContext
@@ -652,13 +679,16 @@ class GenericCogFeature:
         self, items: Sequence[Mapping[str, Any]], item: Mapping[str, Any]
     ) -> None:
         """Refuse an item whose unique value one of `items` already holds."""
-        unique = self.composition.items.unique_key()
+        spec = self.composition.items
+        unique = spec.unique_key()
         if not unique:
             return
 
-        wanted = str(item_values(item).get(unique))
-        if any(str(item_values(other).get(unique)) == wanted for other in items):
-            raise DuplicateItem(wanted)
+        wanted = item_values(item).get(unique)
+        if any(
+            spec.same_item(wanted, item_values(other).get(unique)) for other in items
+        ):
+            raise DuplicateItem(str(wanted))
 
     async def save_or_let_go(
         self,
@@ -695,11 +725,12 @@ class GenericCogFeature:
         return {**context.document, key: value}
 
     async def best_effort(
-        self, effect: Awaitable[object], context: CommitContext
-    ) -> None:
-        """Run an effect outside the document, logging a failure instead of raising."""
+        self, effect: Awaitable[Result], context: CommitContext
+    ) -> Result | None:
+        """Run an effect outside the document and hand back what it gave, logging a
+        failure instead of raising, None then."""
         try:
-            await effect
+            return await effect
         except Exception as error:
             logger.error(
                 f"{self.key}: an effect outside the document failed: {error!r}",
@@ -712,6 +743,7 @@ class GenericCogFeature:
                 ),
                 exc_info=True,
             )
+            return None
 
     def in_background(self, effect: Awaitable[object], context: CommitContext) -> None:
         """Start an effect outside the document after a commit, without waiting."""

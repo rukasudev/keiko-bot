@@ -1,4 +1,4 @@
-from typing import Awaitable, Callable, Optional
+from typing import Any, Awaitable, Callable, Optional, Sequence
 
 import discord
 
@@ -16,6 +16,7 @@ class ConfirmActionView(discord.ui.View):
         confirm_label_key: str = "buttons.confirm.label",
         cancel_label_key: str = "buttons.cancel.label",
         trace_name: Optional[str] = None,
+        more: Sequence[discord.ui.Item[Any]] = (),
     ) -> None:
         super().__init__(timeout=view_constants.SHORT_TIMEOUT_SECONDS)
         self._on_confirm = on_confirm
@@ -24,6 +25,20 @@ class ConfirmActionView(discord.ui.View):
         self.locale = locale
         self.confirm.label = ml(confirm_label_key, locale=locale)
         self.cancel.label = ml(cancel_label_key, locale=locale)
+        if more:
+            self.remove_item(self.cancel)
+            for item in more:
+                self.add_item(item)
+            self.add_item(self.cancel)
+
+    async def close(
+        self, interaction: discord.Interaction, notice: Optional[discord.Embed] = None
+    ) -> None:
+        """Take the buttons off the question, its embed replaced by `notice` if given."""
+        if notice is not None:
+            await interaction.response.edit_message(embed=notice, view=None)
+            return
+        await interaction.response.edit_message(view=None)
 
     @discord.ui.button(style=discord.ButtonStyle.green)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
@@ -47,5 +62,55 @@ class ConfirmActionView(discord.ui.View):
         if self._on_cancel:
             await self._on_cancel(interaction)
         else:
-            await interaction.response.edit_message(view=None)
+            await self.close(interaction)
+        self.stop()
+
+
+class ConfirmActionCard(discord.ui.LayoutView):
+    """A question drawn as a Components V2 card, with Confirm, the `more` items and
+    Cancel in one row below it, that keeps its card once answered."""
+
+    def __init__(
+        self,
+        card: discord.ui.Container[Any],
+        on_confirm: Callable[[discord.Interaction], Awaitable[None]],
+        locale: str,
+        more: Sequence[discord.ui.Item[Any]] = (),
+    ) -> None:
+        super().__init__(timeout=view_constants.SHORT_TIMEOUT_SECONDS)
+        self._on_confirm = on_confirm
+        self.locale = locale
+        confirm: discord.ui.Button[Any] = discord.ui.Button(
+            label=ml("buttons.confirm.label", locale=locale),
+            style=discord.ButtonStyle.green,
+        )
+        cancel: discord.ui.Button[Any] = discord.ui.Button(
+            label=ml("buttons.cancel.label", locale=locale),
+            style=discord.ButtonStyle.red,
+        )
+        confirm.callback = self._confirmed
+        cancel.callback = self._cancelled
+        self.buttons: discord.ui.ActionRow[Any] = discord.ui.ActionRow(
+            confirm, *more, cancel
+        )
+        self.add_item(card)
+        self.add_item(self.buttons)
+
+    async def close(
+        self, interaction: discord.Interaction, notice: Optional[discord.Embed] = None
+    ) -> None:
+        """Draw the card again without its buttons, and `notice` beside it if given."""
+        self.remove_item(self.buttons)
+        await interaction.response.edit_message(view=self)
+        if notice is not None:
+            await interaction.followup.send(embed=notice, ephemeral=True)
+
+    async def _confirmed(self, interaction: discord.Interaction) -> None:
+        speak(interaction, self.locale)
+        await self._on_confirm(interaction)
+        self.stop()
+
+    async def _cancelled(self, interaction: discord.Interaction) -> None:
+        speak(interaction, self.locale)
+        await self.close(interaction)
         self.stop()

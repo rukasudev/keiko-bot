@@ -448,7 +448,6 @@ async def test_a_paused_feature_offers_no_despausar_on_its_category_page(
 async def _set_up_default_roles(scenario):
     await scenario.confirm()
     await scenario.select_option("Member", target="default_roles")
-    await scenario.select_option("Moderator", target="default_roles_bot")
     await scenario.click("done")
     await scenario.click("pick:False")
     await scenario.confirm()

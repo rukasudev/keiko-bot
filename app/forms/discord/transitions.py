@@ -48,6 +48,7 @@ from app.forms.form.effects import (
     ReturnToOpener,
     RunAside,
     ShowError,
+    Warn,
 )
 from app.forms.form.form_state import FormSession
 from app.ui.embed import (
@@ -242,12 +243,6 @@ class Executor:
             await self.render(effect.screen)
         elif isinstance(effect, OpenModal):
             await self.open_modal(effect)
-        elif isinstance(effect, ShowError):
-            await self.show_error(effect)
-        elif isinstance(effect, Notice):
-            await self.notice(effect.key)
-        elif isinstance(effect, Announce):
-            await self.announce(effect.kind)
         elif isinstance(effect, Confirm):
             await self.confirm(effect.screen)
         elif isinstance(effect, Dismiss):
@@ -256,6 +251,18 @@ class Executor:
             await self.finalize(effect.kind)
         elif isinstance(effect, Ack):
             await self.ack()
+        else:
+            await self._tell(effect)
+
+    async def _tell(self, effect: Effect) -> None:
+        if isinstance(effect, ShowError):
+            await self.show_error(effect)
+        elif isinstance(effect, Warn):
+            await self.warn(effect)
+        elif isinstance(effect, Notice):
+            await self.notice(effect.key)
+        elif isinstance(effect, Announce):
+            await self.announce(effect.kind)
 
     @property
     def response(self) -> Any:
@@ -374,10 +381,18 @@ class Executor:
         if effect.plain:
             payload = {"content": error_message(effect.key, effect.args, self.locale)}
         else:
-            payload = {"embed": response_error_embed(effect.key, self.locale)}
+            told = facts(GLOBAL, **effect.args)
+            payload = {
+                "embed": response_error_embed(effect.key, self.locale, facts=told)
+            }
         if effect.delete_after is not None:
             payload["delete_after"] = effect.delete_after
         await self._send(**payload)
+
+    async def warn(self, effect: Warn) -> None:
+        """An ephemeral warning embed, in the colour of its block's tone."""
+        values = facts(GLOBAL, **effect.values)
+        await self._send(embed=response_embed(effect.block, self.locale, facts=values))
 
     async def notice(self, key: str) -> None:
         """A short self-deleting note, for a click that changed nothing."""

@@ -13,8 +13,14 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.constants import DBConfigs
-from app.core.calendar import is_day, parse_date_parts
+from app.constants import DBConfigs, FormConstants
+from app.core.calendar import (
+    is_day,
+    parse_date_parts,
+    span_fits,
+    span_parts,
+    time_span,
+)
 from app.forms.form.responses.links import parse_link
 
 
@@ -57,12 +63,14 @@ Check = Callable[[Any, ValidationContext], "str | None"]
 
 @dataclass(frozen=True)
 class Validator:
-    """A named check, the context it needs prefetched and the params it takes."""
+    """A named check, the context it needs prefetched, the params it takes and the
+    facts its error reads."""
 
     name: str
     needs: tuple[str, ...]
     check: Check
     params: tuple[str, ...] = ()
+    facts: Mapping[str, str] = field(default_factory=dict)
 
     def needed(self, params: Mapping[str, str]) -> tuple[str, ...]:
         """The needs once a declaration's `params` fill their `{param}` names."""
@@ -114,6 +122,23 @@ def _date(value: Any, context: ValidationContext) -> str | None:
     return None if fits else "invalid_date"
 
 
+def _time_span(_value: Any, context: ValidationContext) -> str | None:
+    answers, params = context.answers, context.params
+    parts = span_parts(
+        time_span(answers.get(params["amount"]), answers.get(params["unit"]))
+    )
+    if parts is None:
+        return "invalid_time_span"
+    amount, unit = parts
+    fits = (
+        FormConstants.TIME_SPAN_AMOUNT_MIN
+        <= amount
+        <= FormConstants.TIME_SPAN_AMOUNT_MAX
+        and span_fits(amount, unit, FormConstants.TIME_SPAN_YEARS_MAX)
+    )
+    return None if fits else "invalid_time_span"
+
+
 def _image(_value: Any, context: ValidationContext) -> str | None:
     upload = context.upload
     accepted = {f"image/{name.lower()}" for name in DBConfigs.IMAGE_FORMATS}
@@ -137,6 +162,17 @@ VALIDATORS: dict[str, Validator] = {
     ),
     "link_or_domain": Validator("link_or_domain", (), _link_or_domain),
     "date": Validator("date", ("answers",), _date, ("month",)),
+    "time_span": Validator(
+        "time_span",
+        ("answers",),
+        _time_span,
+        ("amount", "unit"),
+        {
+            "span_amount_min": str(FormConstants.TIME_SPAN_AMOUNT_MIN),
+            "span_amount_max": str(FormConstants.TIME_SPAN_AMOUNT_MAX),
+            "span_years_max": str(FormConstants.TIME_SPAN_YEARS_MAX),
+        },
+    ),
     "image": Validator("image", ("upload",), _image),
 }
 

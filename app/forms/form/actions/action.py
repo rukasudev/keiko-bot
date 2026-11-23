@@ -16,6 +16,8 @@ from app.forms.form.components import (
     DesignCard,
     Field,
     Gallery,
+    Panel,
+    PanelGroup,
     Screen,
 )
 from app.forms.form.copy import optional_text, text
@@ -27,12 +29,7 @@ from app.forms.form.form_yaml import (
     Step,
     overridden_text,
 )
-from app.forms.form.responses.styles import (
-    STYLES,
-    TOKEN_FORMATTERS,
-    format_value,
-    stored_style,
-)
+from app.forms.form.responses.styles import token_text
 from app.forms.form.responses.summary import ResponseView, responses, step_title
 
 NO_FORM = FormDefinition(key="", steps=())
@@ -142,7 +139,7 @@ def apply_tokens(
 
     def value(token: Token) -> str | None:
         if token.kind == "answer":
-            return _answer_text(token, shown(token), context.locale)
+            return token_text(token, shown(token), context.locale)
         if token.kind == "plural":
             return token.many if count_of(saved(token)) > 1 else token.one
         if token.kind == "context":
@@ -150,19 +147,6 @@ def apply_tokens(
         return None
 
     return resolved(body, value)
-
-
-def _answer_text(token: Token, value: Any, locale: str) -> str:
-    if value in (None, "", [], ()):
-        return token.fallback
-    style = stored_style(token.format)
-    if style in STYLES:
-        return format_value(value, style, locale)
-    if isinstance(value, (list, tuple)):
-        value = ", ".join(str(item) for item in value)
-    if token.format in TOKEN_FORMATTERS:
-        return TOKEN_FORMATTERS[token.format](str(value))
-    return str(value)
 
 
 def description_of(step: Step, session: FormSession, context: Context) -> str:
@@ -183,6 +167,31 @@ def title_of(step: Step, locale: str, scope: Scope | None = None) -> str:
 def footer_of(step: Step, locale: str) -> str:
     """The step footer, empty when the step has none."""
     return step.footer.get(locale) if step.footer else ""
+
+
+def group_screen_of(
+    title: str,
+    intro: str,
+    blocks: Sequence[PanelGroup],
+    locale: str,
+    footer: str,
+) -> Screen:
+    """A group's own screen, the same on a setup and a panel: its title and intro
+    beside Keiko's picture, its blocks, then Back."""
+    shown = Panel(
+        title=title,
+        intro=intro,
+        groups=tuple(blocks),
+        thumbnail=KeikoIcons.IMAGE_01,
+        edit_label=label("edit", locale),
+        remove_label=label("remove_item", locale),
+    )
+    return Screen(
+        components=(shown,),
+        buttons=(Button(label("back", locale), "picker_back"),),
+        flavour="components_v2",
+        layout_footer=footer,
+    )
 
 
 def step_screen(

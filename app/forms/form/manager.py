@@ -12,12 +12,18 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from app.constants import Emojis, KeikoIcons
-from app.constants import ViewConstants as view_constants
 from app.core.conditions import Scope
 from app.core.facts import filled
 from app.forms.form import events as ev
-from app.forms.form.actions.action import Context, caption, label
+from app.forms.form.actions.action import (
+    Context,
+    caption,
+    footer_of,
+    group_screen_of,
+    label,
+)
 from app.forms.form.actions.configuration_card import pictured_members as on_card
+from app.forms.form.actions.resume import kept
 from app.forms.form.components import (
     Button,
     ChoiceOption,
@@ -36,6 +42,7 @@ from app.forms.form.effects import (
     Notice,
     Render,
     ShowError,
+    Warn,
 )
 from app.forms.form.form import (
     FINAL_KIND,
@@ -76,13 +83,14 @@ from app.forms.form.form_yaml import (
 )
 from app.forms.form.responses.responses import (
     document_answers,
+    document_values,
     item_answers,
     items_of,
 )
 from app.forms.form.responses.summary import (
     PanelRow,
     every_setting_has_a_button,
-    item_groups,
+    group_list,
     item_heading,
     item_lines,
     item_name,
@@ -129,13 +137,6 @@ class PanelExtras:
     enabled: bool = True
     pages: tuple[PanelPage, ...] = ()
     found: Mapping[str, FoundItem] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class ItemRemovalRequested(ev.Event):
-    """Remove was pressed beside one item of a list, or on the item a search found."""
-
-    target: str = ""
 
 
 @dataclass(frozen=True)
@@ -315,7 +316,27 @@ class Manager(Engine):
         if chosen and emptied and composition.remove == "item":
             self.commit("disable", {"items": items})
             return
+        left = [item for index, item in enumerate(items) if index not in chosen]
+        if self.refused_by_rule({composition.key: tuple(left)}):
+            return
         self.save("remove_item", {"indexes": chosen, "items": removed})
+
+    def refused_by_rule(self, changes: Mapping[str, Any]) -> bool:
+        """Refuse a change that leaves the form's own rule unmet, True when refused."""
+        values = {**document_values(self.document), **changes}
+        refusal = kept(self.definition, values, self.locale)
+        if refusal is None:
+            return False
+
+        self.session = self.session.with_status(Status.ACTIVE)
+        if refusal.warning:
+            self.effects.append(Warn(refusal.error_key, refusal.args or {}))
+        else:
+            self.effects.append(
+                ShowError(refusal.error_key, refusal.args or {}, plain=refusal.plain)
+            )
+        self.rerender()
+        return True
 
     def item_index(self, target: str) -> int | None:
         """The position `target` (`key$index`) names among the saved items."""
@@ -337,7 +358,9 @@ class Manager(Engine):
         return filled(warning, {"item": block, "feature": feature})
 
     def edit_finished(self, answers: Mapping[str, Answer]) -> None:
-        """Save the edited settings."""
+        """Save the edited settings, unless they leave the form's own rule unmet."""
+        if self.refused_by_rule({key: answer.raw for key, answer in answers.items()}):
+            return
         self.commit_and_return("edit", {"answers": answers})
 
     def item_finished(
@@ -351,7 +374,7 @@ class Manager(Engine):
         if event.child_mode == "add_item" and unique:
             wanted = raw_value(item.get(unique))
             if any(
-                str(unwrap(existing.get(unique))) == wanted
+                composition.items.same_item(wanted, unwrap(existing.get(unique)))
                 for existing in self.stored_items()
             ):
                 self.refuse_change("item_already_registered")
@@ -450,6 +473,9 @@ def _draws_its_list(definition: FormDefinition, groups: Sequence[PanelGroup]) ->
     composition = definition.composition
     if composition is None:
         return False
+    screened = definition.groups.get(composition.group or "")
+    if screened is not None and screened.collapsed:
+        return True
     add = f"add:{composition.key}"
     return any(part.action == add for group in groups for part in group.parts)
 
@@ -596,7 +622,7 @@ def group_screen(
     for row in rows:
         owner = _opened_with(definition, row)
         if owner is None:
-            blocks += _group_blocks(definition, row, locale)
+            blocks += _group_blocks(definition, row, locale, title)
             continue
         if owner in shared:
             block = blocks[shared[owner]]
@@ -609,20 +635,12 @@ def group_screen(
         shared[owner] = len(blocks)
         part = PanelPart(owner, (_group_line(row, locale),))
         blocks.append(PanelGroup(None, "", (), (part,)))
-    first = definition.steps[0]
-    shown = Panel(
-        title=f"{icon} {title}".strip(),
-        intro=_group_intro(definition, key, locale, Scope(values)),
-        groups=tuple(blocks),
-        thumbnail=KeikoIcons.IMAGE_01,
-        edit_label=label("edit", locale),
-        remove_label=label("remove_item", locale),
-    )
-    return Screen(
-        components=(shown,),
-        buttons=(Button(label("back", locale), "picker_back"),),
-        flavour="components_v2",
-        layout_footer=first.footer.get(locale) if first.footer else "",
+    return group_screen_of(
+        f"{icon} {title}".strip(),
+        _group_intro(definition, key, locale, Scope(values)),
+        blocks,
+        locale,
+        footer_of(definition.steps[0], locale),
     )
 
 
@@ -665,11 +683,10 @@ def _group_intro(
 
 
 def _group_blocks(
-    definition: FormDefinition, row: PanelRow, locale: str
+    definition: FormDefinition, row: PanelRow, locale: str, title: str = ""
 ) -> list[PanelGroup]:
     if row.style == "composition" and row.composition is not None:
-        shown = view_constants.GROUP_ITEMS_SHOWN
-        return item_groups(row, locale, True, limit=shown, headed=False)
+        return group_list(row, locale, title, row.group_collapsed)
     icon = row.icon or Emojis.FRISBEE_EMOJI
     options = options_for(definition.steps, row.key)
     if options and _toggled(definition, row.key):
@@ -781,7 +798,7 @@ def _on_child_finished(manager: Manager) -> None:
 
 def _on_item_removal_requested(manager: Manager) -> None:
     event = manager.event
-    assert isinstance(event, ItemRemovalRequested)
+    assert isinstance(event, ev.ItemRemovalRequested)
     composition = manager.definition.composition
     index = manager.item_index(event.target)
 
@@ -886,7 +903,7 @@ HANDLERS: dict[type[ev.Event], Callable[[Manager], None]] = {
     ev.EditRequested: on_edit_requested,
     ev.AddRequested: on_add_requested,
     ev.RemoveRequested: on_remove_requested,
-    ItemRemovalRequested: _on_item_removal_requested,
+    ev.ItemRemovalRequested: _on_item_removal_requested,
     OptionToggled: _on_option_toggled,
     ev.TargetChosen: on_target_chosen,
     ev.TargetsChosen: on_targets_chosen,

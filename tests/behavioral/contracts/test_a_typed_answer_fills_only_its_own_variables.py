@@ -83,6 +83,7 @@ FILLED = object()
 VARIABLES: Mapping[tuple[str, str], frozenset[str]] = {
     ("block_links", "answer"): frozenset({"user"}),
     ("block_links", "link"): frozenset(),
+    ("default_roles", "amount"): frozenset(),
     ("notifications_twitch", "notification_messages"): frozenset(
         {"streamer", "stream_link"}
     ),
@@ -99,6 +100,9 @@ VARIABLES: Mapping[tuple[str, str], frozenset[str]] = {
         {"youtuber", "stream_link"}
     ),
     ("notifications_youtube_live", "youtuber"): frozenset(),
+    ("reaction_roles", "footer"): frozenset(),
+    ("reaction_roles", "text"): frozenset(),
+    ("reaction_roles", "title"): frozenset(),
     ("reminders_birthday", "custom_message_content"): frozenset(
         {"user", "server", "date"}
     ),
@@ -226,6 +230,7 @@ SHAPES: Mapping[str | None, Shape] = {
     "link_or_domain": (_linked, False, True),
     "registered_and_found": (_plain, True, False),
     "date": (_plain, True, False),
+    "time_span": (_plain, True, False),
 }
 
 
@@ -850,6 +855,47 @@ class BlockLinks(Journey):
         run.check("block reply", {"user": author.mention}, channel_texts(channel))
 
 
+class ReactionRoles(Journey):
+    form = "reaction_roles"
+
+    async def card(self, run: Run) -> None:
+        scenario = run.scenario
+        await scenario.confirm()
+        await scenario.select_option("general", target="channel")
+        await scenario.select_option("Member", target="roles")
+
+    async def panel(self, run: Run) -> None:
+        scenario = run.scenario
+        on_the_row = run.typed.key == "title"
+        run.check("panel", shown=on_the_row)
+        await scenario.click("remove_this:menus$0")
+        run.check("last item warning", shown=on_the_row)
+        await scenario.go_back()
+
+    async def edit(self, run: Run) -> None:
+        await edited(run, "section:menus$0")
+
+    async def sent(self, run: Run) -> None:
+        channel = run.guild.get_channel(100)
+        posted = [
+            item.content
+            for message in channel.get_all_messages()
+            for item in message.view.walk_children()
+            if isinstance(item, discord.ui.TextDisplay)
+        ]
+        run.check("menu posted", texts=posted)
+
+
+class AutoRoles(Journey):
+    form = "default_roles"
+
+    async def card(self, run: Run) -> None:
+        scenario = run.scenario
+        await scenario.confirm()
+        await scenario.click("customize:ladder_screen")
+        await scenario.click("add:role_ladder")
+
+
 class StreamElements(Journey):
     form = "stream_elements_commands"
 
@@ -876,6 +922,8 @@ JOURNEYS: Mapping[str, Journey] = {
         YouTubeLives(),
         Birthdays(),
         BlockLinks(),
+        ReactionRoles(),
+        AutoRoles(),
         StreamElements(),
     )
 }

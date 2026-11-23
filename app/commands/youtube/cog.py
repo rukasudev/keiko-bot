@@ -41,23 +41,6 @@ class Youtube(  # noqa: D101 - discord.py sends a Group's docstring as its descr
         """Open the setup form, or the manager of the YouTube announcements."""
         await open_feature(interaction, "notifications_youtube_video")
 
-    @keiko_command(
-        name=locale_str(
-            "lives", type="name", namespace="notifications_youtube_live.command.slash"
-        ),
-        description=locale_str(
-            "desc",
-            type="description",
-            namespace="notifications_youtube_live.command.slash",
-        ),
-    )
-    @keiko_admin_only
-    async def notifications_youtube_live(
-        self, interaction: discord.Interaction
-    ) -> None:
-        """Open the setup form, or the manager of the YouTube live announcements."""
-        await open_feature(interaction, "notifications_youtube_live")
-
 
 class YoutubeRenewals(Cog):
     """Subscribes every channel a YouTube command follows again with the hub secret,

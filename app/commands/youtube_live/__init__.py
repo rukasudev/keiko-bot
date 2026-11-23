@@ -1,5 +1,6 @@
 """YouTube lives: a channel told when a YouTube channel goes live, declared once."""
 
+from app.commands.youtube_live.cog import YoutubeLive
 from app.commands.youtube_live.service import (
     FEATURE,
     announce_started_live,
@@ -12,6 +13,7 @@ from app.core.commands import Command
 
 COMMAND = Command(
     key="notifications_youtube_live",
+    cogs=(YoutubeLive,),
     feature=FEATURE,
     group="notifications",
     on_setup=True,

@@ -38,7 +38,7 @@ from app.forms.form.responses.summary import unwrap
 from app.integrations.stream_elements import StreamElementsClient
 from tests.generators.birthdays import saved_birthday
 from tests.generators.events import lifecycle
-from tests.generators.moderations import recorded_server, seed_cog
+from tests.generators.moderations import ladder_rung, recorded_server, seed_cog
 from tests.helpers.forms import section
 from tests.mocks.discord import create_guild, create_member
 
@@ -54,6 +54,7 @@ DOCUMENTS = {
         "enabled": True,
         "default_roles": {"style": "role", "values": "201"},
         "default_roles_bot": {"style": "role", "values": ["202"]},
+        "role_ladder": {"style": "composition", "values": [ladder_rung(7, "202")]},
     },
     "block_links": {
         "guild_id": GUILD_ID,
@@ -138,9 +139,8 @@ def _machine(document):
     return flat
 
 
-async def _settle():
-    for _ in range(5):
-        await asyncio.sleep(0)
+async def _settle(feature):
+    await asyncio.gather(*feature.running)
 
 
 @pytest.fixture
@@ -281,16 +281,15 @@ async def test_a_default_roles_setup_gives_the_roles_out_after_the_commit(
     monkeypatch.setattr(friend, "add_roles", held)
     answers = {"default_roles": Answer("202"), "sync_existing": Answer(True)}
 
-    result = await feature_for("default_roles").commit(
-        "setup", {"answers": answers}, _context(guild=guild)
-    )
+    feature = feature_for("default_roles")
+    result = await feature.commit("setup", {"answers": answers}, _context(guild=guild))
 
     assert result.written == ("default_roles",)
     assert member_role not in friend.roles, "the commit never waits for the roles"
     stored = await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, "default_roles")
     assert "sync_existing" not in stored, "the choice is never saved as a setting"
     released.set()
-    await _settle()
+    await _settle(feature)
     assert member_role in friend.roles
     assert member_role not in robot.roles, "a bot gets only the roles saved for bots"
 
@@ -307,11 +306,10 @@ async def test_a_default_roles_sync_that_fails_is_logged_not_raised(
     monkeypatch.setattr(friend, "add_roles", refuse)
     answers = {"default_roles": Answer("202"), "sync_existing": Answer(True)}
 
+    feature = feature_for("default_roles")
     with caplog.at_level(logging.ERROR):
-        await feature_for("default_roles").commit(
-            "setup", {"answers": answers}, _context(guild=guild)
-        )
-        await _settle()
+        await feature.commit("setup", {"answers": answers}, _context(guild=guild))
+        await _settle(feature)
 
     errors = [record for record in caplog.records if record.levelno >= logging.ERROR]
     assert len(errors) == 1

@@ -1,0 +1,33 @@
+steps:
+  - type: intro
+    key: form
+    title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
+    description: {en-us: intro, pt-br: intro}
+  - type: list
+    key: rungs
+    title: {en-us: Rungs, pt-br: Degraus}
+    description: {en-us: rungs, pt-br: degraus}
+    items:
+      max: 5
+      unique:
+        key: days
+      name: {en-us: "${answer.dayz} days", pt-br: "${answer.dayz} dias"}
+    steps:
+      - type: card
+        key: rung
+        title: {en-us: Rung, pt-br: Degrau}
+        description: {en-us: rung, pt-br: degrau}
+        sections:
+          - type: value_select
+            key: days
+            emoji: "📅"
+            label: {en-us: Days, pt-br: Dias}
+            keys:
+              value: days
+            options:
+              - label: {en-us: 7 days, pt-br: 7 dias}
+                value: 7
+  - type: review
+    key: confirm
+    title: {en-us: "ok?", pt-br: "ok?"}
+    description: {en-us: review, pt-br: review}

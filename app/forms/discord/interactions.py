@@ -8,7 +8,6 @@ from typing import Any
 from app.constants import DiscordLimits
 from app.forms.form import events as ev
 from app.forms.form.manager import (
-    ItemRemovalRequested,
     Lifecycle,
     LifecycleConfirmed,
     OptionToggled,
@@ -61,6 +60,17 @@ def is_ours(custom_id: str | None) -> bool:
     return decode(custom_id) is not None
 
 
+@dataclass(frozen=True)
+class Picked:
+    """What a select that offers only the roles Keiko can give reported, split, each
+    refused role with why it is refused, and the kept roles that can moderate the
+    server named apart."""
+
+    kept: tuple[str, ...]
+    refused: tuple[tuple[str, str], ...]
+    warned: tuple[str, ...] = ()
+
+
 LIFECYCLE = ("pause", "unpause", "disable")
 REOPEN = "reopen"
 REOPEN_TEMPLATE = rf"{PREFIX}:[^:]+:\d+:{REOPEN}:[a-z0-9_]+"
@@ -101,8 +111,15 @@ def to_event(
     if action in ("pick", "design"):
         return ev.Answered(event_id, revision, section or cursor or "", arg)
     if action in ("draft", "set"):
+        picked = payload if isinstance(payload, Picked) else Picked((), ())
+        reported = list(payload.kept) if isinstance(payload, Picked) else payload
         return ev.Drafted(
-            event_id, revision, cursor or "", _drafted(action, arg, payload)
+            event_id,
+            revision,
+            cursor or "",
+            _drafted(action, arg, reported),
+            picked.refused,
+            picked.warned,
         )
     if action in SECTIONS:
         return SECTIONS[action](event_id, revision, cursor or "", int(arg or 0))
@@ -126,7 +143,7 @@ def _on_one_item(
 ) -> ev.Event | None:
     """What a button beside one item of a screen means, None for anything else."""
     if action == "remove_this":
-        return ItemRemovalRequested(event_id, revision, arg or "")
+        return ev.ItemRemovalRequested(event_id, revision, arg or "")
     if action in ("turn_on", "turn_off"):
         key, _, chosen = (arg or "").rpartition("=")
         return OptionToggled(event_id, revision, key, chosen, action == "turn_on")

@@ -107,7 +107,7 @@ def _validate(
             params=declared.params,
         ),
     )
-    return Refusal(error) if error else None
+    return Refusal(error, check.facts) if error else None
 
 
 def _looked_up(step: TextStep, context: Context) -> dict[str, Answer]:

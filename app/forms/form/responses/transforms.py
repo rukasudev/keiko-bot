@@ -7,7 +7,13 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from app.core.calendar import parse_date_parts, split_mm_dd
+from app.core.calendar import (
+    calendar_span,
+    parse_date_parts,
+    split_mm_dd,
+    split_span,
+    time_span,
+)
 from app.forms.form.responses.links import normalize_link
 
 
@@ -44,6 +50,10 @@ def _link_hydrate(value: Any) -> dict[str, Any]:
     return {"link": value} if value else {}
 
 
+def _span_serialize(parts: Mapping[str, Any]) -> str | None:
+    return time_span(parts.get("amount"), parts.get("unit"))
+
+
 TRANSFORMS: dict[str, Transform] = {
     "mm_dd_date_parts": Transform(
         name="mm_dd_date_parts",
@@ -60,6 +70,14 @@ TRANSFORMS: dict[str, Transform] = {
         style="code",
         serialize=_link_serialize,
         hydrate=_link_hydrate,
+    ),
+    "time_span": Transform(
+        name="time_span",
+        part_keys=("amount", "unit"),
+        value_key="time",
+        style="time_span",
+        serialize=_span_serialize,
+        hydrate=split_span,
     ),
 }
 
@@ -99,6 +117,7 @@ class Normalizer:
 
 
 NORMALIZERS: dict[str, Normalizer] = {
+    "calendar_span": Normalizer(calendar_span),
     "handle": Normalizer(handle),
     "lowercase": Normalizer(lowercase),
     "without_group_mentions": Normalizer(without_group_mentions, "mention_removed"),

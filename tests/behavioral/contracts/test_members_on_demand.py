@@ -246,7 +246,7 @@ async def test_the_default_roles_counts_read_the_server_page_by_page(monkeypatch
     from app.commands.roles import service as default_roles
 
     monkeypatch.setattr(
-        default_roles, "get_available_roles_by_guild", lambda guild: {"Member": "202"}
+        default_roles, "givable_role_ids", lambda guild: {"202"}
     )
     guild = _roles_server()
     document = {"default_roles": {"values": ["202"]}}
@@ -263,7 +263,7 @@ async def test_past_the_counted_bound_no_count_is_guessed(monkeypatch):
 
     monkeypatch.setattr(Commands, "DEFAULT_ROLES_COUNTED_MEMBERS_MAX", 1)
     monkeypatch.setattr(
-        default_roles, "get_available_roles_by_guild", lambda guild: {"Member": "202"}
+        default_roles, "givable_role_ids", lambda guild: {"202"}
     )
     guild = _roles_server()
     document = {"default_roles": {"values": ["202"]}}
@@ -283,7 +283,7 @@ async def test_past_the_counted_bound_the_screens_say_more_than_the_bound(
     from app.commands.roles import service as default_roles
 
     monkeypatch.setattr(
-        service, "get_available_roles_by_guild", lambda guild: {"Member": "202"}
+        service, "givable_role_ids", lambda guild: {"202"}
     )
     guild = _roles_server()
     for index in range(Commands.DEFAULT_ROLES_COUNTED_MEMBERS_MAX):
@@ -317,8 +317,8 @@ async def test_the_sync_gives_the_roles_page_by_page_and_caches_nobody(
     member_role = next(role for role in guild.roles if role.name == "Member")
     monkeypatch.setattr(
         default_roles,
-        "get_available_roles_by_guild",
-        lambda guild: {"Member": str(member_role.id)},
+        "givable_role_ids",
+        lambda guild: {str(member_role.id)},
     )
     mock_cache.return_value = {"default_roles": {"values": [str(member_role.id)]}}
     message = MagicMock(edit=AsyncMock())
@@ -341,8 +341,8 @@ async def test_a_joiner_gets_the_roles_without_any_request(deps, mock_cache, mon
     member_role = next(role for role in guild.roles if role.name == "Member")
     monkeypatch.setattr(
         default_roles,
-        "get_available_roles_by_guild",
-        lambda guild: {"Member": str(member_role.id)},
+        "givable_role_ids",
+        lambda guild: {str(member_role.id)},
     )
     mock_cache.return_value = {"default_roles": {"values": [str(member_role.id)]}}
     joiner = uncached(guild, 21, "Nova")

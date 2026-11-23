@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import Any
@@ -22,7 +22,7 @@ from app.constants import Commands as commands_constants
 from app.constants import DiscordLimits
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
-from app.core import analytics, members, metrics
+from app.core import analytics, i18n, members, metrics
 from app.core.commands import GLOBAL
 from app.core.facts import facts, owner_of
 from app.core.servers import interaction_language, server_settings
@@ -54,6 +54,7 @@ from app.forms.features.feature import (
     CommitContext,
     DuplicateItem,
     FeatureModule,
+    FollowUp,
     ListChanged,
     OpenContext,
     Opened,
@@ -83,7 +84,12 @@ from app.forms.form.form_state import (
 )
 from app.forms.form.form_yaml import registry
 from app.forms.form.lookups import Lookup, lookup_for
-from app.ui.embed import response_embed, response_error_embed
+from app.ui.embed import (
+    Response,
+    response_card,
+    response_embed,
+    response_error_embed,
+)
 
 
 @dataclass
@@ -752,6 +758,26 @@ class Runtime:
             session,
             ev.CommitSucceeded(outcome_id, None, kind, result.written),
         )
+        if result.asks is not None:
+            await self._ask_after(interaction, session, result.asks)
+
+    async def _ask_after(
+        self, interaction: discord.Interaction, session: FormSession, asks: FollowUp
+    ) -> None:
+        """Ask the question a save left, below what the save drew."""
+        action = self.sessions[session.id].feature.asides().get(asks.aside)
+        if action is None or not action.confirm:
+            return
+        await self._ask_before(
+            interaction,
+            session,
+            asks.aside,
+            action,
+            action.confirm,
+            asks.target,
+            values=asks.values,
+            see_all=asks.see_all,
+        )
 
     async def _reopen(self, session: FormSession) -> None:
         """Read the feature again, so the next screen shows what is saved now."""
@@ -872,43 +898,61 @@ class Runtime:
         action: AsideAction,
         question: str,
         target: str = "",
+        values: Mapping[str, str | bool] | None = None,
+        see_all: Callable[[Any], Awaitable[None]] | None = None,
     ) -> None:
-        """Run a side action only once the admin confirms what it will do."""
-        from app.ui.confirm_action import ConfirmActionView
+        """Run a side action only once the admin confirms what it will do, its text
+        reading `values` when given, else what the action counts, with a See all
+        before Cancel when `see_all` opens what the text cuts short, on a card when
+        its copy asks for one."""
+        from app.ui.buttons import GenericButton
+        from app.ui.confirm_action import ConfirmActionCard, ConfirmActionView
 
         state = self.sessions[session.id]
         locale = session.origin.locale
+        view: ConfirmActionView | ConfirmActionCard
 
         async def confirmed(answer: discord.Interaction) -> None:
             if action.cooldown and _cooling(state, name, action.cooldown):
-                await answer.response.edit_message(
-                    embed=_cooldown_embed(locale), view=None
-                )
+                await view.close(answer, _cooldown_embed(locale))
                 return
             if action.cooldown:
                 _cool(state, name)
-            await answer.response.edit_message(view=None)
+            await view.close(answer)
             await action.handler(answer, await self._shown(session, locale, target))
 
-        values = (
-            await action.confirm_values(
+        if values is None and action.confirm_values:
+            values = await action.confirm_values(
                 state.opened.document or {}, locale, state.guild
             )
-            if action.confirm_values
-            else {}
+        filled = facts(owner_of(question), **(values or {}))
+        more = (
+            (
+                GenericButton(
+                    text("buttons.see_all.label", locale),
+                    see_all,
+                    discord.ButtonStyle.grey,
+                    emoji="🔎",
+                ),
+            )
+            if see_all is not None
+            else ()
         )
-        embed = response_embed(
-            question, locale, image=True, facts=facts(owner_of(question), **values)
-        )
-        view = ConfirmActionView(confirmed, locale)
+        shown: dict[str, Any]
+        if i18n.block(question, Response).card:
+            card = response_card(question, locale, image=True, facts=filled)
+            view = ConfirmActionCard(card, confirmed, locale, more=more)
+            shown = {"view": view}
+        else:
+            embed = response_embed(question, locale, image=True, facts=filled)
+            view = ConfirmActionView(confirmed, locale, more=more)
+            shown = {"embed": embed, "view": view}
 
         if await self._answering(interaction).first(
-            lambda: interaction.response.send_message(
-                embed=embed, view=view, ephemeral=True
-            )
+            lambda: interaction.response.send_message(**shown, ephemeral=True)
         ):
             return
-        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        await interaction.followup.send(**shown, ephemeral=True)
 
     async def _help(
         self, interaction: discord.Interaction, session: FormSession

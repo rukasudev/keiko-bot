@@ -17,6 +17,10 @@ screens:
         children:
         - {type: text, content: '🤖 **⟨vocabulary.texts.roles_for_bots⟩:** <@&201>'}
         - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+      - type: section
+        children:
+        - {type: text, content: '⏳ **⟨vocabulary.texts.roles_by_time⟩:** ⟨texts.empty_value⟩'}
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
       - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
     - type: actionrow
       children:
@@ -31,11 +35,13 @@ screens:
     components_v2: true
     rendered:
       pt-br:
-      - '## 👩‍🎓 Cargos Padrão'
-      - Dou estes cargos automaticamente para quem entra no servidor.
+      - '## 👩‍🎓 Cargos Automáticos'
+      - Dou estes cargos automaticamente para quem entra no servidor, e cada cargo por tempo quando o membro completa o tempo dele no servidor.
       - 👥 **Cargos para Membros:** <@&202>
       - Editar
       - 🤖 **Cargos para Bots:** <@&201>
+      - Editar
+      - ⏳ **Cargos por tempo no servidor:** Em branco
       - Editar
       - -# • Use o comando `/reportar` para me contar um bug
       - Pausar
@@ -44,6 +50,10 @@ screens:
       - Sincronizar
       - Estatísticas
       - Ajuda
+  form.panel+start_command:
+    from: form.panel
+    changes:
+    - set components.0.children.2.children.0.content: 🤖 **⟨vocabulary.texts.roles_for_bots⟩:** ⟨texts.empty_value⟩
   form.panel+pause:
     from: form.panel
     changes:
@@ -61,11 +71,13 @@ screens:
     - drop components.0.children.3: null
     rendered:
       en-us:
-      - '## 👩‍🎓 Default Roles'
-      - I give these roles automatically to everyone who joins the server.
+      - '## 👩‍🎓 Auto Roles'
+      - I give these roles automatically to everyone who joins the server, and each time role once a member reaches its time in the server.
       - 🤖 **Roles for Bots:** <@&201>
       - Edit
       - 👥 **Roles for Members:** <@&202>
+      - Edit
+      - ⏳ **Roles by time in the server:** Empty
       - Edit
       - -# • Use the `/report` command to tell me a bug
       - Pause
@@ -74,11 +86,16 @@ screens:
       - Sync
       - Statistics
       - Help
-  form.panel+default_roles=Admin:
+  form.panel+continue@setup_with_a_rung:
     from: form.panel
     changes:
-    - set components.0.children.1.children.0.content: 👥 **⟨vocabulary.texts.roles_for_members⟩:** <@&200>
-    - add components.0.children.3: {type: text, content: '⟨default_roles.command.panel.info.description: roles=«<@&200>»⟩'}
+    - set components.0.children.1.children.0.content: 🤖 **⟨vocabulary.texts.roles_for_bots⟩:** ⟨texts.empty_value⟩
+    - set components.0.children.2.children.0.content: 👥 **⟨vocabulary.texts.roles_for_members⟩:** ⟨texts.empty_value⟩
+    - set components.0.children.3.children.0.content: '⏳ **⟨vocabulary.texts.roles_by_time⟩:** ⟨vocabulary.texts.set_up_counter: count=«1»; max=«5»⟩'
+  form.panel+default_roles=Moderator:
+    from: form.panel
+    changes:
+    - set components.0.children.1.children.0.content: 👥 **⟨vocabulary.texts.roles_for_members⟩:** <@&201>
   form.panel+continue@setup_gives_the_roles_now:
     from: form.panel
     changes:
@@ -88,6 +105,130 @@ screens:
         - {type: text, content: '🤖 **⟨vocabulary.texts.roles_for_bots⟩:** ⟨texts.empty_value⟩'}
         - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
     - drop components.0.children.3: null
+  roles_by_time.screen:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - type: section
+        children:
+        - {type: text, content: '## ⏳ ⟨vocabulary.texts.roles_by_time⟩'}
+        - {type: text, content: ⟨default_roles.form.steps.default_roles_config.sections.ladder_screen.screen.description⟩}
+        - {type: thumbnail, media: KEIKO_DEFAULT.png}
+      - type: section
+        children:
+        - {type: text, content: ⟨texts.empty_value⟩}
+        - {type: button, label: ⟨buttons.add.label⟩, style: secondary, disabled: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.back.label⟩, style: secondary, disabled: false}
+    components_v2: true
+  roles_by_time.screen+done:
+    from: roles_by_time.screen
+    changes:
+    - set components.0.children.1.children.0.content: '⟨vocabulary.texts.set_up_counter: count=«1»; max=«5»⟩'
+    - add components.0.children.2:
+        type: text
+        content: |-
+          📅 **⟨default_roles.form.steps.role_ladder.steps.rung.sections.time.label⟩:** ⟨texts.time_units.days: count=«7»⟩
+          🏷️ **⟨default_roles.form.steps.role_ladder.steps.rung.sections.role.label⟩:** <@&202>
+    - add components.0.children.3:
+        type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+        - {type: button, label: ⟨buttons.remove.label⟩, style: secondary, disabled: false}
+  roles_by_time.screen+edit:group:ladder:
+    from: roles_by_time.screen
+    changes:
+    - set components.0.children.0.children.1.content: ⟨default_roles.form.groups.ladder.screen.description⟩
+  roles_by_time.screen+done@manager_add_rung:
+    from: roles_by_time.screen
+    changes:
+    - set components.0.children.0.children.1.content: ⟨default_roles.form.groups.ladder.screen.description⟩
+    - set components.0.children.1.children.0.content: '⟨vocabulary.texts.set_up_counter: count=«1»; max=«5»⟩'
+    - add components.0.children.2:
+        type: text
+        content: |-
+          📅 **⟨default_roles.form.steps.role_ladder.steps.rung.sections.time.label⟩:** ⟨texts.time_units.days: count=«30»⟩
+          🏷️ **⟨default_roles.form.steps.role_ladder.steps.rung.sections.role.label⟩:** <@&201>
+    - add components.0.children.3:
+        type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+        - {type: button, label: ⟨buttons.remove.label⟩, style: danger, disabled: false}
+  rung:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - type: section
+        children:
+        - {type: text, content: '## ⏳ ⟨default_roles.form.steps.role_ladder.steps.rung.title⟩'}
+        - {type: text, content: ⟨default_roles.form.steps.role_ladder.steps.rung.description⟩}
+        - {type: thumbnail, media: KEIKO_DEFAULT.png}
+      - type: text
+        content: |-
+          📅 **⟨default_roles.form.steps.role_ladder.steps.rung.sections.time.label⟩**
+          > ⟨texts.empty_value⟩
+      - type: actionrow
+        children:
+        - {type: button, label: ⟨default_roles.form.steps.role_ladder.steps.rung.sections.time.button.label⟩, style: secondary, disabled: false}
+      - type: text
+        content: |-
+          🏷️ **⟨default_roles.form.steps.role_ladder.steps.rung.sections.role.label⟩**
+          > ⟨texts.empty_value⟩
+      - type: actionrow
+        children:
+        - {type: role_select, placeholder: ⟨default_roles.form.steps.role_ladder.steps.rung.sections.role.selects.role.placeholder⟩, min: 1, max: 1, disabled: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.done.label⟩, style: success, disabled: false}
+      - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
+    components_v2: true
+  rung+modal_submit:
+    from: rung
+    changes:
+    - set components.0.children.1.content: |-
+        📅 **⟨default_roles.form.steps.role_ladder.steps.rung.sections.time.label⟩**
+        > ⟨texts.time_units.days: count=«7»⟩
+  rung+role=Member:
+    from: rung
+    changes:
+    - set components.0.children.1.content: |-
+        📅 **⟨default_roles.form.steps.role_ladder.steps.rung.sections.time.label⟩**
+        > ⟨texts.time_units.days: count=«7»⟩
+    - set components.0.children.3.content: |-
+        🏷️ **⟨default_roles.form.steps.role_ladder.steps.rung.sections.role.label⟩**
+        > <@&202>
+  rung+add:role_ladder:
+    from: rung
+    changes:
+    - set components.1.children.0.label: ⟨buttons.confirm.label⟩
+  rung+modal_submit@manager_add_rung:
+    from: rung
+    changes:
+    - set components.0.children.1.content: |-
+        📅 **⟨default_roles.form.steps.role_ladder.steps.rung.sections.time.label⟩**
+        > ⟨texts.time_units.days: count=«30»⟩
+    - set components.1.children.0.label: ⟨buttons.confirm.label⟩
+  rung+role=Moderator:
+    from: rung
+    changes:
+    - set components.0.children.1.content: |-
+        📅 **⟨default_roles.form.steps.role_ladder.steps.rung.sections.time.label⟩**
+        > ⟨texts.time_units.days: count=«30»⟩
+    - set components.0.children.3.content: |-
+        🏷️ **⟨default_roles.form.steps.role_ladder.steps.rung.sections.role.label⟩**
+        > <@&201>
+    - set components.1.children.0.label: ⟨buttons.confirm.label⟩
+  time.amount:
+    modal:
+      title: 📅 ⟨default_roles.form.steps.role_ladder.steps.rung.sections.time.label⟩
+      fields:
+      - {label: ⟨default_roles.form.steps.role_ladder.steps.rung.sections.time.modal.inputs.amount.label⟩, required: true, style: short, max_length: 3, default: ''}
+      - type: select
   delete:
     ephemeral: true
     embed:
@@ -158,6 +299,21 @@ screens:
     - {type: button, label: '>', style: primary, disabled: true}
     - {type: button, label: '>|', style: success, disabled: true}
     components_v2: false
+  keep_one_field:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.keep_one_field.title⟩
+      description: |-
+        ⟨commands.responses.keep_one_field.description: fields=«**⟨vocabulary.texts.roles_for_members⟩**, **⟨vocabulary.texts.roles_for_bots⟩** e **⟨vocabulary.texts.roles_by_time⟩**»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 16705372
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
   paused:
     ephemeral: true
     embed:
@@ -199,6 +355,7 @@ screens:
 
         :flying_disc: **⟨vocabulary.texts.roles_for_bots⟩:** ⟨default_roles.form.steps.default_roles_config.fields.default_roles_bot.description⟩
         :flying_disc: **⟨vocabulary.texts.roles_for_members⟩:** ⟨default_roles.form.steps.default_roles_config.fields.default_roles.description⟩
+        :flying_disc: **⟨vocabulary.texts.roles_by_time⟩:** ⟨default_roles.form.steps.role_ladder.description⟩
 
         -# ⟨vocabulary.fallbacks.footer⟩
       fields: []
@@ -234,6 +391,10 @@ screens:
       - type: actionrow
         children:
         - {type: role_select, placeholder: ⟨default_roles.form.steps.default_roles_config.sections.default_roles.selects.default_roles.placeholder⟩, min: 0, max: 25, disabled: false}
+      - {type: text, content: '⏳ **⟨vocabulary.texts.roles_by_time⟩:** ⟨texts.empty_value⟩'}
+      - type: actionrow
+        children:
+        - {type: button, label: ⟨vocabulary.texts.configure⟩, style: secondary, disabled: false}
       - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
     - type: actionrow
       children:
@@ -265,7 +426,20 @@ screens:
         > <@&202>
     - drop components.0.children.3: null
     - drop components.0.children.3: null
+    - drop components.0.children.4: null
     - drop components.1: null
+  form.default_roles_config+back:
+    from: form.default_roles_config
+    changes:
+    - set components.0.children.5.content: |-
+        ⏳ **⟨vocabulary.texts.roles_by_time⟩:**
+        - ⟨default_roles.form.steps.role_ladder.items.name: role:role=«<@&202>»; time:time_span=«7 days»⟩
+  form.default_roles_config+back@setup_with_a_rung:
+    from: form.default_roles_config
+    changes:
+    - set components.0.children.5.content: |-
+        ⏳ **⟨vocabulary.texts.roles_by_time⟩:**
+        - ⟨default_roles.form.steps.role_ladder.items.name: role:role=«<@&202>»; time:time_span=«7 dias»⟩
   discard:
     ephemeral: true
     embed:
@@ -324,6 +498,10 @@ screens:
         children:
         - {type: text, content: '👥 **⟨vocabulary.texts.roles_for_members⟩:** <@&202>'}
         - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+      - type: section
+        children:
+        - {type: text, content: '⏳ **⟨vocabulary.texts.roles_by_time⟩:** ⟨texts.empty_value⟩'}
+        - {type: button, label: ⟨buttons.add.label⟩, style: secondary, disabled: false}
       - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
     - type: actionrow
       children:
@@ -332,22 +510,26 @@ screens:
     components_v2: true
     rendered:
       en-us:
-      - '## 👩‍🎓 Default Roles'
-      - Here's a summary of your choices so far. All set for me to turn on the `/moderations default roles` command with the settings below? ✅
+      - '## 👩‍🎓 Auto Roles'
+      - Here's a summary of your choices so far. All set for me to turn on the `/moderations roles auto` command with the settings below? ✅
       - 🤖 **Roles for Bots:** <@&201>
       - Edit
       - 👥 **Roles for Members:** <@&202>
       - Edit
+      - ⏳ **Roles by time in the server:** Empty
+      - Add
       - -# • Use the `/report` command to tell me a bug
       - Confirm
       - Cancel
       pt-br:
-      - '## 👩‍🎓 Cargos Padrão'
-      - Esse é o resumo das suas escolhas até aqui. Tudo certo para eu ativar o comando `/moderações cargos padrão` com as configurações abaixo? ✅
+      - '## 👩‍🎓 Cargos Automáticos'
+      - Esse é o resumo das suas escolhas até aqui. Tudo certo para eu ativar o comando `/moderações cargos automáticos` com as configurações abaixo? ✅
       - 🤖 **Cargos para Bots:** <@&201>
       - Editar
       - 👥 **Cargos para Membros:** <@&202>
       - Editar
+      - ⏳ **Cargos por tempo no servidor:** Em branco
+      - Adicionar
       - -# • Use o comando `/reportar` para me contar um bug
       - Confirmar
       - Cancelar
@@ -355,6 +537,30 @@ screens:
     from: form.review
     changes:
     - set components.0.children.1.children.0.content: 🤖 **⟨vocabulary.texts.roles_for_bots⟩:** ⟨texts.empty_value⟩
+  form.review+done:
+    from: form.review
+    changes:
+    - set components.0.children.1.children.0.content: 🤖 **⟨vocabulary.texts.roles_for_bots⟩:** ⟨texts.empty_value⟩
+    - set components.0.children.2.children.0.content: 👥 **⟨vocabulary.texts.roles_for_members⟩:** ⟨texts.empty_value⟩
+    - set components.0.children.3.children.0.content: '⏳ **⟨vocabulary.texts.roles_by_time⟩:** ⟨vocabulary.texts.set_up_counter: count=«1»; max=«5»⟩'
+    - add components.0.children.4: {type: text, content: '- ⟨default_roles.form.steps.role_ladder.items.name: role:role=«<@&202>»; time:time_span=«7 days»⟩'}
+    - add components.0.children.5:
+        type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.remove.label⟩, style: secondary, disabled: false}
+    - add components.1.children.0: {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+  form.review+done@setup_with_a_rung:
+    from: form.review
+    changes:
+    - set components.0.children.1.children.0.content: 🤖 **⟨vocabulary.texts.roles_for_bots⟩:** ⟨texts.empty_value⟩
+    - set components.0.children.2.children.0.content: 👥 **⟨vocabulary.texts.roles_for_members⟩:** ⟨texts.empty_value⟩
+    - set components.0.children.3.children.0.content: '⏳ **⟨vocabulary.texts.roles_by_time⟩:** ⟨vocabulary.texts.set_up_counter: count=«1»; max=«5»⟩'
+    - add components.0.children.4: {type: text, content: '- ⟨default_roles.form.steps.role_ladder.items.name: role:role=«<@&202>»; time:time_span=«7 dias»⟩'}
+    - add components.0.children.5:
+        type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.remove.label⟩, style: secondary, disabled: false}
+    - add components.1.children.0: {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
   enabled:
     ephemeral: true
     embed:
@@ -370,7 +576,89 @@ screens:
       image: null
     components: []
     components_v2: false
+  ladder_confirm:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - type: section
+        children:
+        - {type: text, content: '## ⟨default_roles.ui.responses.ladder_confirm.title⟩'}
+        - type: text
+          content: |-
+            ⟨default_roles.ui.responses.ladder_confirm.description: groups=«<@&202> (1)
+            - <@771> (joined on May 2, 2026): 10 days»⟩
+        - {type: thumbnail, media: KEIKO_DEFAULT.png}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.confirm.label⟩, style: success, disabled: false}
+      - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
+    components_v2: true
+  ladder_confirm+continue:
+    from: ladder_confirm
+    changes:
+    - drop components.1: null
+  ladder_confirm+continue@setup_with_a_rung:
+    from: ladder_confirm
+    changes:
+    - set components.0.children.0.children.1.content: |-
+        ⟨default_roles.ui.responses.ladder_confirm.description: groups=«<@&202> (1)
+        - <@771> (entrou em 02/05/2026): 10 dias»⟩
+  ladder_confirm+continue@setup_with_a_rung#2:
+    from: ladder_confirm
+    changes:
+    - set components.0.children.0.children.1.content: |-
+        ⟨default_roles.ui.responses.ladder_confirm.description: groups=«<@&202> (1)
+        - <@771> (entrou em 02/05/2026): 10 dias»⟩
+    - drop components.1: null
+  ladder_giving:
+    ephemeral: true
+    embed:
+      title: ⟨default_roles.ui.responses.ladder_giving.title⟩
+      description: |-
+        ⟨default_roles.ui.responses.ladder_giving.description⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: KEIKO_DEFAULT.png
+      image: null
+    components: []
+    components_v2: false
+  ladder_given:
+    ephemeral: true
+    embed:
+      title: ⟨default_roles.ui.responses.ladder_given.title⟩
+      description: |-
+        ⟨default_roles.ui.responses.ladder_given.description: climbed=«1»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: KEIKO_DEFAULT.png
+      image: null
+    components: []
+    components_v2: false
 flows:
+  manager_add_rung.pt-br:
+  - start_command default_roles "pt-br":
+    - send M1 form.panel
+  - click edit:group:ladder:
+    - edit M1 roles_by_time.screen+edit:group:ladder
+  - click add:role_ladder:
+    - send M2 rung+add:role_ladder
+    - delete M1
+  - click customize:time:
+    - modal time.amount
+  - 'modal_submit {"Quanto tempo (só o número)": "30", "Em dias, semanas, meses ou anos?": "days"}':
+    - edit M2 rung+modal_submit@manager_add_rung
+  - select role ["Moderator"]:
+    - edit M2 rung+role=Moderator
+  - click done:
+    - edit M2 roles_by_time.screen+done@manager_add_rung
   manager_disable.pt-br:
   - start_command default_roles "pt-br":
     - send M1 form.panel
@@ -386,14 +674,23 @@ flows:
   - click section:default_roles_config/default_roles:
     - send M2 roles_for_members.screen
     - delete M1
-  - select default_roles ["Admin"]:
-    - edit M2 form.panel+default_roles=Admin
+  - select default_roles ["Moderator"]:
+    - edit M2 form.panel+default_roles=Moderator
   manager_history.pt-br:
   - start_command default_roles "pt-br":
     - send M1 form.panel
   - click history:
     - send M2 screen
     - edit M2 changes.history
+  manager_keeps_one_setting.pt-br:
+  - start_command default_roles "pt-br":
+    - send M1 form.panel+start_command
+  - click section:default_roles_config/default_roles:
+    - send M2 roles_for_members.screen
+    - delete M1
+  - select default_roles []:
+    - send M3 keep_one_field
+    - edit M2 form.panel+start_command
   manager_pause.pt-br:
   - start_command default_roles "pt-br":
     - send M1 form.panel
@@ -489,3 +786,65 @@ flows:
     - send M5 enabled
     - delete M4
     - send M6 form.panel+continue
+  setup_with_a_rung.en-us:
+  - start_command default_roles "en-us":
+    - send M1 form
+  - click continue:
+    - send M2 form.default_roles_config
+    - delete M1
+  - click customize:ladder_screen:
+    - edit M2 roles_by_time.screen
+  - click add:role_ladder:
+    - edit M2 rung
+  - click customize:time:
+    - modal time.amount
+  - 'modal_submit {"How long (just the number)": "7", "In days, weeks, months or years?": "days"}':
+    - edit M2 rung+modal_submit
+  - select role ["Member"]:
+    - edit M2 rung+role=Member
+  - click done:
+    - edit M2 roles_by_time.screen+done
+  - click back:
+    - edit M2 form.default_roles_config+back
+  - click done:
+    - edit M2 form.review+done
+  - click continue:
+    - send M3 enabled
+    - delete M2
+    - send M4 form.panel+continue@setup_with_a_rung
+    - send M5 ladder_confirm
+  - click continue:
+    - edit M5 ladder_confirm+continue
+    - send M6 ladder_giving
+    - edit M6 ladder_given
+  setup_with_a_rung.pt-br:
+  - start_command default_roles "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 form.default_roles_config
+    - delete M1
+  - click customize:ladder_screen:
+    - edit M2 roles_by_time.screen
+  - click add:role_ladder:
+    - edit M2 rung
+  - click customize:time:
+    - modal time.amount
+  - 'modal_submit {"Quanto tempo (só o número)": "7", "Em dias, semanas, meses ou anos?": "days"}':
+    - edit M2 rung+modal_submit
+  - select role ["Member"]:
+    - edit M2 rung+role=Member
+  - click done:
+    - edit M2 roles_by_time.screen+done
+  - click back:
+    - edit M2 form.default_roles_config+back@setup_with_a_rung
+  - click done:
+    - edit M2 form.review+done@setup_with_a_rung
+  - click continue:
+    - send M3 enabled
+    - delete M2
+    - send M4 form.panel+continue@setup_with_a_rung
+    - send M5 ladder_confirm+continue@setup_with_a_rung
+  - click continue:
+    - edit M5 ladder_confirm+continue@setup_with_a_rung#2
+    - send M6 ladder_giving
+    - edit M6 ladder_given

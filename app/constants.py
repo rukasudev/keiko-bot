@@ -139,6 +139,12 @@ class Dependencies:
 
 class FeaturePermissions:
     SENDS_TO_A_CHANNEL: Final[Tuple[str, ...]] = ("view_channel", "send_messages", "embed_links")
+    MODERATES_THE_SERVER: Final[Tuple[str, ...]] = (
+        "administrator",
+        "manage_guild",
+        "manage_roles",
+        "ban_members",
+    )
 
 
 class Commands:
@@ -284,6 +290,9 @@ class Commands:
     WELCOME_AVATAR_SIZE: Final[int] = 256
     DEFAULT_ROLES_BOT_KEY: Final[str] = "default_roles_bot"
     DEFAULT_ROLES_COUNTED_MEMBERS_MAX: Final[int] = 5000
+    DEFAULT_ROLES_LADDER_SERVERS_AT_ONCE: Final[int] = 4
+    REACTION_ROLES_MENUS_MAX: Final[int] = 3
+    REACTION_ROLES_ROLES_MAX: Final[int] = 10
 
     # notifications
     NOTIFICATIONS_KEY: Final[str] = "notifications"
@@ -388,6 +397,10 @@ class FormConstants:
         SUMMARY_CARD_ACTION_KEY,
     ]
 
+    TIME_SPAN_AMOUNT_MIN: Final[int] = 1
+    TIME_SPAN_AMOUNT_MAX: Final[int] = 999
+    TIME_SPAN_YEARS_MAX: Final[int] = 10
+
 
 class ViewConstants:
     """Timing and sizing standards shared by every interactive view and modal."""
@@ -401,10 +414,13 @@ class ViewConstants:
     DEFER_AFTER_SECONDS: Final[float] = 1.5
     READ_BEFORE_ANSWER_SECONDS: Final[float] = 1.0
     GROUP_ITEMS_SHOWN: Final[int] = 3
+    QUESTION_GROUPS_SHOWN: Final[int] = 3
+    QUESTION_GROUP_ITEMS_SHOWN: Final[int] = 5
     COMMANDS_PAGE_SIZE: Final[int] = 5
     SETUP_PAGE_SIZE: Final[int] = 4
     HELP_PAGE_SIZE: Final[int] = 2
     MEMBER_HELP_PAGE_SIZE: Final[int] = 1
+    GROUPED_RECORDS_PAGE_SIZE: Final[int] = 1  # a page is one field, its records grouped
     SETUP_CATEGORY_EXAMPLES: Final[int] = 3
     EDIT_BY_ITEM_MAX: Final[int] = 3
     CHOICE_BUTTONS_PER_ROW: Final[int] = 4
@@ -422,13 +438,16 @@ class DiscordLimits:
     MODAL_INPUT_LABEL: Final[int] = 45
     MODAL_INPUT_DESCRIPTION: Final[int] = 100
     EMBED_DESCRIPTION: Final[int] = 4096
+    LAYOUT_TEXT: Final[int] = 4000
     EMBED_FIELDS: Final[int] = 25
     EMBED_FIELD_NAME: Final[int] = 256
     EMBED_FIELD_VALUE: Final[int] = 1024
     SELECT_OPTION_TEXT: Final[int] = 100
     SELECT_OPTIONS: Final[int] = 25
+    SELECT_VALUES: Final[int] = 25
     AUTOCOMPLETE_CHOICES: Final[int] = 25
     BUTTONS_PER_ROW: Final[int] = 5
+    BUTTON_LABEL: Final[int] = 80
     INTERACTION_TOKEN_SECONDS: Final[int] = 900
     CUSTOM_ID: Final[int] = 100
     THREAD_NAME: Final[int] = 100

@@ -1,0 +1,70 @@
+command:
+  slash:
+    subgroup:
+      en-us: roles
+      pt-br: cargos
+    name:
+      en-us: reaction
+      pt-br: reação
+    description:
+      en-us: Keiko posts menus of role buttons so each member picks their own roles with one click
+      pt-br: Keiko publica menus de botões de cargos para cada membro escolher os próprios cargos com um clique
+
+  setup:
+    label:
+      en-us: Reaction Roles
+      pt-br: Cargos por Reação
+    description:
+      en-us: Role buttons the members click to pick their roles
+      pt-br: Botões de cargos para os membros escolherem os seus
+
+  stats:
+    title:
+      en-us: 📊 Reaction Roles Statistics
+      pt-br: 📊 Estatísticas de Cargos por Reação
+    delivered:
+      one:
+        en-us: ✅ I gave 1 role in the last $days days!
+        pt-br: ✅ Dei 1 cargo nos últimos $days dias!
+      other:
+        en-us: ✅ I gave $count roles in the last $days days!
+        pt-br: ✅ Dei $count cargos nos últimos $days dias!
+
+ui:
+  # open: error names -> an error block
+  errors:
+    paused:
+      title:
+        en-us: Menu Paused
+        pt-br: Menu Pausado
+      message:
+        en-us: I'm sorry, but this role menu is paused right now. Try again later, or ask a server admin to unpause it on `${context.commands.reaction_roles}`! 🐶
+        pt-br: Sinto muito, mas este menu de cargos está pausado agora. Tente de novo mais tarde, ou peça para um admin do servidor despausar no `${context.commands.reaction_roles}`! 🐶
+    menu_gone:
+      title:
+        en-us: Menu Not Found
+        pt-br: Menu Não Encontrado
+      message:
+        en-us: I'm sorry, but this role menu doesn't exist anymore. Ask a server admin to set up a new one on `${context.commands.reaction_roles}`! 🐶
+        pt-br: Sinto muito, mas este menu de cargos não existe mais. Peça para um admin do servidor criar um novo no `${context.commands.reaction_roles}`! 🐶
+    role_gone:
+      title:
+        en-us: Role Not Found
+        pt-br: Cargo Não Encontrado
+      message:
+        en-us: I'm sorry, but this role isn't in the server or in this menu anymore. Ask a server admin to update the menu on `${context.commands.reaction_roles}`! 🐶
+        pt-br: Sinto muito, mas esse cargo não está mais no servidor nem neste menu. Peça para um admin do servidor atualizar o menu no `${context.commands.reaction_roles}`! 🐶
+    no_permission:
+      title:
+        en-us: Missing Role Permission
+        pt-br: Sem Permissão de Cargos
+      message:
+        en-us: I'm sorry, but I don't have the **Manage Roles** permission in this server, so I can't give or take roles. Ask a server admin to give it to me and try again!
+        pt-br: Sinto muito, mas não tenho a permissão **Gerenciar cargos** neste servidor, então não consigo dar nem tirar cargos. Peça para um admin do servidor me dar essa permissão e tente de novo!
+    role_above:
+      title:
+        en-us: Role Above Mine
+        pt-br: Cargo Acima do Meu
+      message:
+        en-us: I'm sorry, but this role sits above mine, so I can't give or take it. Ask a server admin to drag my role above it in **Server Settings > Roles** and try again!
+        pt-br: Sinto muito, mas esse cargo fica acima do meu, então não consigo dar nem tirar ele. Peça para um admin do servidor arrastar o meu cargo para cima dele em **Configurações do servidor > Cargos** e tente de novo!

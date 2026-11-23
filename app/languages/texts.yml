@@ -11,6 +11,10 @@ date_label:
   en-us: $month_name $day
   pt-br: $day de $month_lower
 
+full_date:
+  en-us: $month_name $day, $year
+  pt-br: $day_padded/$month_padded/$year
+
 page:
   en-us: Page
   pt-br: Página
@@ -42,6 +46,10 @@ selected:
 file_upload:
   en-us: Image
   pt-br: Imagem
+
+file_upload_optional:
+  en-us: Image (optional)
+  pt-br: Imagem (opcional)
 
 preview_empty:
   en-us: I don't have any message written yet! Write one and I'll show you exactly how it arrives. 🐶
@@ -128,6 +136,36 @@ groups:
   integrations:
     en-us: integrations
     pt-br: integrações
+
+# open: a unit of time -> how one of it reads
+time_unit:
+  days:
+    en-us: $count day
+    pt-br: $count dia
+  weeks:
+    en-us: $count week
+    pt-br: $count semana
+  months:
+    en-us: $count month
+    pt-br: $count mês
+  years:
+    en-us: $count year
+    pt-br: $count ano
+
+# open: a unit of time -> how several of it read
+time_units:
+  days:
+    en-us: $count days
+    pt-br: $count dias
+  weeks:
+    en-us: $count weeks
+    pt-br: $count semanas
+  months:
+    en-us: $count months
+    pt-br: $count meses
+  years:
+    en-us: $count years
+    pt-br: $count anos
 
 # open: a month key -> its name
 months:

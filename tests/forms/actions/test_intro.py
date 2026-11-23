@@ -9,6 +9,7 @@ from app.forms.form.form_yaml import (
     DiskSource,
     ListStep,
     compile_form,
+    listed_on_cards,
 )
 
 pytestmark = pytest.mark.unit
@@ -17,11 +18,13 @@ FORMS = DiskSource().list()
 
 
 def _walked_cards(steps):
-    """The cards the intro reads: top level and unconditioned setup lists."""
+    """The cards the intro reads: top level and unconditioned setup lists, a list a
+    card draws being one setting of its own."""
+    on_cards = listed_on_cards(steps)
     for step in steps:
         if not isinstance(step, ContentStep) or step.hidden:
             continue
-        if step.appears_in == "panel":
+        if step.appears_in == "panel" or step.key in on_cards:
             continue
         if isinstance(step, ListStep):
             if step.when is None:

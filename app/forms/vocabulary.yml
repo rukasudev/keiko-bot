@@ -35,6 +35,9 @@ texts:
   exceptions:
     en-us: Exceptions
     pt-br: Exceções
+  footer:
+    en-us: Footer
+    pt-br: Rodapé
   last_channel_warning:
     en-us: "You only have **1** channel set up.\n\n$item\n\nIf you remove it now, **$feature** will be **turned off** and you'll need to set it up again. Are you sure you want to continue?"
     pt-br: "Você só tem **1** canal configurado.\n\n$item\n\nSe você removê-lo agora, a função **$feature** será **desativada** e você vai precisar configurá-la de novo. Tem certeza de que quer continuar?"
@@ -80,6 +83,9 @@ texts:
   mention_screen_title:
     en-us: Who should I mention when I post?
     pt-br: Quem eu devo marcar quando postar?
+  message_content:
+    en-us: Message content
+    pt-br: Conteúdo da mensagem
   notification_mention_description:
     en-us: Who I mention at the start of the notification.
     pt-br: Quem eu marco no começo do aviso.
@@ -101,6 +107,9 @@ texts:
   random_message_3:
     en-us: "Random Message #3"
     pt-br: "Mensagem Aleatória #3"
+  roles_by_time:
+    en-us: Roles by time in the server
+    pt-br: Cargos por tempo no servidor
   roles_for_bots:
     en-us: Roles for Bots
     pt-br: Cargos para Bots

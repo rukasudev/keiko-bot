@@ -7,7 +7,7 @@ import pytest
 from discord import app_commands
 
 from app.core.app_commands import listed_commands
-from app.core.commands import PARENT_GROUPS, Command
+from app.core.commands import PARENT_GROUPS
 from app.core.utils import ml
 from tests.helpers.slash_tree import DISCORD_LOCALES, synced_tree
 
@@ -101,30 +101,3 @@ async def test_a_command_bound_to_one_server_is_never_listed():
     listed = await listed_commands(tree, "en-us")
 
     assert [command.english for command in listed] == ["/ping"]
-
-
-class Notices(app_commands.Group, name="notices", description="d"):
-    """A subgroup one command declares, holding a leaf of another command."""
-
-    @app_commands.command(name="videos", description="d")
-    async def anything(self, interaction: discord.Interaction) -> None:
-        """Answer nothing."""
-
-    @app_commands.command(name="lives", description="d")
-    async def other_notices(self, interaction: discord.Interaction) -> None:
-        """Answer nothing."""
-
-
-async def test_a_leaf_opens_the_command_its_callback_is_named_after(declare):
-    """A leaf named after a declared command opens that command; any other leaf opens
-    the command whose subgroup holds it."""
-    declare(Command("notices", cogs=(Notices,)), Command("other_notices"))
-    tree = app_commands.CommandTree(discord.Client(intents=discord.Intents.none()))
-    tree.add_command(Notices())
-
-    listed = await listed_commands(tree, "en-us")
-
-    assert {command.english: command.key for command in listed} == {
-        "/notices videos": "notices",
-        "/notices lives": "other_notices",
-    }

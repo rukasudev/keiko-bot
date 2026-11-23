@@ -353,6 +353,7 @@ def test_the_operator_lists_are_every_declared_feature():
     assert list(feature_keys()) == [
         "welcome_messages",
         "default_roles",
+        "reaction_roles",
         "block_links",
         "notifications_twitch",
         "notifications_kick",

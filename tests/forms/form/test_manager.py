@@ -1,5 +1,7 @@
 """The manager: the panel's lines as an admin reads them, and what its buttons do."""
 
+from dataclasses import replace
+
 import pytest
 
 from app.core.commands import GLOBAL
@@ -17,6 +19,7 @@ from app.forms.form.effects import (
     ShowError,
 )
 from app.forms.form.form_state import (
+    Answer,
     Edit,
     EditItem,
     Manage,
@@ -26,7 +29,6 @@ from app.forms.form.form_state import (
 )
 from app.forms.form.manager import (
     FromSetup,
-    ItemRemovalRequested,
     Lifecycle,
     LifecycleConfirmed,
     PageTurned,
@@ -34,6 +36,7 @@ from app.forms.form.manager import (
     PanelPage,
     SearchRequested,
 )
+from app.forms.form.responses.responses import to_document
 from app.forms.form.responses.styles import empty_value, format_value
 from app.forms.form.responses.summary import (
     PanelRow,
@@ -396,6 +399,68 @@ def test_the_block_links_lists_are_named_after_the_mode_in_force():
         "meusite.com.br",
         "docs.example.org",
     ], "Remove lists the links themselves (P4)"
+
+
+def test_a_collapsed_group_screen_is_the_panel_screen_on_the_setup_too():
+    """The owner's mark (PR10 round 4, s19): the setup drew the time roles' screen
+    its own way, one Remove under the items. A collapsed group's screen is drawn one
+    way: for the same items the setup shows the panel's blocks, the count beside Add
+    and each item with its Edit and Remove, and the panel's Back; only Remove's colour
+    differs, grey on the setup as every setup's is, red on the panel (round 5)."""
+    rungs = tuple(
+        {"time": Answer(f"P{days}D"), "role": Answer(str(200 + index))}
+        for index, days in enumerate((1, 3, 7))
+    )
+    definition, started = start("default_roles", answers={"role_ladder": Answer(rungs)})
+    card = definition.step("default_roles_config")
+    [group] = [
+        index
+        for index, section in enumerate(card.sections)
+        if section.collapsed_on_card()
+    ]
+    on_card = decided(definition, started.session, evt(ev.Answered, step_key="form"))
+    opened = evt(ev.SectionOpened, step_key=card.key, index=group)
+    setup = screen(decided(definition, on_card.session, opened))
+
+    document = to_document(definition.steps, on_card.session.answers, "pt-br")
+    saved = Context(document=document)
+    _, panel = start("default_roles", Manage(), context=saved)
+    edit = evt(ev.EditRequested, target="group:ladder")
+    drawn = screen(decided(definition, panel.session, edit, saved))
+
+    assert _greyed(drawn.components[0].groups) == setup.components[0].groups
+    assert setup.buttons == drawn.buttons
+    blocks = setup.components[0].groups
+    actions = [button.action for block in blocks for button in block.actions]
+    assert actions == [
+        action
+        for index in range(3)
+        for action in (f"edit:role_ladder${index}", f"remove_this:role_ladder${index}")
+    ]
+    removes = [b for block in blocks for b in block.actions if "remove" in b.action]
+    panel_removes = [
+        b
+        for block in drawn.components[0].groups
+        for b in block.actions
+        if "remove" in b.action
+    ]
+    assert {b.style for b in removes} == {"secondary"}
+    assert {b.style for b in panel_removes} == {"danger"}
+
+
+def _greyed(groups):
+    return tuple(
+        replace(
+            group,
+            actions=tuple(
+                replace(b, style="secondary")
+                if b.action.startswith("remove_this:")
+                else b
+                for b in group.actions
+            ),
+        )
+        for group in groups
+    )
 
 
 def test_a_section_edit_opens_a_child_over_that_step_seeded_from_the_document():
@@ -798,7 +863,7 @@ def test_removing_one_link_asks_first_and_stays_on_the_screen():
     asked = decided(
         definition,
         opened.session,
-        evt(ItemRemovalRequested, target="custom_links$0"),
+        evt(ev.ItemRemovalRequested, target="custom_links$0"),
         context,
     )
     assert kinds(asked) == ["Render"]
@@ -823,7 +888,7 @@ def _refused_on_the_exceptions_screen(error, document=BLOCK_LINKS_DOC):
     asked = decided(
         definition,
         opened.session,
-        evt(ItemRemovalRequested, target="custom_links$0"),
+        evt(ev.ItemRemovalRequested, target="custom_links$0"),
         context,
     )
     removed = decided(definition, asked.session, evt(ev.RemovalConfirmed), context)
@@ -1175,7 +1240,7 @@ def test_remove_beside_an_item_names_it_and_takes_it_on_confirm():
     asked = decided(
         definition,
         panel.session,
-        evt(ItemRemovalRequested, target="notifications$1"),
+        evt(ev.ItemRemovalRequested, target="notifications$1"),
         context,
     )
     asking = screen(asked)
@@ -1246,7 +1311,7 @@ def test_removing_the_only_item_warns_with_the_item_and_disables_it(form, locale
     asked = decided(
         definition,
         panel.session,
-        evt(ItemRemovalRequested, target="notifications$0"),
+        evt(ev.ItemRemovalRequested, target="notifications$0"),
         context,
     )
     asking = screen(asked)
@@ -1291,7 +1356,7 @@ def test_the_only_item_warning_never_reads_the_item_it_put_in():
     asked = decided(
         definition,
         panel.session,
-        evt(ItemRemovalRequested, target="notifications$0"),
+        evt(ev.ItemRemovalRequested, target="notifications$0"),
         context,
     )
 
@@ -1548,7 +1613,7 @@ def test_the_member_a_search_found_is_removed_through_the_panels_confirmation():
     removing = decided(
         definition,
         found.session,
-        evt(ItemRemovalRequested, target="reminders_birthday$1"),
+        evt(ev.ItemRemovalRequested, target="reminders_birthday$1"),
         context,
         panel,
     )

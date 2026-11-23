@@ -28,9 +28,10 @@ def select_picker(
         kind=SELECT_KIND[select.type],  # type: ignore[arg-type]
         placeholder=select.placeholder.get(locale),
         selected=picked_ids(picked),
-        unique=False,
+        max_values=select.max,
         slot=select.key,
         available_only=select.type == "assignable_roles",
+        warns_powerful=select.powerful_roles_warning is not None,
         required=required,
     )
 

@@ -6,6 +6,7 @@ state and an optional filter-by-member round trip. The blocked-links list and
 both history screens (manager, log inspection) consume it; this suite pins the
 primitive's own contract so every consumer inherits it.
 """
+import discord
 import pytest
 
 from app.core.facts import facts
@@ -37,6 +38,15 @@ ui:
       overrides:
         - when: {key: lists.facts.done, is: true}
           description: {en-us: Every one reviewed, pt-br: Todos revisados}
+    by_kind:
+      title: {en-us: Records, pt-br: Registros}
+      filter:
+        label: {en-us: Filter by kind, pt-br: Filtrar por tipo}
+        clear_label: {en-us: See every kind, pt-br: Ver todos os tipos}
+        title: {en-us: Pick a kind, pt-br: Escolha um tipo}
+        description: {en-us: Only that kind, pt-br: Só esse tipo}
+        empty: {en-us: Nothing of that kind, pt-br: Nada desse tipo}
+        every: {en-us: All kinds, pt-br: Todos os tipos}
 """
 
 
@@ -309,3 +319,60 @@ async def test_a_records_block_draws_the_description_its_facts_choose(
 
     listing = scenario.expect_message(ephemeral=True, title_contains="Registros")
     assert listing["embed"]["description"] == intro
+
+
+def _by_kind(leaf: str) -> str:
+    return ml(f"lists.ui.records.by_kind.filter.{leaf}", locale="pt-br")
+
+
+def _listed_names(scenario) -> list:
+    listing = scenario.expect_message(title_contains="Registros")
+    return [field["name"] for field in listing["embed"]["fields"]]
+
+
+async def _pick(scenario, label: str) -> None:
+    await scenario.click(_by_kind("label"))
+    [select] = [
+        item for item in scenario.current_message.view.children
+        if isinstance(item, discord.ui.Select)
+    ]
+    await scenario.select_option(
+        next(option.value for option in select.options if option.label == label)
+    )
+    await scenario.confirm()
+
+
+async def test_a_filter_by_option_picks_one_of_them_or_all(lists, scenario_factory):
+    """The filter by option (PR10 round 3, the roles by time's filter by role): a
+    browser handed `options` filters on a select of their labels led by its `every`
+    label, the option picked is what `fetch` reads, and `every` or the clear button
+    brings every record back."""
+    data = [{"name": "spam", "kind": "a"}, {"name": "ok", "kind": "b"}]
+
+    async def fetch(_interaction, chosen):
+        return [record for record in data if chosen in (None, record["kind"])]
+
+    browser = RecordsBrowser(
+        fetch=fetch,
+        to_fields=lambda records, i: {r["name"]: "details" for r in records},
+        copy="lists.ui.records.by_kind",
+        options={"a": "Alpha", "b": "Beta"},
+    )
+    scenario = scenario_factory(locale="pt-br")
+    await browser.send(scenario.interaction())
+
+    await scenario.click(_by_kind("label"))
+    [select] = [
+        item for item in scenario.current_message.view.children
+        if isinstance(item, discord.ui.Select)
+    ]
+    assert [option.label for option in select.options] == [
+        _by_kind("every"), "Alpha", "Beta"
+    ]
+    await scenario.click(ml("buttons.cancel.label", locale="pt-br"))
+    await _pick(scenario, "Beta")
+    assert _listed_names(scenario) == ["ok"]
+    await scenario.click(_by_kind("clear_label"))
+    assert _listed_names(scenario) == ["spam", "ok"]
+    await _pick(scenario, _by_kind("every"))
+    assert _listed_names(scenario) == ["spam", "ok"]

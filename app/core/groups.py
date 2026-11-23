@@ -47,9 +47,19 @@ def _is_subgroup(cog: type[Any]) -> bool:
     return issubclass(cog, app_commands.Group)
 
 
+def _attach(group: app_commands.Group, subgroup: app_commands.Group) -> None:
+    shared = group.get_command(subgroup.name)
+    if not isinstance(shared, app_commands.Group):
+        group.add_command(subgroup)
+        return
+    for leaf in subgroup.commands:
+        shared.add_command(leaf)
+
+
 async def setup(bot: DiscordBot) -> None:
-    """Add each parent group with the subgroup of every command declared under it, and
-    refuse a subgroup whose command names no parent group."""
+    """Add each parent group with the subgroups the commands declare under it, one per
+    name, each command adding its leaves to the subgroup of its name, and refuse a
+    subgroup whose command names no parent group."""
     parents = {
         parent.group_key: parent
         for parent in (Moderations(bot), Notifications(bot), Integrations(bot))
@@ -65,6 +75,6 @@ async def setup(bot: DiscordBot) -> None:
                     f"{command.key!r} declares the subgroup {cog.__name__} under no "
                     f"parent group: give it a `group` of {list(PARENT_GROUPS)}"
                 )
-            group.add_command(cog(bot))
+            _attach(group, cog(bot))
     for parent in parents.values():
         await bot.add_cog(parent)

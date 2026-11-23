@@ -95,9 +95,7 @@ steps:
               required: false
               multiline: true
             - key: welcome_messages_footer
-              label:
-                en-us: Footer
-                pt-br: Rodapé
+              label: ${ref.footer}
               max_length: 50
               required: false
               multiline: true

@@ -20,13 +20,14 @@ from typing import Any, Dict, Iterator, List, Optional, Sequence, Union
 
 import discord
 
+from app.constants import Style
 from app.data import data, wait
 from app.forms.discord import callbacks, transitions
 from app.forms.discord.callbacks import RUNTIME
 from app.forms.discord.interactions import decode as decode_component_id
 from app.forms.form.form_state import Status
 from tests.behavioral.harness import locators
-from app.core.commands import setup_features
+from app.core.commands import commands, setup_features
 from tests.generators.moderations import recorded_server, seed_cog
 from tests.behavioral.harness.errors import (
     LocatorError,
@@ -52,6 +53,9 @@ _ANSWERED_AS = {"followup_send": "send", "followup_edit": "edit"}
 
 
 FEATURE_KEYS = {spec.key for spec in setup_features()}
+
+
+BACKGROUND_SECONDS = 5
 
 
 class FormScenario:
@@ -469,8 +473,16 @@ class FormScenario:
         self.store.refuse(api, error, times)
 
     async def finish(self) -> None:
-        """Let any task the flow scheduled settle."""
+        """Let any task the flow scheduled settle, the work a feature started in the
+        background after a save or a yes included (a few seconds at most)."""
         await asyncio.sleep(0)
+        started = [
+            task
+            for command in commands()
+            for task in getattr(command.feature, "running", ())
+        ]
+        if started:
+            await asyncio.wait(started, timeout=BACKGROUND_SECONDS)
 
     # ------------------------------------------------------------- assertions
 
@@ -548,6 +560,22 @@ class FormScenario:
                        f"expected {kind!r}")
         if key is not None and session.key != key:
             self._fail(f"the session on screen is {session.key!r}, expected {key!r}")
+
+    def expect_warning(self, description_contains: str) -> None:
+        """The admin reads the text in the last warning embed sent, in its yellow."""
+        warning = int(Style.WARNING_COLOR, 16)
+        for event in reversed(self.store.events):
+            embed = event.get("embed") or {}
+            if event["actor"] == "bot" and embed.get("color") == warning:
+                description = embed.get("description") or ""
+                if description_contains in description:
+                    return
+                self._fail(
+                    f"last warning does not contain {description_contains!r} "
+                    f"(got {description!r})"
+                )
+                return
+        self._fail(f"no warning embed found containing {description_contains!r}")
 
     def expect_error(self, message_contains: str) -> None:
         """The admin reads the error in the last error message sent."""
@@ -787,6 +815,8 @@ class FormScenario:
     def _described(target: Union[str, discord.ui.Item]) -> str:
         if isinstance(target, str):
             return target
+        if isinstance(target, discord.ui.DynamicItem):
+            target = target.item
         return locators.codec_target(target) or getattr(target, "label", None) or repr(target)
 
     def _section_key(self, item) -> Optional[str]:

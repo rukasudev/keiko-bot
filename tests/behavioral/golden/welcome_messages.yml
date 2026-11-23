@@ -25,7 +25,7 @@ screens:
             💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩:**
             ```• {user} bem-vindo ao {server}!
             • Olha quem chegou! {user}```
-            💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** Divirta-se!
+            💬 **⟨vocabulary.texts.footer⟩:** Divirta-se!
         - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
       - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
     - type: actionrow
@@ -92,7 +92,7 @@ screens:
         • Olha quem chegou! {user}
         • {user} acabou de chegar!```
         💬 **⟨vocabulary.texts.title⟩:** Bem-vindo, {user}!
-        💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** Leia as regras :)
+        💬 **⟨vocabulary.texts.footer⟩:** Leia as regras :)
     - set components.0.children.3.children.0.content: 🎨 **⟨welcome_messages.form.steps.welcome_config.sections.design.label⟩:** ⟨welcome_messages.form.steps.welcome_config.sections.design.options.custom_only.label⟩
     - add components.0.children.4:
         type: section
@@ -112,7 +112,7 @@ screens:
             • Look who just arrived! {user}
             • {user} just arrived!```
             💬 **⟨vocabulary.texts.title⟩:** Bem-vindo, {user}!
-            💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** Leia as regras :)
+            💬 **⟨vocabulary.texts.footer⟩:** Leia as regras :)
         - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
     - drop components.0.children.4: null
     rendered:
@@ -151,7 +151,7 @@ screens:
             • Olha quem chegou! {user}
             • {user} acabou de chegar!```
             💬 **⟨vocabulary.texts.title⟩:** Bem-vindo, {user}!
-            💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** Leia as regras :)
+            💬 **⟨vocabulary.texts.footer⟩:** Leia as regras :)
         - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
     - drop components.0.children.4: null
   delete:
@@ -239,7 +239,7 @@ screens:
         content: |-
           💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩**
           > **⟨vocabulary.texts.title⟩:** ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_title⟩
-          > **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_footer⟩
+          > **⟨vocabulary.texts.footer⟩:** ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_footer⟩
           ```• {user} bem-vindo ao {server}!
           • Olha quem chegou! {user}
           • {user} acabou de chegar!```
@@ -281,7 +281,7 @@ screens:
     - set components.0.children.3.content: |-
         💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩**
         > **⟨vocabulary.texts.title⟩:** Um novo membro chegou! 🎉
-        > **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** Divirta-se!
+        > **⟨vocabulary.texts.footer⟩:** Divirta-se!
         ```• {user} bem-vindo ao {server}!
         • Olha quem chegou! {user}```
     - set components.0.children.5.content: |-
@@ -373,7 +373,7 @@ screens:
     - set components.0.children.3.content: |-
         💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩**
         > **⟨vocabulary.texts.title⟩:** Bem-vindo, {user}!
-        > **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** Leia as regras :)
+        > **⟨vocabulary.texts.footer⟩:** Leia as regras :)
         ```• {user} bem-vindo ao {server}!
         • Olha quem chegou! {user}
         • {user} acabou de chegar!```
@@ -397,7 +397,7 @@ screens:
     - set components.0.children.3.content: |-
         💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩**
         > **⟨vocabulary.texts.title⟩:** ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_title⟩
-        > **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_footer⟩
+        > **⟨vocabulary.texts.footer⟩:** ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_footer⟩
         ```• Welcome {user} to {server}!
         • Look who just arrived! {user}
         • {user} just arrived!```
@@ -407,7 +407,7 @@ screens:
     - set components.0.children.3.content: |-
         💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩**
         > **⟨vocabulary.texts.title⟩:** ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_title⟩
-        > **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_footer⟩
+        > **⟨vocabulary.texts.footer⟩:** ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_footer⟩
         ```• Welcome {user} to {server}!
         • Look who just arrived! {user}
         • {user} just arrived!```
@@ -417,7 +417,7 @@ screens:
     - set components.0.children.3.content: |-
         💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩**
         > **⟨vocabulary.texts.title⟩:** Bem-vindo, {user}!
-        > **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** Leia as regras :)
+        > **⟨vocabulary.texts.footer⟩:** Leia as regras :)
         ```• Welcome {user} to {server}!
         • Look who just arrived! {user}
         • {user} just arrived!```
@@ -427,7 +427,7 @@ screens:
     - set components.0.children.3.content: |-
         💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩**
         > **⟨vocabulary.texts.title⟩:** Bem-vindo, {user}!
-        > **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** Leia as regras :)
+        > **⟨vocabulary.texts.footer⟩:** Leia as regras :)
         ```• {user} bem-vindo ao {server}!
         • Olha quem chegou! {user}
         • {user} acabou de chegar!```
@@ -518,7 +518,7 @@ screens:
         :flying_disc: **⟨vocabulary.texts.channel⟩:** ⟨welcome_messages.form.steps.welcome_config.fields.welcome_messages_channel.description⟩
         :flying_disc: **⟨vocabulary.texts.title⟩:** ⟨welcome_messages.form.steps.welcome_config.fields.welcome_messages_title.description⟩
         :flying_disc: **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩:** ⟨welcome_messages.form.steps.welcome_config.fields.welcome_messages.description⟩
-        :flying_disc: **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** ⟨welcome_messages.form.steps.welcome_config.fields.welcome_messages_footer.description⟩
+        :flying_disc: **⟨vocabulary.texts.footer⟩:** ⟨welcome_messages.form.steps.welcome_config.fields.welcome_messages_footer.description⟩
         :flying_disc: **⟨welcome_messages.form.steps.welcome_config.sections.design.label⟩:** ⟨welcome_messages.form.steps.welcome_config.fields.welcome_design.description⟩
         :flying_disc: **⟨vocabulary.texts.custom_image⟩:** ⟨welcome_messages.form.steps.welcome_config.fields.welcome_custom_image.description⟩
 
@@ -560,7 +560,7 @@ screens:
             • Olha quem chegou! {user}
             • {user} acabou de chegar!```
             💬 **⟨vocabulary.texts.title⟩:** ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_title⟩
-            💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_footer⟩
+            💬 **⟨vocabulary.texts.footer⟩:** ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_footer⟩
         - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
       - type: section
         children:
@@ -603,7 +603,7 @@ screens:
         • Olha quem chegou! {user}
         • {user} acabou de chegar!```
         💬 **⟨vocabulary.texts.title⟩:** Bem-vindo, {user}!
-        💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** Leia as regras :)
+        💬 **⟨vocabulary.texts.footer⟩:** Leia as regras :)
     - set components.0.children.3.children.0.content: 🎨 **⟨welcome_messages.form.steps.welcome_config.sections.design.label⟩:** ⟨welcome_messages.form.steps.welcome_config.sections.design.options.custom_only.label⟩
     - add components.0.children.4:
         type: section
@@ -620,7 +620,7 @@ screens:
         • Look who just arrived! {user}
         • {user} just arrived!```
         💬 **⟨vocabulary.texts.title⟩:** Bem-vindo, {user}!
-        💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** Leia as regras :)
+        💬 **⟨vocabulary.texts.footer⟩:** Leia as regras :)
     rendered:
       en-us:
       - '## 🎉 Welcome Messages'
@@ -651,7 +651,7 @@ screens:
         • Olha quem chegou! {user}
         • {user} acabou de chegar!```
         💬 **⟨vocabulary.texts.title⟩:** Bem-vindo, {user}!
-        💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** Leia as regras :)
+        💬 **⟨vocabulary.texts.footer⟩:** Leia as regras :)
   discard:
     ephemeral: true
     embed:
@@ -679,7 +679,7 @@ screens:
       - {label: ⟨vocabulary.texts.random_message_1⟩, required: true, style: paragraph, max_length: 100, default: '{user} bem-vindo ao {server}!'}
       - {label: ⟨vocabulary.texts.random_message_2⟩, required: false, style: paragraph, max_length: 100, default: 'Olha quem chegou! {user}'}
       - {label: ⟨vocabulary.texts.random_message_3⟩, required: false, style: paragraph, max_length: 100, default: '{user} acabou de chegar!'}
-      - {label: ⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩, required: false, style: paragraph, max_length: 50, default: ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_footer⟩}
+      - {label: ⟨vocabulary.texts.footer⟩, required: false, style: paragraph, max_length: 50, default: ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_footer⟩}
   form.texts+customize:messages:
     from: form.texts
     changes:

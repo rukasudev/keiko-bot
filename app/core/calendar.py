@@ -1,4 +1,5 @@
-"""The yearly calendar a stored `MM-DD` lives in, with the standard library only."""
+"""The calendar a stored `MM-DD` and a stored time span live in, with the standard
+library only."""
 
 from __future__ import annotations
 
@@ -6,6 +7,7 @@ import calendar
 import re
 import unicodedata
 from collections.abc import Callable
+from datetime import date, timedelta
 from string import Template
 from typing import Any
 
@@ -141,3 +143,98 @@ def mm_dd_label(value: str, copy: Callable[[str], str]) -> str:
     return Template(copy("texts.date_label")).safe_substitute(
         month_name=label, month_lower=label.lower(), day=day
     )
+
+
+SPAN = re.compile(r"^P([1-9]\d*)([DWMY])$")
+UNIT_LETTERS = {"days": "D", "weeks": "W", "months": "M", "years": "Y"}
+APPROXIMATE_DAYS = {"days": 1.0, "weeks": 7.0, "months": 30.436875, "years": 365.2425}
+
+
+def time_span(amount: Any, unit: Any) -> str | None:
+    """The span an amount of a unit is stored as, `P5M` for 5 months, or None when
+    they make none."""
+    try:
+        number = int(str(amount).strip())
+    except (TypeError, ValueError):
+        return None
+    letter = UNIT_LETTERS.get(str(unit))
+    return f"P{number}{letter}" if letter and number > 0 else None
+
+
+def span_parts(value: Any) -> tuple[int, str] | None:
+    """The amount and the unit of a stored span, None when it is not one."""
+    found = SPAN.match(str(value or ""))
+    if found is None:
+        return None
+    units = {letter: unit for unit, letter in UNIT_LETTERS.items()}
+    return int(found[1]), units[found[2]]
+
+
+def split_span(value: Any) -> dict[str, Any]:
+    """`{"amount", "unit"}` from a stored span, empty when it is not one."""
+    parts = span_parts(value)
+    return {"amount": parts[0], "unit": parts[1]} if parts else {}
+
+
+def calendar_span(value: str) -> str:
+    """A stored span as the calendar counts it, weeks in days and years in months, so
+    `P4W` reads as `P28D`; any other value as it is."""
+    parts = span_parts(value)
+    if parts is None:
+        return value
+    amount, unit = parts
+    if unit == "weeks":
+        return f"P{amount * 7}D"
+    if unit == "years":
+        return f"P{amount * 12}M"
+    return value
+
+
+def span_days(value: Any) -> float:
+    """About how many days a stored span lasts, to order spans of different units;
+    zero for a value that is not one."""
+    parts = span_parts(value)
+    return parts[0] * APPROXIMATE_DAYS[parts[1]] if parts else 0.0
+
+
+def span_fits(amount: int, unit: str, years: int) -> bool:
+    """True when the span lasts no longer than `years` years from any day."""
+    if unit in ("months", "years"):
+        return amount * (12 if unit == "years" else 1) <= years * 12
+    return amount * (7 if unit == "weeks" else 1) <= 365 * years + years // 4
+
+
+def safe_date(year: int, month: int, day: int) -> date:
+    """The date of `day` in the month, on its last day when the month is shorter."""
+    return date(year, month, min(day, calendar.monthrange(year, month)[1]))
+
+
+def add_months(day: date, months: int) -> date:
+    """`day` so many calendar months later, on the month's last day when it is
+    shorter: Jan 31 and one month is Feb 28, or Feb 29 in a leap year."""
+    index = day.year * 12 + day.month - 1 + months
+    return safe_date(index // 12, index % 12 + 1, day.day)
+
+
+def span_end(start: date, amount: int, unit: str) -> date:
+    """The day a span that began on `start` is complete: so many calendar days, weeks,
+    months or years later, a month too short for the day ending on its last day."""
+    if unit == "days":
+        return start + timedelta(days=amount)
+    if unit == "weeks":
+        return start + timedelta(weeks=amount)
+    return add_months(start, amount * 12 if unit == "years" else amount)
+
+
+def span_label(amount: int, unit: str, copy: Callable[[str], str]) -> str:
+    """`5 meses` or `1 week` from an amount of a unit, its words read through
+    `copy`."""
+    table = "time_unit" if amount == 1 else "time_units"
+    return Template(copy(f"texts.{table}.{unit}")).safe_substitute(count=amount)
+
+
+def stored_span_label(value: Any, copy: Callable[[str], str]) -> str:
+    """`5 meses` from a stored `P5M`, its words read through `copy`; any other value
+    as it is."""
+    parts = span_parts(value)
+    return span_label(parts[0], parts[1], copy) if parts else str(value)

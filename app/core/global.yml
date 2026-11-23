@@ -1,5 +1,8 @@
 # open: fact names -> a fact
 facts:
+  above_keiko:
+    type: boolean
+    description: Whether a role a warning names sits above Keiko's highest role, which the admin fixes by dragging Keiko's role above it.
   channel:
     type: text
     description: A channel a line names, as its mention.
@@ -18,6 +21,9 @@ facts:
   day:
     type: number
     description: The day of the month a date label writes.
+  day_padded:
+    type: text
+    description: The day of the month a numeric date writes, in two digits.
   days:
     type: number
     description: How many days back a recent-activity line looks.
@@ -65,6 +71,9 @@ facts:
   month_name:
     type: text
     description: The name of a month, for an English date label.
+  month_padded:
+    type: text
+    description: The month a numeric date writes, in two digits.
   name:
     type: text
     description: The name a line or a title names, of a command or of a parent group, in the reader's language.
@@ -87,6 +96,15 @@ facts:
   skipped_collections:
     type: text
     description: The collections a database backup left out for their size, each in backticks, joined in one line.
+  span_amount_max:
+    type: number
+    description: The largest number a time span may be typed as.
+  span_amount_min:
+    type: number
+    description: The smallest number a time span may be typed as.
+  span_years_max:
+    type: number
+    description: The most years a time span may last in all.
   thousands:
     type: text
     description: A count in thousands, for a floor written in Portuguese ("5 mil+").
@@ -95,7 +113,10 @@ facts:
     description: A member a line names, as a mention.
   warning:
     type: text
-    description: The warning a list writes before its last item goes, its item and its feature filled in.
+    description: A warning already filled in, the one a list writes before its last item goes or the lines a card's warning embed tells about the roles just picked.
+  year:
+    type: number
+    description: The year a full date label writes.
 
 # open: context names -> a context value
 context:

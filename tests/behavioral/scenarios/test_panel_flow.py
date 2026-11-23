@@ -31,6 +31,7 @@ from tests.behavioral.flows.birthdays import (
     seed_config,
 )
 from tests.behavioral.flows.common import GUILD_ID, open_manager, seed_document
+from tests.behavioral.harness.copy_keys import copy_text
 from tests.generators.moderations import seed_cog
 from tests.helpers.slash_tree import synced_tree
 
@@ -403,10 +404,13 @@ async def test_editing_one_default_roles_select_commits_it_from_its_own_edit(
 ):
     """Each roles dropdown has its own Edit on the panel: it opens only that
     dropdown and saves as soon as a role is chosen, leaving the other alone."""
-    from tests.behavioral.flows.roles import ENABLED
+    from tests.behavioral.flows.roles import ENABLED, server_where_keiko_gives_every_role
 
     seed_document(deps, "default_roles", ENABLED)
-    scenario = await scenario_factory(locale=LOCALE).start_command("default_roles")
+    guild = server_where_keiko_gives_every_role()
+    scenario = await scenario_factory(locale=LOCALE, guild=guild).start_command(
+        "default_roles"
+    )
 
     await scenario.click("section:default_roles_config/default_roles")
     await scenario.select_option("Admin", target="default_roles")
@@ -423,6 +427,29 @@ async def test_editing_one_default_roles_select_commits_it_from_its_own_edit(
         "the other dropdown is left alone"
     )
     assert ids(document["default_roles"]) == {"200"}, "the chosen role is saved"
+
+
+async def test_a_role_keiko_cannot_give_picked_from_its_own_edit_saves_nothing(
+    scenario_factory, deps
+):
+    """A dropdown's own Edit on the panel that only picks roles Keiko cannot give
+    stays on that dropdown, saves nothing and says which roles it refused."""
+    from tests.behavioral.flows.roles import ENABLED
+
+    seed_document(deps, "default_roles", ENABLED)
+    scenario = await scenario_factory(locale=LOCALE).start_command("default_roles")
+    await scenario.click("section:default_roles_config/default_roles")
+    shown = scenario.current_message
+
+    await scenario.select_option("Admin", target="default_roles")
+
+    document = await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, "default_roles")
+    assert document["default_roles"]["values"] == "202", "nothing is saved"
+    assert scenario.current_message is shown, "the dropdown stays on screen"
+    scenario.expect_component(label_or_action="back")
+    scenario.expect_warning(
+        copy_text("commands.responses.roles_not_assignable.lines.above", LOCALE, role="200")
+    )
 
 
 # ------------------------------------------------------ the panel after a setup

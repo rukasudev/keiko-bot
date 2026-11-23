@@ -88,6 +88,7 @@ ValueFormat = Literal[
     "boolean",
     "customized",
     "month_day",
+    "time_span",
 ]
 TOKEN_FORMATS: tuple[str, ...] = (*get_args(ValueFormat), *TOKEN_FORMATTERS)
 ButtonStyle = Literal["primary", "secondary", "success", "danger"]
@@ -231,6 +232,13 @@ class PanelGroupSpec(Node):
         description="The button that opens the group, with `opens: button`.",
         json_schema_extra={"role": "structure"},
     )
+    collapsed: bool = Field(
+        False,
+        description="With `opens: screen`, draws a list of the group on the panel as "
+        "its title and its counter beside the group's Edit, its items, Add and "
+        "Remove only on the group's screen.",
+        json_schema_extra={"role": "visual"},
+    )
     order: int = Field(
         0,
         description="Where the heading sorts among the panel's headings, lowest first.",
@@ -243,6 +251,8 @@ class PanelGroupSpec(Node):
             raise ValueError("a group's screen is titled by the group's title")
         if (self.opens == "button") != (self.button is not None):
             raise ValueError("a group opened from a button labels it, and only then")
+        if self.collapsed and self.opens != "screen":
+            raise ValueError("a collapsed group opens a screen of its own")
         return self
 
     def opens_own_screen(self) -> bool:
@@ -364,6 +374,31 @@ class Select(Node):
         description="The grey hint inside the empty select.",
         json_schema_extra={"role": "copy"},
     )
+    max: int = Field(
+        DiscordLimits.SELECT_VALUES,
+        ge=1,
+        le=DiscordLimits.SELECT_VALUES,
+        description="The most channels or roles the select takes at once, from 1 to "
+        "Discord's 25.",
+        examples=[10],
+        json_schema_extra={"role": "behavior"},
+    )
+    powerful_roles_warning: Text | None = Field(
+        None,
+        description="Keeps a picked role that can moderate the server (Administrator, "
+        "Manage Server, Manage Roles or Ban Members) and tells the admin this text, "
+        "with `$roles`; only on `assignable_roles`.",
+        json_schema_extra={"role": "copy"},
+    )
+
+    @model_validator(mode="after")
+    def _warns_only_on_roles_keiko_gives(self) -> Select:
+        if self.powerful_roles_warning is not None and self.type != "assignable_roles":
+            raise ValueError(
+                "`powerful_roles_warning` is read only on a select of `type: "
+                f"assignable_roles`, not `{self.type}`"
+            )
+        return self
 
     def value_style(self) -> str:
         """How summaries format the picked ids: as channels or as roles."""
@@ -515,7 +550,8 @@ class SectionKeys(Node):
     )
     image: str | None = Field(
         None,
-        description="The key a `file_upload` section writes the image url to.",
+        description="The key a `file_upload` section, or a `modal_input` whose modal "
+        "takes an image, writes the image url to.",
         json_schema_extra={"role": "data"},
     )
 
@@ -582,6 +618,41 @@ class TitleContentModal(ModalSpec):
     )
 
 
+class ModalUpload(Node):
+    """An optional image a `modal_input` section's modal takes under its inputs."""
+
+    validation: Extension = Field(
+        description="Runs a registered validator over the uploaded file's size, "
+        "pixels and type before Keiko keeps it, and refuses the file it rejects.",
+        json_schema_extra={"role": "behavior"},
+    )
+
+
+class ModalSelect(Node):
+    """A select of declared options a `modal_input` section's modal draws under its
+    inputs."""
+
+    key: str = Field(
+        description="The state key the chosen option's value is written to.",
+        json_schema_extra={"role": "data"},
+    )
+    label: Text = Field(
+        description="The select's label on the modal.",
+        json_schema_extra={"role": "copy"},
+    )
+    placeholder: Text | None = Field(
+        None,
+        description="The grey hint inside the select while nothing is chosen.",
+        json_schema_extra={"role": "copy"},
+    )
+    options: tuple[Option, ...] = Field(
+        min_length=1,
+        max_length=DiscordLimits.SELECT_OPTIONS,
+        description="The choices of the select, the saved one chosen when it opens.",
+        json_schema_extra={"role": "structure"},
+    )
+
+
 class InputsModal(ModalSpec):
     """The modal a `modal_input` section opens: its inputs and their check."""
 
@@ -595,6 +666,23 @@ class InputsModal(ModalSpec):
         description="The modal's inputs, five at most.",
         json_schema_extra={"role": "structure"},
     )
+    select: ModalSelect | None = Field(
+        None,
+        description="A select of declared options under the inputs, which the "
+        "submit must answer, its value written to its own key (the unit of a time "
+        "typed as a number).",
+        json_schema_extra={"role": "structure"},
+    )
+    upload: ModalUpload | None = Field(
+        None,
+        description="An optional image under the inputs, its url written to the "
+        "section's `keys.image`; a submit with no file keeps the saved image.",
+        json_schema_extra={"role": "structure"},
+    )
+
+    def components(self) -> int:
+        """How many components the modal draws: its inputs, its select, its image."""
+        return len(self.inputs) + (self.select is not None) + (self.upload is not None)
 
 
 class Fills(Node):
@@ -681,6 +769,14 @@ class SectionBase(Node):
         """The inputs of the section's modal, none for most sections."""
         return ()
 
+    def modal_select(self) -> ModalSelect | None:
+        """The select of the section's modal, None for most sections."""
+        return None
+
+    def modal_components(self) -> int:
+        """How many components the section's modal draws."""
+        return len(self.inputs())
+
     def checked_by(self) -> Extension | None:
         """The validator a submitted modal of the section runs, None mostly."""
         return None
@@ -688,6 +784,10 @@ class SectionBase(Node):
     def uploads(self) -> bool:
         """True when the section's modal uploads a file."""
         return False
+
+    def checked_uploads(self) -> tuple[Extension, ...]:
+        """The validators of an image a modal of text inputs also takes."""
+        return ()
 
     def normalizers(self) -> tuple[Extension | None, ...]:
         """The normalizer of each text the section's modal types, in its order."""
@@ -733,6 +833,10 @@ class SectionBase(Node):
     def holds(self) -> tuple[str, ...]:
         """The keys of the card's sections it draws on its own screen, none mostly."""
         return ()
+
+    def collapsed_on_card(self) -> bool:
+        """True when the card draws only the line of each section the group holds."""
+        return False
 
     def value_style(self) -> str | None:
         """The style the section's value reads and is saved in, None for as it is."""
@@ -1017,13 +1121,32 @@ class ModalInputSection(PressedSection):
         role="data",
     )
 
+    @model_validator(mode="after")
+    def _uploads_into_an_image_key(self) -> ModalInputSection:
+        if self.modal.upload is not None and not self.keys.image:
+            raise ValueError("a modal that takes an image writes it to `keys.image`")
+        return self
+
     def opened_modal(self) -> InputsModal:
         """The modal its inputs are typed in."""
         return self.modal
 
+    def checked_uploads(self) -> tuple[Extension, ...]:
+        """The validator of the image the modal takes, when it takes one."""
+        upload = self.modal.upload
+        return (upload.validation,) if upload else ()
+
     def inputs(self) -> tuple[TextField, ...]:
         """The modal's inputs."""
         return self.modal.inputs
+
+    def modal_select(self) -> ModalSelect | None:
+        """The select under the modal's inputs, when it declares one."""
+        return self.modal.select
+
+    def modal_components(self) -> int:
+        """The modal's inputs, its select and its image."""
+        return self.modal.components()
 
     def checked_by(self) -> Extension | None:
         """The validator the modal runs on submit."""
@@ -1139,10 +1262,21 @@ class GroupSection(PressedSection, ScreenSection):
         "card, no group among them.",
         json_schema_extra={"role": "structure"},
     )
+    collapsed: bool = Field(
+        False,
+        description="Draws on the card only one line per section it holds, a list "
+        "by its items' names one per line, beside its button: no heading and no "
+        "description.",
+        json_schema_extra={"role": "visual"},
+    )
 
     def holds(self) -> tuple[str, ...]:
         """The keys of the sections its screen draws."""
         return self.sections
+
+    def collapsed_on_card(self) -> bool:
+        """True when the card draws only the line of each section the group holds."""
+        return self.collapsed
 
 
 class DesignSection(PlaceheldSection):
@@ -1408,6 +1542,9 @@ def owned_keys(section: Section) -> tuple[str, ...]:
     keys += [
         field.key for field in section.inputs() if field.key and field.key not in keys
     ]
+    chosen = section.modal_select()
+    if chosen is not None and chosen.key not in keys:
+        keys.append(chosen.key)
     return tuple(keys)
 
 
@@ -1567,6 +1704,9 @@ class CardStep(ContentStep):
             for field in section.inputs():
                 if field.key:
                     owners.setdefault(field.key, (field.label, None))
+            chosen = section.modal_select()
+            if chosen is not None:
+                owners.setdefault(chosen.key, (chosen.label, None))
         return owners
 
     def label_of(self, field: CardField) -> Text:
@@ -1607,6 +1747,20 @@ class Unique(Node):
         "control, so the member an item is about stays fixed.",
         json_schema_extra={"role": "behavior"},
     )
+    normalize: Extension | None = Field(
+        None,
+        description="Compares the key's values through a registered normalizer, so "
+        "two values it reads alike are one item (`calendar_span`: 4 weeks and 28 "
+        "days).",
+        json_schema_extra={"role": "behavior"},
+    )
+
+    def compared(self, value: Any) -> str | None:
+        """The value two items are told apart by, None for no value."""
+        if value in (None, ""):
+            return None
+        rule = NORMALIZERS.get(self.normalize.name) if self.normalize else None
+        return rule.apply(str(value)) if rule else str(value)
 
 
 class ItemsSpec(Node):
@@ -1629,10 +1783,29 @@ class ItemsSpec(Node):
         description="The item key two items may not share.",
         json_schema_extra={"role": "behavior"},
     )
+    name: Text | None = Field(
+        None,
+        description="What an item reads as on the panel, the review and its card, "
+        "written from the item's own answers; its `unique.key` value when left out.",
+        examples=[
+            {
+                "en-us": "${answer.role:role} → ${answer.time:time_span}",
+                "pt-br": "${answer.role:role} → ${answer.time:time_span}",
+            }
+        ],
+        json_schema_extra={"role": "copy"},
+    )
 
     def unique_key(self) -> str | None:
         """The item key two items may not share, None when items may repeat."""
         return self.unique.key if self.unique else None
+
+    def same_item(self, value: Any, other: Any) -> bool:
+        """True when two values of the unique key make one item, as it compares them."""
+        if self.unique is None:
+            return False
+        compared = self.unique.compared(value)
+        return compared is not None and compared == self.unique.compared(other)
 
 
 class Search(Node):
@@ -1689,6 +1862,14 @@ class ReviewStep(StepBase):
         description="Lines read from answers the document never keeps, such as what a "
         "lookup found.",
         json_schema_extra={"role": "data"},
+    )
+    required: Required = Field(
+        default_factory=Required,
+        description="Refuses Confirm while a key of `all` is empty, or every key of "
+        "`any`, across the form's steps; a key of a step or a section its rule hides "
+        "never counts.",
+        examples=[{"any": ["members_roles", "bots_roles"]}],
+        json_schema_extra={"role": "behavior"},
     )
 
     @model_validator(mode="after")
@@ -2105,6 +2286,15 @@ def _check_scope(
             _check_scope(
                 definition, step.steps, list(outer) + [(tuple(produced), steps)]
             )
+        if isinstance(step, ReviewStep):
+            for key in step.required.named():
+                if key not in produced:
+                    raise CompileError(
+                        definition.key,
+                        step.key,
+                        "required",
+                        f"{key!r} is not produced earlier",
+                    )
         produced.extend(produced_keys(step))
 
 
@@ -2140,10 +2330,15 @@ def _check_step_texts(
     for raw, step in zip(written, steps):
         nested = isinstance(step, ListStep)
         own = {
-            name: value for name, value in raw.items() if not nested or name != "steps"
+            name: value
+            for name, value in raw.items()
+            if not nested or name not in ("steps", "items")
         }
         _check_texts(form, step.key, own, (*produced, *produced_keys(step)))
         if isinstance(step, ListStep):
+            item_keys = [key for child in step.steps for key in produced_keys(child)]
+            items = {"items": raw.get("items") or {}}
+            _check_texts(form, step.key, items, (*produced, *item_keys))
             _check_step_texts(form, raw["steps"], step.steps)
         produced.extend(produced_keys(step))
 
@@ -2244,7 +2439,7 @@ def _check_panel_groups(definition: FormDefinition) -> None:
 
 def _check_modal(definition: FormDefinition, card: CardStep, section: Section) -> None:
     fields = section.inputs()
-    if len(fields) > DiscordLimits.MODAL_INPUTS:
+    if section.modal_components() > DiscordLimits.MODAL_INPUTS:
         raise CompileError(
             definition.key,
             card.key,
@@ -2259,8 +2454,15 @@ def _check_modal(definition: FormDefinition, card: CardStep, section: Section) -
             "inputs without a key need keys.value",
         )
     keyed = [field.key for field in fields if field.key]
+    rule = TRANSFORMS.get(card.transform.name) if card.transform else None
+    derived = rule is not None and rule.value_key == section.keys.value
 
-    if fields and len(keyed) == len(fields) and section.keys.value not in keyed:
+    if (
+        fields
+        and len(keyed) == len(fields)
+        and section.keys.value not in keyed
+        and not derived
+    ):
         raise CompileError(
             definition.key,
             card.key,
@@ -2474,6 +2676,11 @@ def _check_uploads(form: str, step: Step) -> None:
             for section in step.sections
             for validation in section.validators()
         ]
+        checked += [
+            (True, validation)
+            for section in step.sections
+            for validation in section.checked_uploads()
+        ]
     for uploads, validation in checked:
         reads_upload = "upload" in VALIDATORS[validation.name].needs
         if reads_upload and not uploads:
@@ -2494,6 +2701,8 @@ def _normalizers(step: Step) -> list[Extension]:
     found: list[Extension] = []
     if isinstance(step, TextStep) and step.normalize:
         found.append(step.normalize)
+    if isinstance(step, ListStep) and step.items.unique and step.items.unique.normalize:
+        found.append(step.items.unique.normalize)
     if isinstance(step, CardStep):
         for section in step.sections:
             found += [rule for rule in section.normalizers() if rule]
@@ -2558,10 +2767,29 @@ def card_components(card: CardStep, back: bool = True) -> int:
     return frame + sections + rows + buttons
 
 
-def group_components(card: CardStep, group: Section) -> int:
-    """How many components a group's own screen can take: its sections and Back."""
-    frame = 1 + 2 + 1 + 1
-    return frame + _held_components(card, group) + 2
+def _panel_block_components(listed: ListStep | None) -> int:
+    if listed is None:
+        return 4
+    previewed = any(
+        isinstance(step, CardStep) and step.previewed() for step in listed.steps
+    )
+    return 4 + listed.items.max * (4 + int(previewed))
+
+
+def group_components(
+    card: CardStep, group: Section, lists: Mapping[str, ListStep] | None = None
+) -> int:
+    """How many components a group's own screen can take: its sections and Back, or
+    the panel's blocks on a collapsed group's, a list of `lists` one block per item
+    at its most."""
+    if not group.collapsed_on_card():
+        return 1 + 2 + 1 + 1 + _held_components(card, group) + 2
+    drawn = sum(
+        _panel_block_components((lists or {}).get(section.adds_to()))
+        for section in card.sections
+        if section.key in group.holds()
+    )
+    return 1 + 4 + 1 + 1 + drawn + 2
 
 
 def cards_with_back(steps: Sequence[Step]) -> Iterator[tuple[CardStep, bool]]:
@@ -2597,10 +2825,15 @@ def _check_limits(definition: FormDefinition) -> None:
                     f"{step.items.max} items, at most {limit} items "
                     "can each carry an Edit",
                 )
+    lists = {
+        listed.key: listed
+        for listed in _walk(definition.steps)
+        if isinstance(listed, ListStep)
+    }
     for step, back in cards_with_back(definition.steps):
         screens = [("sections", card_components(step, back))]
         screens += [
-            (f"{group.key}.sections", group_components(step, group))
+            (f"{group.key}.sections", group_components(step, group, lists))
             for group in step.sections
             if group.holds()
         ]

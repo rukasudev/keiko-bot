@@ -1,0 +1,24 @@
+steps:
+  - type: intro
+    key: form
+    title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
+    description: {en-us: intro, pt-br: intro}
+  - type: card
+    key: card
+    title: {en-us: Card, pt-br: Card}
+    description: {en-us: card, pt-br: card}
+    sections:
+      - key: roles
+        emoji: "👥"
+        type: selects
+        label: {en-us: Roles, pt-br: Cargos}
+        selects:
+          - type: channels
+            key: channels
+            label: {en-us: Roles, pt-br: Cargos}
+            placeholder: {en-us: Roles, pt-br: Cargos}
+            powerful_roles_warning: {en-us: "careful with $roles", pt-br: "cuidado com $roles"}
+  - type: review
+    key: confirm
+    title: {en-us: "ok?", pt-br: "ok?"}
+    description: {en-us: review, pt-br: review}

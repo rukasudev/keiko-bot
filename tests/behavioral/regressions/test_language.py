@@ -410,7 +410,10 @@ LOCALES = ("en-us", "pt-br")
 
 @pytest.mark.parametrize(
     "locale,title",
-    [("en-us", "🚨 Default Roles Disabled"), ("pt-br", "🚨 Cargos Padrão Desativados")],
+    [
+        ("en-us", "🚨 Auto Roles Disabled"),
+        ("pt-br", "🚨 Cargos Automáticos Desativados"),
+    ],
 )
 async def test_the_roles_sync_of_a_server_without_the_feature_shows_its_real_title(
     mock_cache, locale, title
