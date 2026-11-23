@@ -22,6 +22,7 @@ class Refusal:
     inputs: tuple[str, ...] = ()
     target: str = ""
     missing: tuple[str, ...] = ()
+    warning: bool = False
 
 
 Render = Callable[["Any", FormSession, Context], Screen]

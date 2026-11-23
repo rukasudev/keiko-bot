@@ -7,6 +7,8 @@ from dataclasses import replace
 from typing import Any
 
 from app.constants import KeikoIcons
+from app.core.conditions import Scope, evaluate
+from app.forms.form.actions import Refusal
 from app.forms.form.actions.action import (
     Context,
     apply_tokens,
@@ -18,9 +20,24 @@ from app.forms.form.actions.action import (
     label,
     title_of,
 )
+from app.forms.form.actions.configuration_card import (
+    hidden_keys,
+    joined_labels,
+    required_labels,
+    state_of,
+    unfilled,
+)
 from app.forms.form.components import Button, Panel, PanelGroup, Screen
 from app.forms.form.form_state import Answer, FormSession
-from app.forms.form.form_yaml import Step, TextStep
+from app.forms.form.form_yaml import (
+    CardStep,
+    ContentStep,
+    FormDefinition,
+    ReviewStep,
+    Step,
+    TextStep,
+    produced_keys,
+)
 from app.forms.form.responses.responses import to_document
 from app.forms.form.responses.summary import (
     every_setting_has_a_button,
@@ -28,6 +45,7 @@ from app.forms.form.responses.summary import (
     labelled,
     panel_groups,
     panel_rows,
+    section_gates,
 )
 
 
@@ -138,6 +156,77 @@ def render(step: Any, session: FormSession, context: Context) -> Screen:
 
 def parse(
     step: Any, payload: Any, session: FormSession, context: Context
-) -> Mapping[str, Answer]:
-    """Confirming the review answers nothing; it commits."""
+) -> Mapping[str, Answer] | Refusal:
+    """Confirming the review answers nothing, once every key it requires is given."""
+    review: ReviewStep = step
+    if not review.required.named():
+        return {}
+    values, hidden, labels = _settings(session, context)
+    missing, alternatives = unfilled(review.required, values, hidden)
+
+    if alternatives:
+        return Refusal("fill_one_field", plain=True, missing=alternatives)
+    if missing:
+        named = [labels.get(key, key) for key in missing]
+        return Refusal(
+            "required_fields",
+            {"fields": joined_labels(named, context.locale)},
+            plain=True,
+            missing=missing,
+        )
     return {}
+
+
+def _settings(
+    session: FormSession, context: Context
+) -> tuple[dict[str, Any], set[str], dict[str, str]]:
+    values = dict(session.values())
+    hidden: set[str] = set()
+    labels: dict[str, str] = {}
+
+    for step in context.definition.steps:
+        if not isinstance(step, ContentStep):
+            continue
+        keys = produced_keys(step)
+        labels.update({key: step.title.get(context.locale) for key in keys})
+        if isinstance(step, CardStep):
+            state = state_of(step, session, context)
+            values.update(state)
+            hidden.update(hidden_keys(step, state, context))
+            labels.update(required_labels(step, context.locale))
+        if step.appears_in == "panel" or not evaluate(step.when, context.scope):
+            hidden.update(keys)
+    return values, hidden, labels
+
+
+def kept(
+    definition: FormDefinition, values: Mapping[str, Any], locale: str
+) -> Refusal | None:
+    """The refusal of a change to a saved feature that leaves the review's rule unmet,
+    None while the rule still holds."""
+    review = definition.steps[-1] if definition.steps else None
+    if not isinstance(review, ReviewStep) or not review.required.named():
+        return None
+    scope = Scope(dict(values))
+    gates = section_gates(definition.steps)
+    hidden = {key for key, gate in gates.items() if not evaluate(gate, scope)}
+    labels: dict[str, str] = {}
+
+    for step in definition.steps:
+        if not isinstance(step, ContentStep):
+            continue
+        keys = produced_keys(step)
+        labels.update({key: step.title.get(locale) for key in keys})
+        if isinstance(step, CardStep):
+            labels.update(required_labels(step, locale))
+        if step.appears_in == "setup" or not evaluate(step.when, scope):
+            hidden.update(keys)
+    missing, alternatives = unfilled(review.required, values, hidden)
+
+    named = [labels.get(key, key) for key in alternatives or missing]
+    if not named:
+        return None
+    fields = {"fields": joined_labels(named, locale)}
+    if alternatives:
+        return Refusal("commands.responses.keep_one_field", fields, warning=True)
+    return Refusal("required_fields", fields, plain=True)

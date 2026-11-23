@@ -30,10 +30,14 @@ class Answered(Event):
 
 @dataclass(frozen=True)
 class Drafted(Event):
-    """Part of the current step changed without confirming it."""
+    """Part of the current step changed without confirming it, less the picked roles
+    Keiko cannot give, which `refused` names with why (`above`, `managed` or
+    `everyone`); `warned` names the kept roles that can moderate the server."""
 
     step_key: str = ""
     changes: Mapping[str, Any] = field(default_factory=dict)
+    refused: tuple[tuple[str, str], ...] = ()
+    warned: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -99,6 +103,13 @@ class AddRequested(Event):
 @dataclass(frozen=True)
 class RemoveRequested(Event):
     """Remove was pressed under a list, on a review or a panel."""
+
+
+@dataclass(frozen=True)
+class ItemRemovalRequested(Event):
+    """Remove was pressed beside one item of a list, or on the item a search found."""
+
+    target: str = ""
 
 
 @dataclass(frozen=True)

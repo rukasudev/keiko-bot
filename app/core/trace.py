@@ -487,12 +487,25 @@ async def serve(
 
 
 async def fan_out(
-    flow: str, shares: Iterable[Tuple[Any, Awaitable[Any]]], **extra: Any
+    flow: str,
+    shares: Iterable[Tuple[Any, Awaitable[Any]]],
+    *,
+    at_once: Optional[int] = None,
+    **extra: Any,
 ) -> List[Served]:
-    """Serve every server at once, each on its own, and say how each one went."""
+    """Serve every server, each on its own and at most `at_once` of them together when
+    given, and say how each one went."""
+    gate = asyncio.Semaphore(at_once) if at_once else None
+
+    async def served(guild_id: Any, share: Awaitable[Any]) -> Served:
+        context = ErrorContext(flow=flow, guild_id=str(guild_id), extra=dict(extra))
+        if gate is None:
+            return await serve(share, context)
+        async with gate:
+            return await serve(share, context)
+
     return list(await asyncio.gather(*(
-        serve(share, ErrorContext(flow=flow, guild_id=str(guild_id), extra=dict(extra)))
-        for guild_id, share in shares
+        served(guild_id, share) for guild_id, share in shares
     )))
 
 

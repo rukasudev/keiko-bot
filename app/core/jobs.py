@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime, time, timezone
+from typing import Dict, List
 
 from discord.ext import commands, tasks
 
@@ -20,12 +21,18 @@ from app.core.threads import to_thread
 from app.data import data
 
 
-async def hand_due_schedules(now: datetime) -> None:
-    """Hand the schedules due by `now` of every kind a command runs to that command,
-    each kind's batch a job of its own, so one failing kind never stops the next."""
-    kinds = dispatch.schedule_kinds()
+Running = Dict[str, "asyncio.Task[None]"]
+
+
+async def start_due_schedules(
+    now: datetime, running: Running
+) -> List["asyncio.Task[None]"]:
+    """Start the batch of schedules due by `now` of every kind a command runs, each
+    kind a task of its own kept in `running` until it ends, and leave out a kind whose
+    last batch still runs, so one slow or failing kind never holds back the next."""
+    kinds = tuple(kind for kind in dispatch.schedule_kinds() if kind not in running)
     if not kinds:
-        return
+        return []
 
     try:
         due = await data().keiko_schedules.find_due_schedules(
@@ -36,14 +43,27 @@ async def hand_due_schedules(now: datetime) -> None:
             f"Due schedules not read: {type(error).__name__}: {error}",
             log_type=logconstants.COMMAND_WARN_TYPE,
         )
-        return
+        return []
 
+    started = []
     for kind in kinds:
         batch = [schedule for schedule in due if schedule.get("kind") == kind]
-        if batch:
-            await trace.run_traced(
-                dispatch.schedules(kind, batch), f"due {kind}", source="job"
-            )
+        if not batch:
+            continue
+        handed = dispatch.schedules(kind, batch)
+        task = asyncio.create_task(
+            trace.run_traced(handed, f"due {kind}", source="job")
+        )
+        running[kind] = task
+        task.add_done_callback(lambda _done, kind=kind: running.pop(kind, None))
+        started.append(task)
+    return started
+
+
+async def hand_due_schedules(now: datetime) -> None:
+    """Hand the schedules due by `now` to the commands that own their kinds, and wait
+    until every kind's batch ended."""
+    await asyncio.gather(*await start_due_schedules(now, {}))
 
 
 class Analytics(commands.Cog):
@@ -268,23 +288,26 @@ class Analytics(commands.Cog):
 
 class DueSchedules(commands.Cog):
     """Every `SCHEDULES_CHECK_SECONDS`, hands the schedules due by then to the commands
-    that own their kinds."""
+    that own their kinds, each kind's batch running on its own."""
 
     def __init__(self, bot: DiscordBot) -> None:
         self.bot = bot
+        self.running: Running = {}
 
     async def cog_load(self) -> None:
         """Start the loop."""
         self.run_due_schedules.start()
 
     async def cog_unload(self) -> None:
-        """Stop the loop."""
+        """Stop the loop and the batches still running."""
         self.run_due_schedules.cancel()
+        for task in list(self.running.values()):
+            task.cancel()
 
     @tasks.loop(seconds=constants.SCHEDULES_CHECK_SECONDS)
     async def run_due_schedules(self) -> None:
-        """Hand the schedules due by now to the commands that own their kinds."""
-        await hand_due_schedules(datetime.now(timezone.utc))
+        """Start the schedules due by now, leaving out a kind still running."""
+        await start_due_schedules(datetime.now(timezone.utc), self.running)
 
     @run_due_schedules.before_loop
     async def before_due_schedules(self) -> None:

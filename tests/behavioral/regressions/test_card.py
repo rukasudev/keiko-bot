@@ -24,6 +24,7 @@ from app.forms.discord import callbacks
 from app.forms.features.feature import GenericCogFeature
 from tests.behavioral.flows import (
     block_links,
+    roles,
     stream_elements,
     twitch,
     welcome,
@@ -31,9 +32,10 @@ from tests.behavioral.flows import (
 )
 from tests.behavioral.flows.common import open_manager, remove_item, seed_document
 from tests.behavioral.harness import locators
+from tests.behavioral.harness.copy_keys import copy_text
 from tests.behavioral.harness.locators import walk_items
 from tests.generators.moderations import recorded_server, seed_cog
-from tests.mocks.discord import create_guild, create_member
+from tests.mocks.discord import MockRole, create_guild, create_member
 
 pytestmark = [
     pytest.mark.behavioral,
@@ -363,6 +365,127 @@ async def test_the_exempt_channels_can_be_emptied_again(scenario_factory):
 
     assert scenario.card_state.get("allowed_chats") in ([], None)
     await scenario.finish()
+
+
+REFUSED = "commands.responses.roles_not_assignable"
+
+
+@pytest.mark.parametrize(
+    ("picked", "kept"),
+    [(["Member", "Admin"], "202"), (["Admin"], [])],
+    ids=["beside_a_role_it_can_give", "alone"],
+)
+async def test_a_role_keiko_cannot_give_is_refused_with_a_notice(
+    scenario_factory, picked, kept
+):
+    """A role Keiko cannot give never lands on the card, and the admin is told which.
+
+    Broke as: a select that offers only the roles Keiko can give took any role the
+    native select returned, a role above Keiko's own included, and the card saved it;
+    Keiko left that role out only when it gave the roles to a member, so the admin
+    learned it from the panel's warning after the save, or never.
+
+    Shared behaviour: the `available_only` a `Picker` carries for an
+    `assignable_roles` select (`app/forms/form/actions/selects.py`), read by the
+    role select the Discord adapter draws (`app/forms/discord/views.py`) and decided
+    on the card (`app/forms/form/form.py`). Exposed by default roles' members roles.
+
+    Guaranteed: of the roles picked, the card keeps the ones Keiko can give, a pick
+    of only roles it cannot give leaves the card as it was, and a private message
+    names every role it refused, one line each, on a warning embed.
+    """
+    scenario = await roles.open_card(scenario_factory, "pt-br")
+
+    await scenario.select_option(picked, target="default_roles")
+
+    assert scenario.card_state.get("default_roles") == kept
+    scenario.expect_warning(
+        copy_text(f"{REFUSED}.lines.above", "pt-br", role="200")
+    )
+
+
+async def test_roles_that_share_a_name_are_each_given_or_refused_on_their_own(
+    scenario_factory,
+):
+    """Two roles named alike are each kept or refused by their own place below Keiko.
+
+    Broke as: the roles Keiko can give were read as a map keyed by their name, so of
+    two roles Keiko could give under one name only the last one listed counted, and
+    the card refused the other as a role Keiko cannot give. Shared behaviour:
+    `givable_role_ids` (`app/core/utils.py`), read by the role select the Discord
+    adapter draws, reaction roles' click and the roles by time pass. Exposed by
+    default roles' members roles. Guaranteed: of roles that share a name, the card
+    keeps every one Keiko can give and names only the one it cannot.
+    """
+    guild = create_guild()
+    guild.roles.append(MockRole(id=212, name="Member", position=2, guild=guild))
+    guild.roles.append(MockRole(id=220, name="Member", position=20, guild=guild))
+    scenario = await scenario_factory(locale="pt-br", guild=guild).start_command(
+        roles.FORM
+    )
+    await scenario.confirm()
+
+    await scenario.select_option(["202", "212", "220"], target="default_roles")
+
+    assert scenario.card_state.get("default_roles") == ["202", "212"]
+    scenario.expect_warning(
+        copy_text(f"{REFUSED}.lines.above", "pt-br", role="220")
+    )
+
+
+def _warnings(scenario):
+    """The bodies of the warning embeds Keiko sent, oldest first."""
+    from app.constants import Style
+
+    yellow = int(Style.WARNING_COLOR, 16)
+    return [
+        event["embed"]["description"]
+        for event in scenario.outputs
+        if (event.get("embed") or {}).get("color") == yellow
+    ]
+
+
+@pytest.mark.parametrize(
+    "refused",
+    [{"230": "managed"}, {"230": "managed", "200": "above"}],
+    ids=["managed_alone", "managed_and_above"],
+)
+async def test_a_role_a_bot_manages_is_refused_for_what_it_is(scenario_factory, refused):
+    """Round 2 of PR10: every refused role read "is above mine", a role below Keiko
+    that a bot or an integration manages included, which sent the admin to drag
+    Keiko's role for nothing. Shared behaviour: the role select the Discord adapter
+    draws names why it refused each role (`why_not_givable`, `app/core/utils.py`) and
+    the card's warning picks that role's line.
+
+    Broke as: once each line said why its role was refused, the warning repeated ⚠️
+    on every line under its ⚠️ title and no longer told the admin how to fix a role
+    above Keiko's. Shared behaviour: the card's warning about the roles it refused
+    (`commands.responses.roles_not_assignable`, read in `app/forms/form/form.py`).
+    Consumer that exposed it: auto roles' members roles. Guaranteed: a managed role
+    reads the managed line, a role above Keiko the line about its place, each a plain
+    list line, and only a role above Keiko closes the warning with how to drag
+    Keiko's role above it."""
+    guild = create_guild()
+    guild.roles.append(
+        MockRole(id=230, name="Bot Role", position=0, guild=guild, managed=True)
+    )
+    scenario = await scenario_factory(locale="pt-br", guild=guild).start_command(
+        roles.FORM
+    )
+    await scenario.confirm()
+
+    await scenario.select_option(list(refused), target="default_roles")
+
+    lines = "\n".join(
+        copy_text(f"{REFUSED}.lines.{why}", "pt-br", role=role)
+        for role, why in refused.items()
+    )
+    hint = copy_text(f"{REFUSED}.overrides.0.description", "pt-br", warning="")
+    told = _warnings(scenario)[-1]
+    assert told.startswith(lines)
+    assert "⚠️" not in told, "the title alone carries the warning sign"
+    assert (hint.strip() in told) == ("above" in refused.values())
+    assert scenario.card_state.get("default_roles") in ([], None)
 
 
 TWITCH_ERROR = "notifications_twitch.ui.errors.preview_needs_streamer.message"

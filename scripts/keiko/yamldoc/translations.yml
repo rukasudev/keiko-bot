@@ -57,6 +57,11 @@ form.yml/PanelGroupSpec.opens:
 form.yml/PanelGroupSpec.button:
   en-us: 'The button that opens the group, with `opens: button`.'
   pt-br: 'O botão que abre o grupo, com `opens: button`.'
+form.yml/PanelGroupSpec.collapsed:
+  en-us: 'With `opens: screen`, draws a list of the group on the panel as its title and its
+    counter beside the group''s Edit, its items, Add and Remove only on the group''s screen.'
+  pt-br: 'Com `opens: screen`, desenha uma lista do grupo no painel como o título e o contador
+    dela ao lado do Editar do grupo; os itens, o Adicionar e o Remover ficam só na tela do grupo.'
 form.yml/PanelGroupSpec.order:
   en-us: Where the heading sorts among the panel's headings, lowest first.
   pt-br: A posição do título entre os títulos do painel, do menor para o maior.
@@ -427,6 +432,12 @@ form.yml/ReviewStep.info:
 form.yml/ReviewStep.lines:
   en-us: Lines read from answers the document never keeps, such as what a lookup found.
   pt-br: Linhas lidas de respostas que o documento nunca guarda, como o que uma busca encontrou.
+form.yml/ReviewStep.required:
+  en-us: Refuses Confirm while a key of `all` is empty, or every key of `any`, across the
+    form's steps; a key of a step or a section its rule hides never counts.
+  pt-br: Recusa o Confirmar enquanto uma chave de `all` estiver vazia, ou todas as chaves de
+    `any`, olhando todas as etapas do form; a chave de uma etapa ou seção que a regra dela
+    esconde nunca conta.
 form.yml/Text:
   en-us: One text in both locales Keiko speaks, the node every form and copy file writes.
   pt-br: Um texto nos dois idiomas que o Keiko fala, o nó que todo arquivo de form e de copy
@@ -637,6 +648,11 @@ form.yml/ItemsSpec.min:
 form.yml/ItemsSpec.unique:
   en-us: The item key two items may not share.
   pt-br: A chave do item que dois itens não podem repetir.
+form.yml/ItemsSpec.name:
+  en-us: What an item reads as on the panel, the review and its card, written from the item's
+    own answers; its `unique.key` value when left out.
+  pt-br: Como um item aparece no painel, no resumo e no card dele, escrito com as respostas do
+    próprio item; o valor do `unique.key` quando não é declarado.
 form.yml/Search:
   en-us: How an admin finds an item of a list by its member.
   pt-br: Como um admin acha um item de uma lista pelo membro.
@@ -1231,6 +1247,9 @@ form.yml/GroupSection.sections:
     them.
   pt-br: As chaves das seções que a tela do grupo desenha no lugar do card, sem nenhum grupo
     entre elas.
+form.yml/GroupSection.collapsed:
+  en-us: 'Draws on the card only one line per section it holds, a list by its items'' names one per line, beside its button: no heading and no description.'
+  pt-br: 'Desenha no card só uma linha por seção que ele guarda, uma lista pelos nomes dos itens, um por linha, ao lado do botão: sem título e sem descrição.'
 form.yml/DesignSection:
   en-us: One design chosen on a gallery of previews.
   pt-br: Um design escolhido numa galeria de prévias.
@@ -1290,6 +1309,9 @@ form.yml/Unique.immutable:
     an item is about stays fixed.
   pt-br: Mostra o valor da chave de um item em edição como uma linha sem controle, para o
     membro do item não mudar.
+form.yml/Unique.normalize:
+  en-us: 'Compares the key''s values through a registered normalizer, so two values it reads alike are one item (`calendar_span`: 4 weeks and 28 days).'
+  pt-br: 'Compara os valores da chave por um normalizador registrado, então dois valores que ele lê igual são um item só (`calendar_span`: 4 semanas e 28 dias).'
 form.yml/SectionKeys:
   en-us: The state keys a card section owns.
   pt-br: As chaves de estado que uma seção de card controla.
@@ -1308,8 +1330,10 @@ form.yml/SectionKeys.description:
   en-us: The key a `title_content` section writes its body to.
   pt-br: A chave onde uma seção `title_content` grava o corpo.
 form.yml/SectionKeys.image:
-  en-us: The key a `file_upload` section writes the image url to.
-  pt-br: A chave onde uma seção `file_upload` grava a url da imagem.
+  en-us: The key a `file_upload` section, or a `modal_input` whose modal takes an image,
+    writes the image url to.
+  pt-br: A chave onde uma seção `file_upload`, ou um `modal_input` cujo modal recebe uma
+    imagem, grava a url da imagem.
 form.yml/TitleContentModal:
   en-us: 'The modal a `title_content` section opens: a title input and a body input.'
   pt-br: 'O modal que uma seção `title_content` abre: um campo de título e um campo de corpo.'
@@ -1349,6 +1373,37 @@ form.yml/InputsModal.validation:
 form.yml/InputsModal.inputs:
   en-us: The modal's inputs, five at most.
   pt-br: Os campos do modal, no máximo cinco.
+form.yml/InputsModal.select:
+  en-us: 'A select of declared options under the inputs, which the submit must answer, its value written to its own key (the unit of a time typed as a number).'
+  pt-br: 'Um seletor de opções declaradas embaixo dos campos, que o envio precisa responder, com o valor gravado na própria chave (a unidade de um tempo digitado como número).'
+form.yml/InputsModal.upload:
+  en-us: An optional image under the inputs, its url written to the section's `keys.image`;
+    a submit with no file keeps the saved image.
+  pt-br: Uma imagem opcional embaixo dos campos, com a url gravada no `keys.image` da seção;
+    um envio sem arquivo mantém a imagem salva.
+form.yml/ModalSelect:
+  en-us: 'A select of declared options a `modal_input` section''s modal draws under its inputs.'
+  pt-br: 'Um seletor de opções declaradas que o modal de uma seção `modal_input` desenha embaixo dos campos.'
+form.yml/ModalSelect.key:
+  en-us: 'The state key the chosen option''s value is written to.'
+  pt-br: 'A chave de estado onde o valor da opção escolhida é gravado.'
+form.yml/ModalSelect.label:
+  en-us: 'The select''s label on the modal.'
+  pt-br: 'O rótulo do seletor no modal.'
+form.yml/ModalSelect.placeholder:
+  en-us: 'The grey hint inside the select while nothing is chosen.'
+  pt-br: 'A dica cinza dentro do seletor enquanto nada foi escolhido.'
+form.yml/ModalSelect.options:
+  en-us: 'The choices of the select, the saved one chosen when it opens.'
+  pt-br: 'As escolhas do seletor, com a salva já escolhida quando ele abre.'
+form.yml/ModalUpload:
+  en-us: An optional image a `modal_input` section's modal takes under its inputs.
+  pt-br: Uma imagem opcional que o modal de uma seção `modal_input` recebe embaixo dos campos.
+form.yml/ModalUpload.validation:
+  en-us: Runs a registered validator over the uploaded file's size, pixels and type before
+    Keiko keeps it, and refuses the file it rejects.
+  pt-br: Passa o arquivo enviado por um validador registrado, que confere o tamanho, os pixels
+    e o tipo antes de o Keiko guardá-lo, e recusa o arquivo que ele rejeitar.
 form.yml/Fills:
   en-us: Copy a typed value writes into another key of its card.
   pt-br: Texto que um valor digitado escreve em outra chave do card.
@@ -1378,6 +1433,14 @@ form.yml/Select.label:
 form.yml/Select.placeholder:
   en-us: The grey hint inside the empty select.
   pt-br: A dica cinza dentro do select vazio.
+form.yml/Select.max:
+  en-us: The most channels or roles the select takes at once, from 1 to Discord's 25.
+  pt-br: O máximo de canais ou cargos que o select aceita de uma vez, de 1 até os 25 do Discord.
+form.yml/Select.powerful_roles_warning:
+  en-us: Keeps a picked role that can moderate the server (Administrator, Manage Server, Manage
+    Roles or Ban Members) and tells the admin this text, with `$roles`; only on `assignable_roles`.
+  pt-br: Mantém um cargo escolhido que pode moderar o servidor (Administrador, Gerenciar Servidor,
+    Gerenciar Cargos ou Banir Membros) e mostra este texto ao admin, com `$roles`; só em `assignable_roles`.
 form.yml/Design:
   en-us: One entry of a design gallery.
   pt-br: Uma entrada de uma galeria de designs.
@@ -1673,10 +1736,8 @@ copy.yml/ErrorBlock.message:
   en-us: What went wrong and how to recover; `$name` marks a value the code fills.
   pt-br: O que deu errado e como resolver; `$name` marca um valor que o código preenche.
 copy.yml/Response:
-  en-us: 'One embed Keiko answers with, drawn by `response_embed`: an answer, a `ConfirmActionView`
-    question or the confirmation of a panel aside.'
-  pt-br: 'Um embed com que o Keiko responde, desenhado por `response_embed`: uma resposta,
-    uma pergunta de `ConfirmActionView` ou a confirmação de uma ação do painel.'
+  en-us: "One embed Keiko answers with, drawn by `response_embed`: an answer, a `ConfirmActionView` question or the confirmation of a panel aside, which `card` draws as a Components V2 card through `response_card` instead."
+  pt-br: "Um embed com que o Keiko responde, desenhado por `response_embed`: uma resposta, uma pergunta de `ConfirmActionView` ou a confirmação de uma ação do painel, que `card` desenha como um card Components V2 por `response_card` no lugar dele."
 copy.yml/Response.title:
   en-us: The embed's title, with one leading emoji; `$name` marks a value the code fills.
   pt-br: O título do embed, com um emoji no começo; `$name` marca um valor que o código preenche.
@@ -1685,9 +1746,15 @@ copy.yml/Response.description:
     body (the /report ticket, whose fields say it all).
   pt-br: O corpo do embed; `$name` marca um valor que o código preenche; se ausente, o embed
     não tem corpo (o ticket do /report, cujos campos já dizem tudo).
+copy.yml/Response.info:
+  en-us: "The note that closes the card, after a divider and above its footer; `$name` marks a fact the code passes; absent draws none, and only a block with `card` writes it."
+  pt-br: "A nota que fecha o card, depois de um divisor e acima do rodapé; `$name` marca um fato que o código passa; se ausente, não desenha nenhuma, e só um bloco com `card` a escreve."
 copy.yml/Response.tone:
   en-us: "The embed's colour: Keiko's blue, or the yellow of a warning, for a message that tells the admin Keiko changed what they did (a mention taken out of a text)."
   pt-br: "A cor do embed: o azul do Keiko, ou o amarelo de um aviso, para uma mensagem que conta ao admin que o Keiko mudou o que ele fez (uma menção tirada de um texto)."
+copy.yml/Response.card:
+  en-us: "Asks the question as a Components V2 card like Keiko's other cards, its title and text beside Keiko's picture and its buttons in a row below it, instead of an embed (a panel aside's confirmation, the question a save asks)."
+  pt-br: "Faz a pergunta como um card Components V2 igual aos outros cards do Keiko, com o título e o texto ao lado da foto do Keiko e os botões numa fileira embaixo dele, no lugar de um embed (a confirmação de uma ação do painel, a pergunta que um salvamento faz)."
 copy.yml/Response.footer:
   en-us: 'The closing subtext line: absent draws the standard /report line, null draws none,
     a text draws that text.'
@@ -1733,8 +1800,8 @@ copy.yml/Records.detail:
   en-us: The screen that select opens (/help).
   pt-br: A tela que esse select abre (/help).
 copy.yml/Records.filter:
-  en-us: The member filter; absent, the list has no filter button.
-  pt-br: O filtro por membro; se ausente, a lista não tem botão de filtro.
+  en-us: 'The filter by member, or by option when the code offers options; absent, the list has no filter button.'
+  pt-br: 'O filtro por membro, ou por opção quando o código oferece opções; se ausente, a lista não tem botão de filtro.'
 copy.yml/Records.overrides:
   en-us: The title or description drawn while a rule on the facts holds, the first item whose
     rule holds winning (/help for a member, who may not configure Keiko).
@@ -1863,8 +1930,8 @@ copy.yml/AnnouncementDefaults.description:
   en-us: The announcement's body, an admin template like the title.
   pt-br: O corpo do anúncio, um modelo de admin como o título.
 copy.yml/ResponseOverride:
-  en-us: What a response draws while a rule holds, in place of its own title or description.
-  pt-br: O que uma resposta desenha enquanto uma regra vale, no lugar do próprio título ou descrição.
+  en-us: "What a response draws while a rule holds, in place of its own title, description or closing note."
+  pt-br: "O que uma resposta desenha enquanto uma regra vale, no lugar do próprio título, descrição ou nota final."
 copy.yml/ResponseOverride.when:
   en-us: The rule under which this item's fields replace the block's.
   pt-br: A regra sob a qual os campos deste item substituem os do bloco.
@@ -1874,6 +1941,9 @@ copy.yml/ResponseOverride.title:
 copy.yml/ResponseOverride.description:
   en-us: The description drawn while the rule holds; absent keeps the block's.
   pt-br: A descrição desenhada enquanto a regra vale; se ausente, mantém a do bloco.
+copy.yml/ResponseOverride.info:
+  en-us: "The closing note of the card drawn while the rule holds; absent keeps the block's."
+  pt-br: "A nota final do card desenhada enquanto a regra vale; se ausente, mantém a do bloco."
 copy.yml/ResponseField:
   en-us: 'One stacked field of a response embed: its title, and its value when the copy writes
     it.'
@@ -1912,24 +1982,26 @@ copy.yml/RecordsDetail.description:
   en-us: The detail's body; `$name` marks a value the code fills.
   pt-br: O corpo do detalhe; `$name` marca um valor que o código preenche.
 copy.yml/RecordsFilter:
-  en-us: 'The member filter of a records list: its button, its picker and its empty state.'
-  pt-br: 'O filtro por membro de uma lista de registros: o botão, o seletor e o estado vazio.'
+  en-us: 'The filter of a records list, by member or by one of its options: its button, its picker and its empty state.'
+  pt-br: 'O filtro de uma lista de registros, por membro ou por uma das suas opções: o botão, o seletor e o estado vazio.'
 copy.yml/RecordsFilter.label:
   en-us: The filter button while the whole list shows.
   pt-br: O botão do filtro enquanto a lista inteira aparece.
 copy.yml/RecordsFilter.clear_label:
-  en-us: The same button once the list shows one member, which brings every record back.
-  pt-br: O mesmo botão quando a lista mostra um membro só, que traz todos os registros de
-    volta.
+  en-us: 'The same button once the list shows one member or option, which brings every record back.'
+  pt-br: 'O mesmo botão quando a lista mostra um membro ou uma opção só, que traz todos os registros de volta.'
 copy.yml/RecordsFilter.title:
-  en-us: The member picker's title.
-  pt-br: O título do seletor de membro.
+  en-us: 'The picker''s title.'
+  pt-br: 'O título do seletor.'
 copy.yml/RecordsFilter.description:
-  en-us: The member picker's intro.
-  pt-br: A introdução do seletor de membro.
+  en-us: 'The picker''s intro.'
+  pt-br: 'A introdução do seletor.'
 copy.yml/RecordsFilter.empty:
-  en-us: Drawn alone when the member picked has no record.
-  pt-br: Desenhado sozinho quando o membro escolhido não tem registro.
+  en-us: 'Drawn alone when the member or the option picked has no record.'
+  pt-br: 'Desenhado sozinho quando o membro ou a opção escolhida não tem registro.'
+copy.yml/RecordsFilter.every:
+  en-us: 'The first option of a filter by option, which brings every record back; a filter by member draws none.'
+  pt-br: 'A primeira opção de um filtro por opção, que traz todos os registros de volta; um filtro por membro não desenha nenhuma.'
 copy.yml/RecordsOverride:
   en-us: What a list draws while a rule holds, in place of its own title or description.
   pt-br: O que uma lista desenha enquanto uma regra vale, no lugar do próprio título ou descrição.
@@ -2126,10 +2198,8 @@ languages/commands.yml/LiveNoticeOverride.footer:
   en-us: The footer drawn while the rule holds; `$duration` marks how long the live ran.
   pt-br: O rodapé desenhado enquanto a regra vale; `$duration` marca quanto tempo a live durou.
 languages/commands.yml/Response:
-  en-us: 'One embed Keiko answers with, drawn by `response_embed`: an answer, a `ConfirmActionView`
-    question or the confirmation of a panel aside.'
-  pt-br: 'Um embed com que o Keiko responde, desenhado por `response_embed`: uma resposta,
-    uma pergunta de `ConfirmActionView` ou a confirmação de uma ação do painel.'
+  en-us: "One embed Keiko answers with, drawn by `response_embed`: an answer, a `ConfirmActionView` question or the confirmation of a panel aside, which `card` draws as a Components V2 card through `response_card` instead."
+  pt-br: "Um embed com que o Keiko responde, desenhado por `response_embed`: uma resposta, uma pergunta de `ConfirmActionView` ou a confirmação de uma ação do painel, que `card` desenha como um card Components V2 por `response_card` no lugar dele."
 languages/commands.yml/Response.title:
   en-us: The embed's title, with one leading emoji; `$name` marks a value the code fills.
   pt-br: O título do embed, com um emoji no começo; `$name` marca um valor que o código preenche.
@@ -2138,9 +2208,15 @@ languages/commands.yml/Response.description:
     body (the /report ticket, whose fields say it all).
   pt-br: O corpo do embed; `$name` marca um valor que o código preenche; se ausente, o embed
     não tem corpo (o ticket do /report, cujos campos já dizem tudo).
+languages/commands.yml/Response.info:
+  en-us: "The note that closes the card, after a divider and above its footer; `$name` marks a fact the code passes; absent draws none, and only a block with `card` writes it."
+  pt-br: "A nota que fecha o card, depois de um divisor e acima do rodapé; `$name` marca um fato que o código passa; se ausente, não desenha nenhuma, e só um bloco com `card` a escreve."
 languages/commands.yml/Response.tone:
   en-us: "The embed's colour: Keiko's blue, or the yellow of a warning, for a message that tells the admin Keiko changed what they did (a mention taken out of a text)."
   pt-br: "A cor do embed: o azul do Keiko, ou o amarelo de um aviso, para uma mensagem que conta ao admin que o Keiko mudou o que ele fez (uma menção tirada de um texto)."
+languages/commands.yml/Response.card:
+  en-us: "Asks the question as a Components V2 card like Keiko's other cards, its title and text beside Keiko's picture and its buttons in a row below it, instead of an embed (a panel aside's confirmation, the question a save asks)."
+  pt-br: "Faz a pergunta como um card Components V2 igual aos outros cards do Keiko, com o título e o texto ao lado da foto do Keiko e os botões numa fileira embaixo dele, no lugar de um embed (a confirmação de uma ação do painel, a pergunta que um salvamento faz)."
 languages/commands.yml/Response.footer:
   en-us: 'The closing subtext line: absent draws the standard /report line, null draws none,
     a text draws that text.'
@@ -2186,8 +2262,8 @@ languages/commands.yml/Records.detail:
   en-us: The screen that select opens (/help).
   pt-br: A tela que esse select abre (/help).
 languages/commands.yml/Records.filter:
-  en-us: The member filter; absent, the list has no filter button.
-  pt-br: O filtro por membro; se ausente, a lista não tem botão de filtro.
+  en-us: 'The filter by member, or by option when the code offers options; absent, the list has no filter button.'
+  pt-br: 'O filtro por membro, ou por opção quando o código oferece opções; se ausente, a lista não tem botão de filtro.'
 languages/commands.yml/Records.overrides:
   en-us: The title or description drawn while a rule on the facts holds, the first item whose
     rule holds winning (/help for a member, who may not configure Keiko).
@@ -2209,8 +2285,8 @@ languages/commands.yml/Text.pt-br:
   en-us: What Keiko writes to a Portuguese-speaking server or member.
   pt-br: O que o Keiko escreve para um servidor ou membro que fala português.
 languages/commands.yml/ResponseOverride:
-  en-us: What a response draws while a rule holds, in place of its own title or description.
-  pt-br: O que uma resposta desenha enquanto uma regra vale, no lugar do próprio título ou descrição.
+  en-us: "What a response draws while a rule holds, in place of its own title, description or closing note."
+  pt-br: "O que uma resposta desenha enquanto uma regra vale, no lugar do próprio título, descrição ou nota final."
 languages/commands.yml/ResponseOverride.when:
   en-us: The rule under which this item's fields replace the block's.
   pt-br: A regra sob a qual os campos deste item substituem os do bloco.
@@ -2220,6 +2296,9 @@ languages/commands.yml/ResponseOverride.title:
 languages/commands.yml/ResponseOverride.description:
   en-us: The description drawn while the rule holds; absent keeps the block's.
   pt-br: A descrição desenhada enquanto a regra vale; se ausente, mantém a do bloco.
+languages/commands.yml/ResponseOverride.info:
+  en-us: "The closing note of the card drawn while the rule holds; absent keeps the block's."
+  pt-br: "A nota final do card desenhada enquanto a regra vale; se ausente, mantém a do bloco."
 languages/commands.yml/ResponseField:
   en-us: 'One stacked field of a response embed: its title, and its value when the copy writes
     it.'
@@ -2258,24 +2337,26 @@ languages/commands.yml/RecordsDetail.description:
   en-us: The detail's body; `$name` marks a value the code fills.
   pt-br: O corpo do detalhe; `$name` marca um valor que o código preenche.
 languages/commands.yml/RecordsFilter:
-  en-us: 'The member filter of a records list: its button, its picker and its empty state.'
-  pt-br: 'O filtro por membro de uma lista de registros: o botão, o seletor e o estado vazio.'
+  en-us: 'The filter of a records list, by member or by one of its options: its button, its picker and its empty state.'
+  pt-br: 'O filtro de uma lista de registros, por membro ou por uma das suas opções: o botão, o seletor e o estado vazio.'
 languages/commands.yml/RecordsFilter.label:
   en-us: The filter button while the whole list shows.
   pt-br: O botão do filtro enquanto a lista inteira aparece.
 languages/commands.yml/RecordsFilter.clear_label:
-  en-us: The same button once the list shows one member, which brings every record back.
-  pt-br: O mesmo botão quando a lista mostra um membro só, que traz todos os registros de
-    volta.
+  en-us: 'The same button once the list shows one member or option, which brings every record back.'
+  pt-br: 'O mesmo botão quando a lista mostra um membro ou uma opção só, que traz todos os registros de volta.'
 languages/commands.yml/RecordsFilter.title:
-  en-us: The member picker's title.
-  pt-br: O título do seletor de membro.
+  en-us: 'The picker''s title.'
+  pt-br: 'O título do seletor.'
 languages/commands.yml/RecordsFilter.description:
-  en-us: The member picker's intro.
-  pt-br: A introdução do seletor de membro.
+  en-us: 'The picker''s intro.'
+  pt-br: 'A introdução do seletor.'
 languages/commands.yml/RecordsFilter.empty:
-  en-us: Drawn alone when the member picked has no record.
-  pt-br: Desenhado sozinho quando o membro escolhido não tem registro.
+  en-us: 'Drawn alone when the member or the option picked has no record.'
+  pt-br: 'Desenhado sozinho quando o membro ou a opção escolhida não tem registro.'
+languages/commands.yml/RecordsFilter.every:
+  en-us: 'The first option of a filter by option, which brings every record back; a filter by member draws none.'
+  pt-br: 'A primeira opção de um filtro por opção, que traz todos os registros de volta; um filtro por membro não desenha nenhuma.'
 languages/commands.yml/RecordsOverride:
   en-us: What a list draws while a rule holds, in place of its own title or description.
   pt-br: O que uma lista desenha enquanto uma regra vale, no lugar do próprio título ou descrição.

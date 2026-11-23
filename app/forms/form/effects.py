@@ -47,6 +47,14 @@ class ShowError(Effect):
 
 
 @dataclass(frozen=True)
+class Warn(Effect):
+    """Tell the admin what Keiko kept or left out, on a warning embed of its own."""
+
+    block: str
+    values: Mapping[str, str | bool] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class Notice(Effect):
     """A short ephemeral note that removes itself."""
 

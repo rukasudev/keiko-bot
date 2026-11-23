@@ -95,7 +95,7 @@ User actions (each mints a fresh interaction, like Discord):
 | `with later(seconds):` | the clock reads `seconds` later for what runs inside: a session's deadline, the fifteen minutes Discord honours an interaction token, a cooldown, the expiry loop's pass |
 | `discord_refuses(api, error=None, times=None)` | Discord answers the next `times` calls of `api` (every one when None) with `error` (a 500 by default) instead of doing them: `response.send_message`, `response.defer`, `response.edit_message`, `response.send_modal`, `followup.send`, `followup.edit_message`, `followup.delete_message`, `edit_original_response`, `delete_original_response`; each refusal is a `refused` event |
 | `scenario.latency = seconds` | every first answer minted afterwards takes that long to reach Discord, and `is_done()` turns true only when it arrives; a second first answer sent meanwhile gets 40060 (`discord.HTTPException`), as on Discord; pair it with a short `ViewConstants.DEFER_AFTER_SECONDS` to race the late-answer clock |
-| `finish()` | lets any task the flow scheduled settle; call at the end of card/design flows |
+| `finish()` | lets any task the flow scheduled settle, the work a feature started in the background (`in_background`, after a save or a yes) included, for a few seconds at most; call at the end of card/design flows |
 | `open_from(card, source=, ending=, back=)` | every later command opens from a button on `card`, a caller's screen (a /setup row): the card is sent first (`scenario.launcher`), then the feature opens with the `source`, `ending` and `back` that caller passes |
 | `run(entry, *args, name=)` | reaches Keiko through an entry point the scenario does not open itself (`open_setup_dashboard`, a greeting's handler): `entry(interaction, *args)` with a fresh interaction of the admin |
 | `post(view, embed=None)` | the bot posts `view` outside any command (the greeting on joining a server); returns the message, which is now on screen to click |
@@ -141,7 +141,8 @@ a new action of the driver, added in the same change.
 ## Flows: the steps tests share (`tests/behavioral/flows/`)
 
 One module per command folder of `app/commands/` (`block_links`, `birthdays`,
-`report`, `roles`, `stream_elements`, `twitch`, `welcome`, `youtube`) plus `common`: the
+`reaction_roles`, `report`, `roles`, `stream_elements`, `twitch`, `welcome`, `youtube`)
+plus `common`: the
 command's saved documents (`FORM`, `ENABLED`, `PAUSED`), its seeds (`seed`,
 `seed_paused`, `seed_config`) and one function per intention that takes more
 than a click (`open_card`, `pick_channel`, `submit_streamer`, `type_day`,
@@ -357,6 +358,9 @@ write a command-specific test file.
 
 - New component type on screen → teach `normalizer.normalize_item` and, if
   clickable, `locators` (keep both version-specific).
+- A `DynamicItem` (a button Keiko routes by its custom id alone) is recorded as the
+  component it wraps, its label and colour kept, and a click on it is named by its
+  label in the transcript and the books.
 - New semantic click target → add to `_ALIASES` and `_CODEC_TARGETS` in
   `locators.py`.
 - New Discord API call → add to `FakeResponse`/`FakeFollowup` with the same

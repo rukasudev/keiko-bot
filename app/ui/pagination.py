@@ -24,7 +24,9 @@ class PageSelect(Select["PaginationView"]):
 
 class PaginationView(discord.ui.View):
     """Fields shown `sep` per page, under one title, with arrows between pages: the
-    answer to an interaction (`send`), or the reply to a chat message (`reply`)."""
+    answer to an interaction (`send`), or the reply to a chat message (`reply`); with
+    `named` off each field draws its value under a blank name, its key only telling
+    the fields apart."""
 
     def __init__(
         self,
@@ -37,8 +39,10 @@ class PaginationView(discord.ui.View):
         *,
         thumbnail: Optional[str] = icons_constants.IMAGE_02,
         locale: str = "",
+        named: bool = True,
     ) -> None:
         self.title = title
+        self.named = named
         self.description = description
         self.interaction = interaction
         self.current_page = current_page
@@ -79,7 +83,8 @@ class PaginationView(discord.ui.View):
         )
 
         for item in data:
-            self.embed.add_field(name=item, value=self.data[item], inline=False)
+            name = item if self.named else constants.BLANK_FIELD_NAME
+            self.embed.add_field(name=name, value=self.data[item], inline=False)
 
         locale = self.locale or self._answered().locale
         footer = ml("texts.page", locale=locale)

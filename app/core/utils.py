@@ -5,7 +5,7 @@ import hmac
 from importlib import import_module
 from io import BytesIO
 from re import finditer
-from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, TypeVar
 
 import discord
 from i18n import t
@@ -108,14 +108,24 @@ def verify_hmac_sha256(secret: str, message: str, signature: str, prefix: str = 
     return hmac.compare_digest(expected.encode("utf-8"), signature.encode("utf-8"))
 
 
-def get_available_roles_by_guild(guild: discord.Guild) -> Dict[str, str]:
+def givable_role_ids(guild: discord.Guild) -> Set[str]:
+    """The ids of the roles Keiko can give: below its own top role, managed by no bot
+    or integration, and not @everyone."""
     return {
-        role.name: str(role.id)
+        str(role.id)
         for role in guild.roles
         if role.name != "@everyone"
         and guild.me.top_role.position > role.position
         and not role.managed
     }
+
+
+def why_not_givable(role: discord.Role) -> str:
+    """Why Keiko cannot give a role `givable_role_ids` leaves out: `everyone`,
+    `managed` by a bot or an integration, or `above` its own top role."""
+    if role.name == "@everyone":
+        return "everyone"
+    return "managed" if role.managed else "above"
 
 
 def ensure_list(value: Any) -> list:

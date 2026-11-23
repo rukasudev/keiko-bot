@@ -10,9 +10,12 @@ import logging
 from typing import Any, List
 from unittest.mock import AsyncMock, MagicMock
 
+import discord
 import pytest
+from discord import app_commands
 
 from app.core import dispatch, groups, trace
+from app.core.app_commands import listed_commands
 from app.core.commands import (
     PARENT_GROUPS,
     Command,
@@ -48,6 +51,42 @@ class Stray(Group, name="stray", description="A subgroup for the tests."):
     def __init__(self, bot: Any) -> None:
         self.bot = bot
         super().__init__()
+
+
+class Videos(Group, name="notices", description="A subgroup two commands share."):
+    """The notices subgroup as the videos command declares it."""
+
+    def __init__(self, bot: Any) -> None:
+        self.bot = bot
+        super().__init__()
+
+    @app_commands.command(name="videos", description="d")
+    async def anything(self, interaction: discord.Interaction) -> None:
+        """Answer nothing."""
+
+
+class Lives(Group, name="notices", description="A subgroup two commands share."):
+    """The notices subgroup as the lives command declares it."""
+
+    def __init__(self, bot: Any) -> None:
+        self.bot = bot
+        super().__init__()
+
+    @app_commands.command(name="lives", description="d")
+    async def anything_else(self, interaction: discord.Interaction) -> None:
+        """Answer nothing."""
+
+
+class MoreVideos(Group, name="notices", description="A subgroup two commands share."):
+    """A third command that takes a leaf name the videos command already has."""
+
+    def __init__(self, bot: Any) -> None:
+        self.bot = bot
+        super().__init__()
+
+    @app_commands.command(name="videos", description="d")
+    async def again(self, interaction: discord.Interaction) -> None:
+        """Answer nothing."""
 
 
 class Loose(Cog):
@@ -205,6 +244,45 @@ async def test_a_subgroup_is_attached_under_its_parent_group(declare):
     assert [command.name for command in added["integrations"].app_command.commands] == [
         "stray"
     ]
+
+
+async def _parents(bot: MagicMock) -> dict[str, Any]:
+    bot.add_cog = AsyncMock()
+    await groups.setup(bot)
+    return {
+        cog.group_key: cog for cog in (c.args[0] for c in bot.add_cog.await_args_list)
+    }
+
+
+async def test_two_commands_add_their_leaves_to_one_subgroup_of_their_name(declare):
+    """Two commands that declare a subgroup of one name under one parent group share
+    it on Discord, each leaf opening the command that declares it."""
+    declare(
+        Command("videos", cogs=(Videos,), group="notifications"),
+        Command("lives", cogs=(Lives,), group="notifications"),
+    )
+    parents = await _parents(MagicMock())
+    notifications = parents["notifications"].app_command
+    tree = app_commands.CommandTree(discord.Client(intents=discord.Intents.none()))
+    tree.add_command(notifications)
+
+    listed = await listed_commands(tree, "en-us")
+
+    assert [subgroup.name for subgroup in notifications.commands] == ["notices"]
+    assert {command.english: command.key for command in listed} == {
+        "/notifications notices videos": "videos",
+        "/notifications notices lives": "lives",
+    }
+
+
+async def test_a_leaf_name_two_commands_declare_in_one_subgroup_is_refused(declare):
+    declare(
+        Command("videos", cogs=(Videos,), group="notifications"),
+        Command("more_videos", cogs=(MoreVideos,), group="notifications"),
+    )
+
+    with pytest.raises(app_commands.CommandAlreadyRegistered):
+        await _parents(MagicMock())
 
 
 def test_a_cog_whose_module_has_no_setup_is_refused():

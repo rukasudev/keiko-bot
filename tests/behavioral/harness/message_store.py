@@ -76,7 +76,9 @@ class FakeMessage:
         self.created_at = FIXED_MESSAGE_TIME
         self.edited_at = None
         self.channel = SimpleNamespace(id=999, send=self._channel_send)
-        self.flags = SimpleNamespace(components_v2=isinstance(view, discord.ui.LayoutView))
+        self.flags = SimpleNamespace(
+            components_v2=isinstance(view, discord.ui.LayoutView), ephemeral=ephemeral
+        )
         # What the user can actually click: the items as they were when the
         # message was sent, exactly like discord.py's ViewStore, which maps
         # message -> item at send/edit time and reads `item.view` live at

@@ -9,7 +9,8 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import Any
 
-from app.core.calendar import mm_dd_label
+from app.core.calendar import mm_dd_label, stored_span_label
+from app.core.tokens import Token
 from app.forms.form.copy import text
 from app.forms.form.responses.links import link_host
 
@@ -24,8 +25,10 @@ STYLES: tuple[str, ...] = (
     "boolean",
     "boolean-mode",
     "mm_dd",
+    "time_span",
     "composition",
 )
+WORDED: tuple[str, ...] = ("mm_dd", "time_span")
 SAVED_AS: dict[str, str] = {
     "code_block": "code-block",
     "month_day": "mm_dd",
@@ -56,6 +59,19 @@ def format_mm_dd(value: Any, locale: str) -> str:
     return mm_dd_label(str(value), lambda key: text(key, locale))
 
 
+def format_time_span(value: Any, locale: str) -> str:
+    """`5 meses` or `1 week` from a stored span such as `P5M`."""
+    return stored_span_label(value, lambda key: text(key, locale))
+
+
+def worded(value: Any, style: str | None, locale: str) -> str:
+    """A stored value in the words of a style that reads as words, `12 de maio` or
+    `5 meses`, for a select that draws no mention; any other value as it is."""
+    if style in WORDED and value not in (None, ""):
+        return format_single(value, style, locale)
+    return str(value)
+
+
 def _lines(items: Sequence[str], style: str) -> str:
     if not items:
         return ""
@@ -78,6 +94,8 @@ def format_single(value: Any, style: str | None, locale: str) -> str:
         return format_boolean(value, locale)
     if style == "mm_dd":
         return format_mm_dd(value, locale)
+    if style == "time_span":
+        return format_time_span(value, locale)
     if value is None:
         return empty_value(locale)
     mentions: dict[str, Callable[[Any], str]] = {
@@ -113,3 +131,17 @@ def format_value(value: Any, style: str | None, locale: str) -> str:
     if isinstance(value, (str, bool, int, float)) or value is None:
         return format_single(value, style, locale)
     return format_list(list(value), style)
+
+
+def token_text(token: Token, value: Any, locale: str) -> str:
+    """An answer a `${answer...}` token reads, in its format, or its fallback."""
+    if value in (None, "", [], ()):
+        return token.fallback
+    style = stored_style(token.format)
+    if style in STYLES:
+        return format_value(value, style, locale)
+    if isinstance(value, (list, tuple)):
+        value = ", ".join(str(item) for item in value)
+    if token.format in TOKEN_FORMATTERS:
+        return TOKEN_FORMATTERS[token.format](str(value))
+    return str(value)

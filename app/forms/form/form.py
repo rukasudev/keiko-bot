@@ -12,10 +12,10 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from typing import Any, TypeVar
 
-from app.constants import KeikoIcons, Style
+from app.constants import DiscordLimits, KeikoIcons, Style
 from app.core.commands import GLOBAL
 from app.core.conditions import Scope, evaluate, explain, leaves
-from app.core.facts import facts
+from app.core.facts import facts, filled
 from app.forms.form import events as ev
 from app.forms.form.actions import (
     Refusal,
@@ -55,6 +55,7 @@ from app.forms.form.effects import (
     ReturnToOpener,
     RunAside,
     ShowError,
+    Warn,
 )
 from app.forms.form.form_state import (
     AddItem,
@@ -85,6 +86,7 @@ from app.forms.form.responses.responses import (
     items_of,
     to_document,
 )
+from app.forms.form.responses.styles import format_list
 from app.forms.form.responses.summary import (
     configured_steps,
     edit_options,
@@ -548,8 +550,9 @@ class Form(Engine):
                 (
                     position
                     for position, existing in enumerate(items)
-                    if wanted is not None
-                    and raw_value(existing.get(unique)) == wanted
+                    if composition.items.same_item(
+                        wanted, raw_value(existing.get(unique))
+                    )
                     and position != index
                 ),
                 None,
@@ -708,7 +711,7 @@ def member_picker_screen(
                 "",
                 "user",
                 text("texts.placeholders.user", locale),
-                unique=not several,
+                max_values=DiscordLimits.SELECT_VALUES if several else 1,
                 slot="member",
                 action="member" if at_once else "draft",
                 required=at_once,
@@ -1216,22 +1219,15 @@ def _on_drafted(form: Form) -> None:
         form.redraw()
         return
     if isinstance(step, CardStep):
-        context = form.step_context()
-        changes = configuration_card.apply_drafts(
-            step, event.changes, form.session, context
-        )
-
-        if isinstance(changes, Refusal):
-            form.refuse(changes, step)
+        refused = _roles_refused(event.refused, form.locale)
+        if refused is not None and not any(event.changes.values()):
+            _draw_again(form, step)
+            _warn_of_refused_roles(form, step, refused)
             return
-        answer = configuration_card.draft(step, changes, form.session, context)
-        form.session = form.session.with_answer(step.key, answer)
-        picking = _picking_several(form, step)
+        _draft_card(form, step, event)
 
-        if picking is not None:
-            _open_section(form, step, picking)
-            return
-        _redraw_or_finish(form, step)
+        if refused is not None:
+            _warn_of_refused_roles(form, step, refused)
         return
     answers = {key: Answer(value) for key, value in event.changes.items()}
     form.session = form.session.with_answers(answers)
@@ -1240,6 +1236,74 @@ def _on_drafted(form: Form) -> None:
         form.rerender()
         return
     form.effects.append(Ack())
+
+
+def _roles_refused(refused: tuple[tuple[str, str], ...], locale: str) -> Warn | None:
+    if not refused:
+        return None
+    block = "commands.responses.roles_not_assignable"
+    lines = "\n".join(
+        filled(text(f"{block}.lines.{why}", locale), {"role": role})
+        for role, why in refused
+    )
+    above = any(why == "above" for _role, why in refused)
+    return Warn(block, {"warning": lines, "above_keiko": above})
+
+
+def _warn_of_refused_roles(form: Form, step: CardStep, warning: Warn) -> None:
+    recorded = _recorded_error(warning.block)
+    form.emit(
+        "setup.validation_failed",
+        step_key=step.key,
+        validation=recorded,
+        error_key=recorded,
+    )
+    form.effects.append(warning)
+
+
+def _draw_again(form: Form, step: CardStep) -> None:
+    awaiting = form.session.awaiting or ""
+    if awaiting.startswith("section:"):
+        _open_section(form, step, int(awaiting.split(":", 1)[1]))
+        return
+    form.rerender()
+
+
+def _draft_card(form: Form, step: CardStep, event: ev.Drafted) -> None:
+    context = form.step_context()
+    changes = configuration_card.apply_drafts(
+        step, event.changes, form.session, context
+    )
+
+    if isinstance(changes, Refusal):
+        form.refuse(changes, step)
+        return
+    answer = configuration_card.draft(step, changes, form.session, context)
+    form.session = form.session.with_answer(step.key, answer)
+    picking = _picking_several(form, step)
+
+    if picking is not None:
+        _open_section(form, step, picking)
+    else:
+        _redraw_or_finish(form, step)
+    _warn_of_powerful_roles(form, step, event)
+
+
+def _warn_of_powerful_roles(form: Form, step: CardStep, event: ev.Drafted) -> None:
+    warning = next(
+        (
+            select.powerful_roles_warning
+            for section in step.sections
+            for select in section.picks()
+            if select.key in event.changes and select.powerful_roles_warning
+        ),
+        None,
+    )
+    if warning is None or not event.warned:
+        return
+    roles = format_list(event.warned, "role")
+    told = filled(warning.get(form.locale), {"roles": roles})
+    form.effects.append(Warn("commands.responses.powerful_roles", {"warning": told}))
 
 
 def _picking_several(form: Form, step: CardStep) -> int | None:
@@ -1395,6 +1459,18 @@ def _discard(form: Form, closing: Effect) -> None:
     form.effects.append(closing)
 
 
+def _on_item_removal_requested(form: Form) -> None:
+    event = form.event
+    assert isinstance(event, ev.ItemRemovalRequested)
+    _, _, number = event.target.partition("$")
+    answered = len(form.composition_items())
+
+    if not number.isdigit() or int(number) >= answered or _removable(form) < 1:
+        form.redraw()
+        return
+    confirm_removal(form, (int(number),))
+
+
 def _on_child_finished(form: Form) -> None:
     event = form.event
     assert isinstance(event, ev.ChildFinished)
@@ -1405,6 +1481,14 @@ def _on_child_finished(form: Form) -> None:
 
 
 def _on_review_confirmed(form: Form) -> None:
+    review = form.definition.steps[-1]
+    checked = registry()[review.type].parse(
+        review, None, form.session, form.step_context()
+    )
+
+    if isinstance(checked, Refusal):
+        form.refuse(checked, review)
+        return
     if form.session.mode.kind == "dry_run":
         form.session = form.session.with_status(Status.COMPLETED)
         form.effects.append(Finalize("preview"))
@@ -1448,6 +1532,7 @@ HANDLERS: dict[type[ev.Event], Callable[[Form], None]] = {
     ev.EditRequested: on_edit_requested,
     ev.AddRequested: on_add_requested,
     ev.RemoveRequested: on_remove_requested,
+    ev.ItemRemovalRequested: _on_item_removal_requested,
     ev.TargetChosen: on_target_chosen,
     ev.TargetsChosen: on_targets_chosen,
     ev.RemovalConfirmed: on_removal_confirmed,

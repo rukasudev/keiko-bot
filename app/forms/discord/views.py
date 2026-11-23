@@ -13,13 +13,15 @@ from typing import Any, cast
 
 import discord
 
-from app.constants import DiscordLimits, Style
+from app.constants import DiscordLimits, FeaturePermissions, Style
 from app.constants import ViewConstants as view_constants
 from app.core import members
+from app.core.utils import givable_role_ids, why_not_givable
 from app.forms.discord.interactions import (
     LATE_TEMPLATE,
     REOPEN,
     REOPEN_TEMPLATE,
+    Picked,
     decode,
     encode,
 )
@@ -35,6 +37,7 @@ from app.forms.form.components import (
     Picker,
     Screen,
     SectionView,
+    SelectInput,
     TextInputs,
     cancel_last,
 )
@@ -200,7 +203,7 @@ class ChannelPicker(ValuesSelect, discord.ui.ChannelSelect[Any]):
 
 
 class RolePicker(ValuesSelect, discord.ui.RoleSelect[Any]):
-    """A native role select."""
+    """A native role select, which may offer only the roles Keiko can give."""
 
     def __init__(
         self, dispatcher: Dispatcher, custom_id: str, spec: Picker, **kwargs: Any
@@ -218,6 +221,32 @@ class RolePicker(ValuesSelect, discord.ui.RoleSelect[Any]):
             **kwargs,
         )
         self.dispatcher = dispatcher
+        self.available_only = spec.available_only
+        self.warns_powerful = spec.warns_powerful
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        """Report the picked roles, split into those Keiko can give and the rest, the
+        ones that can moderate the server named apart when the select warns of them."""
+        guild = interaction.guild
+        if not self.available_only or guild is None or guild.me is None:
+            await super().callback(interaction)
+            return
+        givable = givable_role_ids(guild)
+        kept = [role for role in self.values if str(role.id) in givable]
+        reported = Picked(
+            tuple(str(role.id) for role in kept),
+            tuple(
+                (str(role.id), why_not_givable(role))
+                for role in self.values
+                if str(role.id) not in givable
+            ),
+            tuple(
+                str(role.id)
+                for role in kept
+                if self.warns_powerful and _moderates_the_server(role)
+            ),
+        )
+        await self.dispatcher.handle(interaction, self.custom_id or "", reported)
 
 
 class UserPicker(ValuesSelect, discord.ui.UserSelect[Any]):
@@ -275,6 +304,13 @@ class OptionsPicker(ValuesSelect, discord.ui.Select[Any]):
 PICKERS = {"channel": ChannelPicker, "role": RolePicker, "user": UserPicker}
 
 
+def _moderates_the_server(role: discord.Role) -> bool:
+    powers = discord.Permissions(
+        **dict.fromkeys(FeaturePermissions.MODERATES_THE_SERVER, True)
+    )
+    return bool(role.permissions.value & powers.value)
+
+
 def _fit(text: str | None) -> str | None:
     if text in (None, ""):
         return None
@@ -297,7 +333,7 @@ def _select_item(
             custom_id,
             component,
             min_values=1 if component.required else 0,
-            max_values=1 if component.unique else 25,
+            max_values=component.max_values,
         )
     assert isinstance(component, OptionSelect)
     return OptionsPicker(dispatcher, custom_id, component)
@@ -440,7 +476,8 @@ def _card_section(
 ) -> None:
     texts = (section.heading, section.description, *section.preview)
     shown = "\n".join(line for line in texts if line)
-    container.add_item(discord.ui.TextDisplay(shown))
+    if shown:
+        container.add_item(discord.ui.TextDisplay(shown))
 
     if section.media and section.preview:
         _picture(container, section.media)
@@ -633,7 +670,8 @@ def layout_of(
 
 
 class FormModal(discord.ui.Modal):
-    """A modal that reports its inputs, or the url of its uploaded file."""
+    """A modal that reports its inputs, its chosen options, the url of its uploaded
+    file, or all of them."""
 
     def __init__(
         self,
@@ -650,6 +688,7 @@ class FormModal(discord.ui.Modal):
         self.dispatcher = dispatcher
         self.custom_id = ids(action, arg)
         self.inputs: list[discord.ui.TextInput[Any]] = []
+        self.choices: dict[str, discord.ui.Select[Any]] = {}
         self.file_upload: discord.ui.FileUpload[Any] | None = None
         self.check: Extension | None = None
 
@@ -668,27 +707,54 @@ class FormModal(discord.ui.Modal):
                     )
                     self.inputs.append(item)
                     self.add_item(item)
+            elif isinstance(component, SelectInput):
+                select: discord.ui.Select[Any] = discord.ui.Select(
+                    custom_id=f"choice_{component.key}"[: DiscordLimits.CUSTOM_ID],
+                    placeholder=component.placeholder,
+                    options=[
+                        discord.SelectOption(
+                            label=option.label[: DiscordLimits.SELECT_OPTION_TEXT],
+                            value=option.value,
+                            description=option.description[
+                                : DiscordLimits.SELECT_OPTION_TEXT
+                            ]
+                            or None,
+                            default=option.selected,
+                        )
+                        for option in component.options
+                    ],
+                    required=True,
+                )
+                self.choices[component.key] = select
+                self.add_item(
+                    discord.ui.Label(
+                        text=component.label[: DiscordLimits.MODAL_INPUT_LABEL],
+                        component=select,
+                    )
+                )
             elif isinstance(component, FileInput):
                 self.check = component.check
                 self.file_upload = discord.ui.FileUpload(
-                    custom_id="custom_image_upload"
+                    custom_id="custom_image_upload", required=component.required
                 )
                 self.add_item(
                     discord.ui.Label(text=component.label, component=self.file_upload)
                 )
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
-        """Report the typed inputs, or the uploaded file's permanent url."""
+        """Report the typed inputs, the chosen options and the uploaded file's
+        permanent url."""
+        payload: dict[str, Any] = {}
+        if self.inputs or self.file_upload is None:
+            payload["inputs"] = [item.value for item in self.inputs]
+        if self.choices:
+            payload["chosen"] = {
+                key: select.values[0] if select.values else None
+                for key, select in self.choices.items()
+            }
         if self.file_upload is not None:
-            await self.dispatcher.handle(
-                interaction, self.custom_id, await self._uploaded()
-            )
-            return
-        await self.dispatcher.handle(
-            interaction,
-            self.custom_id,
-            {"inputs": [item.value for item in self.inputs]},
-        )
+            payload.update(await self._uploaded())
+        await self.dispatcher.handle(interaction, self.custom_id, payload)
 
     async def _uploaded(self) -> dict[str, Any]:
         values = self.file_upload.values if self.file_upload else []

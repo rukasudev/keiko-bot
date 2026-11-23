@@ -396,6 +396,102 @@ def test_back_never_lands_on_a_modal_step():
     assert "name" not in back.session.answers
 
 
+def _review_requiring(required, card_required=None):
+    """A form of one card with two role selects, whose review requires `required` and
+    whose card `card_required`."""
+    from app.forms.form.form_yaml import compile_form
+    from tests.forms.form.card_fixtures import text
+
+    def select(key):
+        return {
+            "type": "roles",
+            "key": key,
+            "label": text(key),
+            "placeholder": text(key),
+        }
+
+    return compile_form(
+        "review_requiring",
+        {
+            "steps": [
+                {
+                    "type": "intro",
+                    "key": "form",
+                    "title": text("🧪"),
+                    "description": text("i"),
+                },
+                {
+                    "type": "card",
+                    "key": "roles",
+                    "title": text("Roles"),
+                    "description": text("r"),
+                    "sections": [
+                        {
+                            "type": "selects",
+                            "key": "picked",
+                            "emoji": "👥",
+                            "label": text("Roles"),
+                            "selects": [select("members"), select("bots")],
+                        }
+                    ],
+                    **({"required": card_required} if card_required else {}),
+                },
+                {
+                    "type": "review",
+                    "key": "confirm",
+                    "title": text("ok?"),
+                    "description": text("r"),
+                    "required": required,
+                },
+            ]
+        },
+    )
+
+
+def _confirmed_review(definition, picked):
+    session = new_session(
+        (definition.key, definition.version), Setup(), ORIGIN, ttl_seconds=60, now=NOW
+    )
+    drafts = [evt(ev.Drafted, step_key="roles", changes=picked)] if picked else []
+    events = [
+        evt(ev.Started),
+        evt(ev.Answered, step_key="form"),
+        *drafts,
+        evt(ev.Answered, step_key="roles"),
+        evt(ev.Answered, step_key="confirm"),
+    ]
+    return replay(definition, session, events)[-1]
+
+
+@pytest.mark.parametrize(
+    ("required", "error"),
+    [
+        ({"any": ["members", "bots"]}, "fill_one_field"),
+        ({"all": ["bots"]}, "required_fields"),
+    ],
+)
+def test_the_review_refuses_confirm_while_what_it_requires_is_empty(required, error):
+    """The review's own rule spans the form: Confirm with none of its `any` keys
+    given, or one of its `all` keys empty, saves nothing and says what is missing."""
+    definition = _review_requiring(required)
+
+    decision = _confirmed_review(
+        definition, {"members": ["1"]} if "all" in required else {}
+    )
+
+    assert kinds(decision) == ["ShowError"]
+    assert decision.effects[0].key == error
+    assert decision.session.cursor == "confirm"
+
+
+def test_the_review_confirms_once_one_key_of_its_rule_holds_a_value():
+    definition = _review_requiring({"any": ["members", "bots"]})
+
+    decision = _confirmed_review(definition, {"bots": ["2"]})
+
+    assert "Commit" in kinds(decision)
+
+
 def test_back_at_the_first_step_only_acknowledges():
     definition, decision = start("block_links")
     at_card = decide(definition, decision.session, evt(ev.Answered, step_key="form"))
@@ -1242,34 +1338,34 @@ def test_a_rejected_event_leaves_the_deadline_where_it_was():
 def test_a_card_that_needs_one_of_its_selects_refuses_done_when_every_one_is_empty():
     """Broke as: default roles saved with both dropdowns empty. Since beta.2
     (dr-2) the roles are a card, and `required.any` keeps that refusal: Done
-    stays on the card and says, on a message of its own, that one is needed."""
-    definition, decision = start("default_roles")
-    step = decide(definition, decision.session, evt(ev.Answered, step_key="form"))
-    assert step.session.cursor == "default_roles_config"
-    empty = decide(
-        definition, step.session, evt(ev.Answered, step_key="default_roles_config")
+    stays on the card and says, on a message of its own, that one is needed.
+    Auto roles moved its rule to the summary once a rung could stand in for the
+    roles (PR10); the card's rule stays for every card that declares it."""
+    definition = _review_requiring({}, card_required={"any": ["members", "bots"]})
+    session = new_session(
+        (definition.key, definition.version), Setup(), ORIGIN, ttl_seconds=60, now=NOW
     )
+    step = replay(
+        definition, session, [evt(ev.Started), evt(ev.Answered, step_key="form")]
+    )[-1]
+    assert step.session.cursor == "roles"
+
+    empty = decide(definition, step.session, evt(ev.Answered, step_key="roles"))
     assert kinds(empty) == ["Render", "ShowError"]
     assert empty.effects[-1].key == "fill_one_field"
-    assert empty.session.refused.missing == ("default_roles_bot", "default_roles")
+    assert empty.session.refused.missing == ("members", "bots")
     header = screen(empty).components[0].header
     assert header.lines == screen(step).components[0].header.lines, (
         "the card itself shows no error line"
     )
-    assert empty.session.cursor == "default_roles_config"
+    assert empty.session.cursor == "roles"
     drafted = decide(
         definition,
         empty.session,
-        evt(
-            ev.Drafted,
-            step_key="default_roles_config",
-            changes={"default_roles": ["202"]},
-        ),
+        evt(ev.Drafted, step_key="roles", changes={"members": ["202"]}),
     )
-    one = decide(
-        definition, drafted.session, evt(ev.Answered, step_key="default_roles_config")
-    )
-    assert one.session.cursor == "sync_existing"
+    one = decide(definition, drafted.session, evt(ev.Answered, step_key="roles"))
+    assert one.session.cursor == "confirm"
 
 
 def test_confirming_the_member_picker_on_the_review_does_not_save():
@@ -1989,7 +2085,10 @@ def test_the_roles_card_has_no_toggle_to_give_the_roles_now():
     definition, at_card = _default_roles_card(Context())
 
     shown = [section.key for section in screen(at_card).components[0].sections]
-    assert shown == ["default_roles_bot", "default_roles"]
+    assert "sync_existing" not in shown and shown[:2] == [
+        "default_roles_bot",
+        "default_roles",
+    ]
 
 
 @pytest.mark.parametrize("pressed,wanted", [("True", True), ("False", False)])

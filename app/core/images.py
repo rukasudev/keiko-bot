@@ -7,7 +7,7 @@ import warnings
 from functools import lru_cache
 from io import BytesIO
 from typing import Dict, Optional, Tuple, Union
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 import discord
 import requests
@@ -124,6 +124,18 @@ async def upload_asset(path: str) -> str:
     url = await upload(path)
     _uploaded_assets[path] = (url, time.monotonic())
     return url
+
+
+async def fresh_attachment_url(url: str) -> str:
+    """The link as Discord still serves it: a signed attachment link past its `ex=`
+    time signed again, any other link as it is."""
+    expiry = parse_qs(urlparse(url).query).get("ex", [""])[0]
+    try:
+        expired = is_attachment(url) and int(expiry, 16) <= time.time()
+    except ValueError:
+        return url
+
+    return await refresh_attachment_url(url) if expired else url
 
 
 async def refresh_attachment_url(url: str) -> str:

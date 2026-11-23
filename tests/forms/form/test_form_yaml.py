@@ -20,6 +20,7 @@ from app.forms.form.form_yaml import (
     Vocabulary,
     compile_form,
     overridden_text,
+    owned_keys,
     shared_vocabulary,
     written_out,
 )
@@ -48,6 +49,10 @@ REJECTED = [
     ("group_override_unknown_key.yml", "'nao_existe' is not produced earlier"),
     ("keys_value_names_no_input.yml", "keys.value names none of the inputs"),
     ("modal_with_six_inputs.yml", "a modal holds at most 5 inputs"),
+    ("modal_select_past_five.yml", "a modal holds at most 5 inputs"),
+    ("modal_select_over_discord.yml", "options: Tuple should have at most 25 items"),
+    ("modal_upload_without_a_validator.yml", "upload.validation: Field required"),
+    ("unique_normalizer_unknown.yml", "unknown normalizer 'unicorn'"),
     ("unkeyed_input_without_value.yml", "inputs without a key need keys.value"),
     (
         "field_edit_inside_a_list.yml",
@@ -72,7 +77,25 @@ REJECTED = [
         "last_item_warning: removing the last item of a required list",
     ),
     ("group_button_without_a_label.yml", "button.label: Field required"),
+    (
+        "group_collapsed_without_its_screen.yml",
+        "a collapsed group opens a screen of its own",
+    ),
     ("selects_without_a_select.yml", "selects.selects: Tuple should have at least 1"),
+    ("select_max_over_discord.yml", "max: Input should be less than or equal to 25"),
+    ("select_max_below_one.yml", "max: Input should be greater than or equal to 1"),
+    (
+        "select_warning_on_channels.yml",
+        "`powerful_roles_warning` is read only on a select of `type: assignable_roles`",
+    ),
+    (
+        "review_requires_an_unknown_key.yml",
+        "confirm: required: 'rungs' is not produced earlier",
+    ),
+    (
+        "list_name_reads_an_unknown_key.yml",
+        "items.name.en-us: ${answer.dayz}: 'dayz' is not produced earlier",
+    ),
     ("group_holding_an_unknown_section.yml", "sections: 'places' is no section"),
     ("group_holding_a_group.yml", "'inner' is a group, and a group holds no group"),
     (
@@ -285,7 +308,7 @@ TYPOS = [
         "${answer.link:host|",
         "${answer.link:hots|",
         "'hots' is no format (channel, role, user, bullet, code_block, numbered, "
-        "code, boolean, customized, month_day, host); did you mean :host?",
+        "code, boolean, customized, month_day, time_span, host); did you mean :host?",
     ),
     (
         "default_roles",
@@ -878,3 +901,50 @@ def test_an_upload_names_the_validator_its_file_goes_through():
 def test_an_upload_and_its_validator_must_agree(card, message):
     with pytest.raises(CompileError, match=message):
         _compiled(card)
+
+
+CONTENT = {
+    "type": "modal_input",
+    "key": "content",
+    "emoji": "💬",
+    "label": _text("Content"),
+    "keys": {"value": "text", "image": "image"},
+    "modal": {
+        "title": _text("Content"),
+        "inputs": [{"key": "text", "label": _text("Text")}],
+        "upload": {"validation": {"name": "image"}},
+    },
+}
+
+
+def test_a_text_modal_takes_an_image_its_upload_validator_checks():
+    """A `modal_input` modal may take an optional image beside its inputs: the image
+    is written to `keys.image` and checked by a validator of uploads."""
+    definition = _compiled(_card(sections=[CONTENT]))
+    (section,) = definition.step("card").sections
+
+    assert [rule.name for rule in section.checked_uploads()] == ["image"]
+    assert "image" in owned_keys(section)
+
+
+@pytest.mark.parametrize(
+    "content, message",
+    [
+        (
+            CONTENT | {"keys": {"value": "text"}},
+            "a modal that takes an image writes it to `keys.image`",
+        ),
+        (
+            CONTENT
+            | {
+                "modal": CONTENT["modal"]
+                | {"upload": {"validation": {"name": "link_or_domain"}}}
+            },
+            "an upload is checked by a validator of uploads, not link_or_domain",
+        ),
+    ],
+    ids=["no-image-key", "text-validator"],
+)
+def test_a_text_modal_image_needs_its_key_and_an_upload_validator(content, message):
+    with pytest.raises(CompileError, match=message):
+        _compiled(_card(sections=[content]))

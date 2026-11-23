@@ -84,6 +84,7 @@ async def test_birthday_member_card_is_within_discord_limits(scenario_factory):
 MANAGER_SEEDS = (
     "block_links",
     "default_roles",
+    "reaction_roles",
     "welcome_messages",
     "notifications_twitch",
     "notifications_kick",
@@ -263,6 +264,180 @@ def test_a_review_with_a_full_list_is_within_discord_limits():
     assert_within_limits(view, "block_links review with 25 links")
 
 
+FULL_LADDER = (1, 3, 7, 14, 30)
+
+
+def test_an_auto_roles_review_with_a_full_ladder_is_within_discord_limits():
+    """Five rungs, the most a ladder takes, beside the join roles of both kinds."""
+    from app.forms.discord.views import layout_of
+    from app.forms.form import events as ev
+    from app.forms.form.form import decide
+    from app.forms.form.form_state import Answer, Origin, Setup, new_session
+    from app.forms.form.form_yaml import DefinitionRegistry
+
+    definition = DefinitionRegistry().get("default_roles")
+    rungs = tuple(
+        {"time": Answer(f"P{days}D"), "role": Answer(str(200 + index))}
+        for index, days in enumerate(FULL_LADDER)
+    )
+    session = new_session(
+        (definition.key, definition.version),
+        Setup(),
+        Origin("123456789", "555", "pt-br"),
+        ttl_seconds=60,
+        answers={
+            "default_roles_config": Answer(
+                None, {"default_roles": ["202"], "default_roles_bot": ["201"]}
+            ),
+            "role_ladder": Answer(rungs),
+        },
+    ).at(definition.steps[-1].key)
+
+    decision = decide(definition, session, ev.ScreenRequested("e1", None))
+    view = layout_of(decision.effects[0].screen, lambda action, arg=None: "k:s:1:x", None)
+    assert_within_limits(view, "default_roles review with 5 rungs")
+
+
+async def test_an_auto_roles_panel_with_a_full_ladder_is_within_discord_limits(
+    scenario_factory, deps
+):
+    """The panel lists five rungs, with its Add off and its Sync, inside the limits."""
+    from tests.behavioral.flows import roles
+    from tests.behavioral.flows.common import seed_document
+    from tests.generators.moderations import ladder_rung
+
+    full = {
+        **roles.ENABLED,
+        "role_ladder": {
+            "style": "composition",
+            "values": [ladder_rung(days, "202") for days in FULL_LADDER],
+        },
+    }
+    seed_document(deps, roles.FORM, full)
+    guild = roles.server_where_keiko_gives_every_role()
+    scenario = await scenario_factory(locale="pt-br", guild=guild).start_command(roles.FORM)
+
+    view = scenario.current_message.view
+    assert_within_limits(view, "default_roles panel with 5 rungs")
+    assert_ids_are_unique(view, "default_roles panel with 5 rungs")
+    await scenario.click("edit:group:ladder")
+    screen = scenario.current_message.view
+    assert_within_limits(screen, "default_roles ladder screen with 5 rungs")
+    assert_ids_are_unique(screen, "default_roles ladder screen with 5 rungs")
+    await scenario.finish()
+
+
+def test_the_auto_roles_card_ladder_screen_with_a_full_ladder_fits_its_estimate():
+    """PR10 rounds 3 and 4: the card's ladder screen draws each of five time roles as a
+    block with its Edit and Remove, inside Discord's limits and within the compiler's
+    estimate."""
+    from dataclasses import replace
+
+    from app.forms.discord.views import layout_of
+    from app.forms.form.actions.action import Context
+    from app.forms.form.actions.configuration_card import render
+    from app.forms.form.form_state import Answer, Origin, Setup, new_session
+    from app.forms.form.form_yaml import DefinitionRegistry, ListStep, group_components
+
+    definition = DefinitionRegistry().get("default_roles")
+    card = definition.step("default_roles_config")
+    [group] = [section for section in card.sections if section.collapsed_on_card()]
+    lists = {step.key: step for step in definition.steps if isinstance(step, ListStep)}
+    rungs = tuple(
+        {"time": Answer(f"P{days}D"), "role": Answer(str(200 + index))}
+        for index, days in enumerate(FULL_LADDER)
+    )
+    session = new_session(
+        (definition.key, definition.version),
+        Setup(),
+        Origin("123456789", "555", "pt-br"),
+        ttl_seconds=60,
+        answers={"role_ladder": Answer(rungs)},
+    ).at(card.key)
+    context = Context(definition=definition, steps=definition.steps, locale="pt-br")
+
+    shown = replace(session, opened_group=group.key)
+    view = layout_of(
+        render(card, shown, context), lambda action, arg=None: "k:s:1:x", None
+    )
+    drawn = len(list(walk_items(view)))
+    estimate = group_components(card, group, lists)
+    assert_within_limits(view, "default_roles card ladder screen with 5 rungs")
+    assert drawn <= estimate, f"{drawn} drawn, estimated {estimate}"
+    print(f"default_roles card ladder screen: {drawn} drawn, estimated {estimate}")
+
+
+LONGEST_LADDER = (
+    ((1, "months"), 350),
+    ((1, "years"), 715),
+    ((2, "years"), 1080),
+    ((3, "years"), 1810),
+    ((5, "years"), 3640),
+)
+SNOWFLAKE = 1246698994160242000
+
+
+@pytest.mark.parametrize("locale", ["en-us", "pt-br"])
+async def test_the_time_roles_question_with_every_role_full_fits_its_card(
+    scenario_factory, deps, locale
+):
+    """Five time roles, each past its preview with members whose lines read longest.
+
+    Broke as: the question wrote up to ten lines and "and N more" for each of five
+    time roles, with no regard to the embed, so five roles of eleven members who
+    joined years ago passed Discord's 4096 characters (4398 in en-us); Discord
+    refused the question after the save, and the admin never saw it.
+    Shared behaviour: none, the question auto roles asks after a save, drawn by
+    `response_card` since the round-6 mark. Consumer that exposed it: a setup with
+    five time roles.
+    Guaranteed: the question is a card within Discord's forty components and 4000
+    characters, naming three roles of five members at most and how many more, with
+    See all below it, which opens the rest, each page within a field.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from app.constants import DiscordLimits, ViewConstants
+    from app.core.utils import ml
+    from tests.behavioral.flows import roles
+    from tests.helpers.components import button_labels
+    from tests.mocks.discord import create_member
+
+    guild = roles.server_where_keiko_gives_every_role()
+    deps.bot.get_guild = lambda guild_id: guild
+    now = datetime.now(timezone.utc)
+    names = [f"Veterans of the server, rank {index}" for index in range(5)]
+    roles.add_roles(guild, names, first_id=SNOWFLAKE)
+    for index, (_time, days) in enumerate(LONGEST_LADDER):
+        for member in range(ViewConstants.COMPOSITION_PREVIEW_LIMIT + 1):
+            create_member(
+                guild,
+                id=SNOWFLAKE + 100 * (index + 1) + member,
+                name=f"A member with a long display name {member}",
+                joined_at=now - timedelta(days=days),
+            )
+    scenario = await scenario_factory(locale=locale, guild=guild).start_command(
+        roles.FORM
+    )
+    await scenario.confirm()
+    for name, (time, _days) in zip(names, LONGEST_LADDER):
+        await roles.add_rung(scenario, time, name)
+    await scenario.click("done")
+    await scenario.confirm()
+
+    question = scenario.current_message
+    assert not question.embeds, "the question is a card"
+    assert_within_limits(question.view, "the time roles question with five full roles")
+    assert_ids_are_unique(question.view, "the time roles question with five full roles")
+    assert ml("buttons.see_all.label", locale) in button_labels(question)
+
+    await scenario.click(ml("buttons.see_all.label", locale))
+    for _page in range(len(LONGEST_LADDER)):
+        [field] = scenario.expect_message(ephemeral=True)["embed"]["fields"]
+        assert len(field["value"]) <= DiscordLimits.EMBED_FIELD_VALUE
+        await scenario.click(">")
+    await scenario.finish()
+
+
 @pytest.mark.parametrize("months", [1, 12], ids=["one-month", "every-month"])
 async def test_a_birthday_panel_with_a_full_list_is_within_discord_limits(
     scenario_factory, deps, months
@@ -323,6 +498,18 @@ LARGEST_CARDS = {
     ("default_roles", "default_roles_config"): {
         "default_roles_bot": ["1", "2"],
         "default_roles": ["3"],
+    },
+    ("reaction_roles", "menu"): {
+        "channel": "1",
+        "title": "x" * 50,
+        "text": "y" * 100,
+        "footer": "z" * 100,
+        "image": "https://cdn.example/menu.png",
+        "mode": "one",
+        "roles": [str(role) for role in range(1, 11)],
+    },
+    ("default_roles", "rung"): {
+        "time": "P521W", "amount": "521", "unit": "weeks", "role": "1",
     },
     ("reminders_birthday", "birthday_config"): {
         "channel": "1",
@@ -433,6 +620,10 @@ def test_every_card_with_its_controls_at_its_largest_fits_discord(
         {"link": Answer(f"site{index}.com"), "match_type": Answer("domain")}
         for index in range(25)
     )
+    rungs = tuple(
+        {"time": Answer(f"P{days}D"), "role": Answer(str(index))}
+        for index, days in enumerate((1, 3, 7, 14, 30))
+    )
     session = new_session(
         (definition.key, definition.version),
         Setup(),
@@ -441,6 +632,7 @@ def test_every_card_with_its_controls_at_its_largest_fits_discord(
         answers={
             card_key: Answer(None, LARGEST_CARDS[(form, card_key)]),
             "custom_links": Answer(links),
+            "role_ladder": Answer(rungs),
         },
     ).at(card_key)
     designs = {design.value: f"https://cdn.example/{design.value}.png"

@@ -489,6 +489,32 @@ async def test_every_feature_command_is_registered_where_its_spec_says():
         assert registered == declared
 
 
+def test_commands_that_share_a_subgroup_name_it_alike_in_every_locale():
+    """Within a parent group, a subgroup's name in any locale names one subgroup, so
+    two commands that share one write the same name for it in every locale.
+
+    Broke as: reaction roles kept the en-us subgroup `default` of the old default
+    roles while auto roles moved to `roles`, both `cargos` in pt-br, so
+    `/moderations` held two siblings, `default reaction` and `roles auto`, and
+    `/moderações` two subgroups both named `cargos`. Shared behaviour: the one
+    subgroup per name that `app/core/groups.py` attaches, keyed by its en-us name.
+    Consumer that exposed it: reaction roles. Guaranteed: within a group, one
+    localized subgroup name maps to one subgroup, in every locale.
+    """
+    from app.core.commands import setup_features
+    from app.core.utils import ml
+
+    sharing: dict[tuple[str, str, str], set[tuple[str, ...]]] = {}
+    for spec in setup_features():
+        names = tuple(
+            ml(f"{spec.key}.command.slash.subgroup", locale) for locale in LOCALES
+        )
+        for locale, name in zip(LOCALES, names):
+            sharing.setdefault((str(spec.group), locale, name), set()).add(names)
+
+    assert {shared: names for shared, names in sharing.items() if len(names) > 1} == {}
+
+
 def test_setup_lists_the_features_in_the_order_it_always_did():
     from app.core.commands import setup_features
     from app.forms.features import feature_keys
@@ -496,6 +522,7 @@ def test_setup_lists_the_features_in_the_order_it_always_did():
     assert list(feature_keys()) == [
         "welcome_messages",
         "default_roles",
+        "reaction_roles",
         "block_links",
         "notifications_twitch",
         "notifications_kick",

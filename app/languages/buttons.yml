@@ -61,6 +61,11 @@ remove_item:
     en-us: Remove this
     pt-br: Remover este
 
+see_all:
+  label:
+    en-us: See all
+    pt-br: Ver todos
+
 search:
   label:
     en-us: Search

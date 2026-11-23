@@ -13,6 +13,7 @@ production: the invocation line was added with `trace.add()` at two call sites, 
 `guild.logs` held eight boot records and nothing about the commands people actually
 ran, while the log channel showed the same invocation printed twice.
 """
+import asyncio
 import logging
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -364,6 +365,29 @@ async def test_a_server_discord_refuses_is_one_keiko_cannot_reach(caplog):
 
 
 @pytest.mark.shared_contract("fan_out")
+async def test_a_bounded_fan_out_serves_every_server_a_few_at_a_time():
+    """A fan-out given how many servers it serves at once never runs more of them
+    together, and still serves every one, each on its own."""
+    running, most = 0, 0
+
+    async def share(fails: bool) -> None:
+        nonlocal running, most
+        running += 1
+        most = max(most, running)
+        await asyncio.sleep(0)
+        running -= 1
+        if fails:
+            raise RuntimeError("down")
+
+    served = await trace_service.fan_out(
+        "probe_pass", [(str(index), share(index == 2)) for index in range(7)], at_once=3
+    )
+
+    assert most == 3
+    assert [share.outcome for share in served].count(Outcome.DELIVERED) == 6
+
+
+@pytest.mark.shared_contract("fan_out")
 def test_the_lookup_says_which_of_the_server_or_the_channel_is_missing(deps):
     guild = SimpleNamespace(id=1, get_channel=lambda channel_id: "general" if channel_id == 10 else None)
     deps.bot.get_guild = lambda guild_id: guild if guild_id == 1 else None
@@ -477,7 +501,7 @@ async def test_a_new_member_is_welcomed_when_giving_roles_fails(
         "welcome_messages_title": "Welcome!",
         "welcome_messages_footer": "Enjoy your stay!",
     }
-    monkeypatch.setattr("app.commands.roles.service.get_available_roles_by_guild", lambda guild: ["Member"])
+    monkeypatch.setattr("app.commands.roles.service.givable_role_ids", lambda guild: {"202"})
     monkeypatch.setattr(
         "app.commands.roles.service.set_on_member_join",
         AsyncMock(side_effect=RuntimeError("Missing Permissions")),

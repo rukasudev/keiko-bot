@@ -17,9 +17,9 @@ ENGLISH = discord.Locale.american_english
 @dataclass(frozen=True)
 class Listed:
     """One app command a reader can run: its name in the reader's language and in
-    English, its caption, the key of the command a subgroup's leaf opens (the one its
-    callback is named after, else the one whose subgroup holds it), the parent group
-    it sits under, and whether it is for whoever configures Keiko."""
+    English, its caption, the key of the command a subgroup's leaf opens (the one whose
+    cog declares the leaf, in a subgroup it may share), the parent group it sits under,
+    and whether it is for whoever configures Keiko."""
 
     name: str
     english: str
@@ -78,15 +78,10 @@ def _slash(
 
 
 def _declared_by(command: app_commands.Command[Any, ..., Any]) -> str | None:
-    named = command.callback.__name__
-    in_subgroup = command.parent is not None
-    if in_subgroup and any(declared.key == named for declared in commands()):
-        return named
-
-    subgroup = type(command.parent)
-    return next(
-        (declared.key for declared in commands() if subgroup in declared.cogs), None
-    )
+    if command.parent is None:
+        return None
+    cog = type(command.binding)
+    return next((declared.key for declared in commands() if cog in declared.cogs), None)
 
 
 def _extra(

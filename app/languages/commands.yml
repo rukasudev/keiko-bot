@@ -74,6 +74,48 @@ responses:
       en-us: Hey, I noticed you typed a mention in the text! Use the **📣 ${ref.mention}** field to choose who you want me to notify.
       pt-br: Ei, vi que você digitou uma menção no texto! Use o campo **📣 ${ref.mention}** para escolher quem você quer notificar.
     tone: warning
+  roles_not_assignable:
+    title:
+      en-us: ⚠️ Roles I can't give
+      pt-br: ⚠️ Cargos que não consigo dar
+    description:
+      en-us: $warning
+      pt-br: $warning
+    tone: warning
+    overrides:
+      - when:
+          key: global.facts.above_keiko
+          is: true
+        description:
+          en-us: "$warning\n\nTo let me give a role that is above mine, drag my role above it in **Server Settings > Roles** and pick the role again! 🐶"
+          pt-br: "$warning\n\nPara eu conseguir dar um cargo que está acima do meu, arraste o meu cargo para cima dele em **Configurações do Servidor > Cargos** e escolha o cargo de novo! 🐶"
+    # open: why Keiko refused a role -> its line
+    lines:
+      above:
+        en-us: "- The <@&$role> role is above mine, so I can't assign it"
+        pt-br: "- O cargo <@&$role> está acima do meu, então não consigo atribuí-lo"
+      managed:
+        en-us: "- The <@&$role> role is managed by a bot or an integration, so I can't assign it"
+        pt-br: "- O cargo <@&$role> é controlado por um bot ou integração, então não consigo atribuí-lo"
+      everyone:
+        en-us: "- Everyone already has the `@everyone` role, so I don't need to assign it"
+        pt-br: "- Todo mundo já tem o cargo `@everyone`, então não preciso atribuí-lo"
+  powerful_roles:
+    title:
+      en-us: ⚠️ Heads up!
+      pt-br: ⚠️ Atenção!
+    description:
+      en-us: $warning
+      pt-br: $warning
+    tone: warning
+  keep_one_field:
+    title:
+      en-us: ⚠️ I kept it as it was
+      pt-br: ⚠️ Deixei como estava
+    description:
+      en-us: "I need at least one of these to work: $fields. To take this one out, set up another one first!"
+      pt-br: "Preciso de pelo menos um destes para funcionar: $fields. Para tirar este, configure outro antes!"
+    tone: warning
   delete:
     title:
       en-us: 🗑️ Delete this command's settings?

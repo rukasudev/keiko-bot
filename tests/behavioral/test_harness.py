@@ -5,6 +5,7 @@ cover the interaction state machine, click dispatch across the repo's four
 callback patterns, normalization determinism, transcript diagnostics, and
 scenario isolation.
 """
+import asyncio
 import copy
 from datetime import datetime, timezone
 
@@ -43,6 +44,32 @@ def _interaction(store=None, message=None):
 
 
 # ---------------------------------------------------------------- state machine
+
+async def test_finish_waits_for_the_work_a_feature_started_in_the_background(deps):
+    """What a save or a yes hands to the background reaches the screen before the
+    flow ends, so a test or a golden book reads its outcome."""
+    from app.core.commands import command_for
+    from app.forms.features.feature import CommitContext
+
+    feature = command_for("default_roles").feature
+    done = []
+
+    async def later() -> None:
+        for _turn in range(5):
+            await asyncio.sleep(0)
+        done.append("background")
+
+    context = CommitContext("123456789", "555", "pt-br", {}, datetime.now(timezone.utc))
+    feature.in_background(later(), context)
+    guild = create_guild()
+    scenario = FormScenario(
+        guild=guild, user=create_member(guild), locale="pt-br", mongo=deps.mongo_client
+    )
+
+    await scenario.finish()
+
+    assert done == ["background"]
+
 
 async def test_response_is_done_flips_after_each_initial_response():
     for api, kwargs in [
@@ -470,6 +497,31 @@ async def test_a_click_by_custom_id_alone_reaches_the_dynamic_items(scenario_fac
 
     assert answered.response.is_done(), "the late item answered it"
     assert scenario.outputs[-1]["kind"] == "send", "no message to edit: a new one"
+
+
+async def test_a_dynamic_item_is_recorded_and_clicked_as_the_button_it_wraps(
+    scenario_factory,
+):
+    """A button Keiko routes by its custom id alone shows its label and colour, in
+    the transcript and in a book, and a click on it is named by its label."""
+
+    class Wrapped(discord.ui.DynamicItem[discord.ui.Button], template=r"wrapped:(?P<n>\d)"):
+        def __init__(self, number):
+            super().__init__(discord.ui.Button(
+                label="Gamer", style=discord.ButtonStyle.success, custom_id=f"wrapped:{number}"
+            ))
+
+    view = discord.ui.View(timeout=None)
+    view.add_item(Wrapped(1))
+    scenario = scenario_factory()
+    message = scenario.post(view)
+
+    assert scenario.outputs[-1]["components"] == [{
+        "type": "button", "label": "Gamer", "action": "wrapped:1",
+        "style": "success", "disabled": False,
+    }]
+    await scenario.click_after_restart(message.registered_items[0], on=message)
+    assert scenario.outputs[-1]["target"] == "Gamer"
 
 
 async def test_the_expiry_loop_closes_what_nobody_touched_for_a_lifetime(

@@ -400,6 +400,7 @@ async def drive_subscriptions_and_messages(now: datetime) -> None:
     await messages.save_message(GUILD, CHANNEL, "notifications_twitch", "streamer", "1")
     await messages.find_message(GUILD, CHANNEL, "notifications_twitch", "streamer")
     await messages.count_messages("notifications_twitch", "streamer")
+    await messages.delete_message(GUILD, CHANNEL, "notifications_twitch", "streamer")
 
 
 async def drive_analytics(now: datetime) -> None:

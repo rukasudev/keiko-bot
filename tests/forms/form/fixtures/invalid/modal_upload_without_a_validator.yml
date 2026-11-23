@@ -1,0 +1,26 @@
+steps:
+  - type: intro
+    key: form
+    title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
+    description: {en-us: intro, pt-br: intro}
+  - type: card
+    key: card
+    title: {en-us: Card, pt-br: Card}
+    description: {en-us: card, pt-br: card}
+    fields:
+      - {key: one, label: {en-us: One, pt-br: Um}}
+    sections:
+      - key: text
+        emoji: "💬"
+        type: modal_input
+        label: {en-us: Text, pt-br: Texto}
+        keys: {value: one, image: image}
+        modal:
+          title: {en-us: Text, pt-br: Texto}
+          inputs:
+            - {key: one, label: {en-us: One, pt-br: Um}}
+          upload: {}
+  - type: review
+    key: confirm
+    title: {en-us: "ok?", pt-br: "ok?"}
+    description: {en-us: review, pt-br: review}

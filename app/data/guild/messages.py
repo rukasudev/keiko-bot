@@ -43,3 +43,11 @@ class Messages(Repository):
             },
             upsert=True,
         )
+
+    async def delete_message(
+        self, guild_id: Any, channel_id: Any, cog: str, subject: str
+    ) -> None:
+        """Forget the message a cog posted about `subject` in a channel of a server."""
+        await self._collection.delete_one(
+            {"_id": f"{guild_id}:{channel_id}:{cog}:{subject}"}
+        )

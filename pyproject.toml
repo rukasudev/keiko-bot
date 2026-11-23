@@ -41,6 +41,8 @@ files = [
     "app/core/groups.py",
     "app/core/mentions.py",
     "app/core/lives.py",
+    "app/core/locks.py",
+    "app/core/posted.py",
     "app/integrations/youtube/hub.py",
     "app/integrations/kick",
     "app/migrations/__init__.py",

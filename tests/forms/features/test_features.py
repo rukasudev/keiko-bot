@@ -38,7 +38,7 @@ from app.forms.form.responses.summary import unwrap
 from app.integrations.stream_elements import StreamElementsClient
 from tests.generators.birthdays import saved_birthday
 from tests.generators.events import lifecycle
-from tests.generators.moderations import recorded_server, seed_cog
+from tests.generators.moderations import ladder_rung, recorded_server, seed_cog
 from tests.helpers.forms import section
 from tests.mocks.discord import create_guild, create_member
 
@@ -54,6 +54,7 @@ DOCUMENTS = {
         "enabled": True,
         "default_roles": {"style": "role", "values": "201"},
         "default_roles_bot": {"style": "role", "values": ["202"]},
+        "role_ladder": {"style": "composition", "values": [ladder_rung(7, "202")]},
     },
     "block_links": {
         "guild_id": GUILD_ID,

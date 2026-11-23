@@ -59,9 +59,10 @@ class Picker:
     kind: Literal["channel", "role", "user"]
     placeholder: str
     selected: tuple[str, ...] = ()
-    unique: bool = True
+    max_values: int = 1
     slot: str | None = None
     available_only: bool = False
+    warns_powerful: bool = False
     action: str = "draft"
     required: bool = False
 
@@ -102,6 +103,18 @@ class TextInputs:
 
 
 @dataclass(frozen=True)
+class SelectInput:
+    """A select of declared options in a modal, its saved option chosen."""
+
+    step_key: str
+    label: str
+    key: str
+    options: tuple[ChoiceOption, ...]
+    placeholder: str | None = None
+    slot: str | None = None
+
+
+@dataclass(frozen=True)
 class FileInput:
     """A file input of a modal, and the validator its file goes through first."""
 
@@ -109,6 +122,7 @@ class FileInput:
     label: str
     slot: str | None = None
     check: Extension | None = None
+    required: bool = True
 
 
 @dataclass(frozen=True)
@@ -216,7 +230,15 @@ class Panel:
 
 
 Component = Union[
-    Choice, Picker, OptionSelect, TextInputs, FileInput, Gallery, Card, Panel
+    Choice,
+    Picker,
+    OptionSelect,
+    TextInputs,
+    SelectInput,
+    FileInput,
+    Gallery,
+    Card,
+    Panel,
 ]
 
 

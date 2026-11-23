@@ -86,6 +86,8 @@ def _normalize_select(item: Any) -> Dict[str, Any]:
 
 
 def normalize_item(item: Any) -> Optional[Dict[str, Any]]:
+    if isinstance(item, discord.ui.DynamicItem):
+        return normalize_item(item.item)  # drawn as the component it wraps
     if isinstance(item, discord.ui.Button):
         return {
             "type": "button",

@@ -24,6 +24,7 @@ from app.forms.form.actions.action import (
     cancel_button,
     design_gallery,
     footer_of,
+    group_screen_of,
     other_items,
 )
 from app.forms.form.actions.selects import picked_ids, select_picker, stored_ids
@@ -36,9 +37,12 @@ from app.forms.form.components import (
     FileInput,
     Input,
     OptionSelect,
+    PanelGroup,
+    PanelPart,
     Picker,
     Screen,
     SectionView,
+    SelectInput,
     TextInputs,
 )
 from app.forms.form.copy import text
@@ -49,6 +53,7 @@ from app.forms.form.form_yaml import (
     CardStep,
     ChannelSelectSection,
     DesignSection,
+    Extension,
     FileUploadSection,
     ListStep,
     ModalInputSection,
@@ -72,6 +77,9 @@ from app.forms.form.responses.styles import (
     stored_style,
 )
 from app.forms.form.responses.summary import (
+    PanelRow,
+    group_list,
+    icons,
     item_entries,
     item_name,
     list_adder,
@@ -79,6 +87,8 @@ from app.forms.form.responses.summary import (
     list_remover,
     option_label,
     step_title,
+    titled_items,
+    without_leading_emoji,
 )
 from app.forms.form.responses.transforms import Transform, normalizer, transform
 from app.forms.form.responses.transforms import told as normalizer_notices
@@ -88,7 +98,7 @@ from app.forms.form.responses.validations import (
     validator,
 )
 
-EMPTY: tuple[Any, ...] = (None, "", [])
+EMPTY: tuple[Any, ...] = (None, "", [], ())
 
 Lines = tuple[tuple[str, ...], str | None]
 Changes = Mapping[str, Any]
@@ -292,6 +302,10 @@ def _section_view(
     if section.adds_to():
         return _list_view(index, section, state, session, context, lines, description)
     edit_label = customize or text("buttons.edit.label", locale)
+    if section.collapsed_on_card():
+        collapsed = _collapsed_lines(section, state, card, session, context)
+        button = Button(edit_label, f"section:{index}")
+        return SectionView(index, section.key, "\n".join(collapsed), (), (button,))
     return SectionView(
         index,
         section.key,
@@ -391,12 +405,28 @@ def _group_preview(
     return (tuple(lines), None)
 
 
+def _collapsed_lines(
+    group: Section,
+    state: Mapping[str, Any],
+    card: CardStep,
+    session: FormSession,
+    context: Context,
+) -> tuple[str, ...]:
+    return tuple(
+        line.removeprefix("> ")
+        for held in card.sections
+        if held.key in group.holds() and visible(held, state, context)
+        for line in _held_lines(held, state, card, session, context, listed=True)
+    )
+
+
 def _held_lines(
     section: Section,
     state: Mapping[str, Any],
     card: CardStep,
     session: FormSession,
     context: Context,
+    listed: bool = False,
 ) -> tuple[str, ...]:
     locale = context.locale
     if section.picks():
@@ -408,12 +438,15 @@ def _held_lines(
     if section.adds_to():
         composition, items = _listed(section, session, context)
         assert composition is not None
+        title = step_title(composition, locale, Scope(state))
+        heading = f"> {section.emoji} **{title}:**"
+        if listed and items:
+            return (heading, *list_bullets(composition, items, locale))
         names = ", ".join(
             item_name(composition, item, index, locale, styled=True)
             for index, item in enumerate(items)
         )
-        title = step_title(composition, locale, Scope(state))
-        return (f"> {section.emoji} **{title}:** {names or empty_value(locale)}",)
+        return (f"{heading} {names or empty_value(locale)}",)
     lines, _ = preview(section, state, card, session, context)
     value = " ".join(line.removeprefix("> ") for line in lines)
     return (f"> {section.emoji} **{section.label.get(locale)}:** {value}",)
@@ -490,16 +523,65 @@ def _group_screen(
     locale = context.locale
     described = group.own_screen_description() or group.description
     description = described.get(locale) if described else ""
-    header = CardHeader(
-        _screen_title(group, locale),
-        apply_tokens(description, session, context, state).rstrip(),
+    title = _screen_title(group, locale)
+    intro = apply_tokens(description, session, context, state).rstrip()
+
+    if group.collapsed_on_card():
+        blocks = _collapsed_blocks(card, group, title, state, session, context)
+        return group_screen_of(title, intro, blocks, locale, footer_of(card, locale))
+    sections = tuple(
+        replace(view, heading="") if view.heading.replace("**", "") == title else view
+        for view in _drawn(card, group.holds(), state, session, context)
     )
-    sections = _drawn(card, group.holds(), state, session, context)
     return Screen(
-        components=(Card(card.key, header, sections),),
+        components=(Card(card.key, CardHeader(title, intro), sections),),
         buttons=(Button(text("buttons.back.label", locale), "picker_back"),),
         flavour="components_v2",
         layout_footer=footer_of(card, locale),
+    )
+
+
+def _collapsed_blocks(
+    card: CardStep,
+    group: Section,
+    title: str,
+    state: Mapping[str, Any],
+    session: FormSession,
+    context: Context,
+) -> list[PanelGroup]:
+    locale = context.locale
+    named = without_leading_emoji(title)
+    blocks: list[PanelGroup] = []
+
+    for index, section in enumerate(card.sections):
+        if section.key not in group.holds() or not visible(section, state, context):
+            continue
+        if section.adds_to():
+            row = _list_row(section, state, session, context)
+            blocks += group_list(row, locale, named, collapsed=True, setup=True)
+            continue
+        lines = tuple(
+            line.removeprefix("> ")
+            for line in _held_lines(section, state, card, session, context)
+        )
+        part = PanelPart(section.key, lines, action=f"section:{index}")
+        blocks.append(PanelGroup(None, "", (), (part,)))
+    return blocks
+
+
+def _list_row(
+    section: Section, state: Mapping[str, Any], session: FormSession, context: Context
+) -> PanelRow:
+    locale = context.locale
+    composition, items = _listed(section, session, context)
+    assert composition is not None
+    return PanelRow(
+        key=composition.key,
+        title=step_title(composition, locale, Scope(state)),
+        value=titled_items(composition, items, locale),
+        style="composition",
+        icon=icons(context.definition.steps).get(composition.key),
+        composition=composition,
     )
 
 
@@ -557,6 +639,12 @@ def open_section(
 
 
 def _typed_again(screen: Screen, refused: Refused) -> Screen:
+    count = sum(
+        len(component.inputs)
+        for component in screen.components
+        if isinstance(component, TextInputs)
+    )
+    chosen = refused.typed_into(count + 1)[count]
     components = tuple(
         replace(
             component,
@@ -568,10 +656,21 @@ def _typed_again(screen: Screen, refused: Refused) -> Screen:
             ),
         )
         if isinstance(component, TextInputs)
+        else _chosen_again(component, chosen)
+        if isinstance(component, SelectInput)
         else component
         for component in screen.components
     )
     return replace(screen, components=components)
+
+
+def _chosen_again(component: SelectInput, chosen: str | None) -> SelectInput:
+    if chosen is None:
+        return component
+    options = tuple(
+        replace(option, selected=option.value == chosen) for option in component.options
+    )
+    return replace(component, options=options)
 
 
 def apply_change(
@@ -591,9 +690,16 @@ def apply_change(
         section, payload, state, session, context
     )
 
-    if isinstance(change, Refusal) and not change.target:
-        return replace(change, target=f"section:{index}")
-    return change
+    if isinstance(change, Refusal):
+        return change if change.target else replace(change, target=f"section:{index}")
+    return {**change, **_derived(card, section, {**state, **change})}
+
+
+def _derived(card: CardStep, section: Section, state: Mapping[str, Any]) -> Changes:
+    rule = transform(card.transform.name) if card.transform else None
+    if rule is None or section.keys.value != rule.value_key:
+        return {}
+    return {rule.value_key: rule.read(state)}
 
 
 def told(card: CardStep, index: int, payload: Any) -> tuple[str, ...]:
@@ -662,7 +768,8 @@ def required_labels(card: CardStep, locale: str) -> dict[str, str]:
     return labels
 
 
-def _join_labels(labels: Sequence[str], locale: str) -> str:
+def joined_labels(labels: Sequence[str], locale: str) -> str:
+    """The labels in bold, joined in one line with the locale's last "and"."""
     emphasized = [f"**{label}**" for label in labels]
     if len(emphasized) <= 1:
         return emphasized[0] if emphasized else ""
@@ -687,7 +794,9 @@ def parse(
         )
     if missing:
         labels = required_labels(card, context.locale)
-        joined = _join_labels([labels.get(key, key) for key in missing], context.locale)
+        joined = joined_labels(
+            [labels.get(key, key) for key in missing], context.locale
+        )
         return Refusal(
             "required_fields",
             {"fields": joined},
@@ -979,8 +1088,23 @@ def _image_change(
     context: Context,
 ) -> Changes | Refusal:
     sent = payload if isinstance(payload, Mapping) else {"url": payload}
+    url = _checked_upload(section.checked_by(), sent)
+
+    if isinstance(url, Refusal):
+        return url
+    if not url:
+        return {}
+    kept: dict[str, Any] = {section.keys.image or "": url}
+
+    if section.keys.mode:
+        kept[section.keys.mode] = "custom"
+    return kept
+
+
+def _checked_upload(
+    declared: Extension | None, sent: Mapping[str, Any]
+) -> str | None | Refusal:
     url = sent.get("url")
-    declared = section.checked_by()
     check = validator(declared.name) if declared else None
 
     if declared and check:
@@ -989,14 +1113,8 @@ def _image_change(
         )
         error = check.check(url, checked)
         if error:
-            return Refusal(error)
-    if not url:
-        return {}
-    kept: dict[str, Any] = {section.keys.image or "": url}
-
-    if section.keys.mode:
-        kept[section.keys.mode] = "custom"
-    return kept
+            return Refusal(error, check.facts)
+    return str(url) if url else None
 
 
 def _image_reset(section: FileUploadSection) -> Changes:
@@ -1045,7 +1163,6 @@ def _channel_select(
         "channel",
         text("texts.placeholders.channel", locale),
         selected=selected,
-        unique=True,
         slot=section.keys.value or "",
         required=True,
     )
@@ -1083,7 +1200,6 @@ def _member_select(
         "user",
         text("texts.placeholders.user", locale),
         selected=selected,
-        unique=True,
         slot=section.keys.value or "",
         required=True,
     )
@@ -1178,7 +1294,15 @@ def _value_change(
     context: Context,
 ) -> Changes:
     key = section.keys.value or ""
-    value = payload[0] if isinstance(payload, (list, tuple)) else payload
+    picked = payload[0] if isinstance(payload, (list, tuple)) else payload
+    value = next(
+        (
+            option.value
+            for option in section.options
+            if str(option.value) == str(picked)
+        ),
+        picked,
+    )
     changes: dict[str, Any] = {key: value}
 
     if str(state.get(key)) != str(value):
@@ -1434,9 +1558,49 @@ def _fields_modal(
                 field.multiline,
             )
         )
+    components: tuple[TextInputs | SelectInput | FileInput, ...] = (
+        TextInputs(card.key, tuple(inputs), slot=section.key),
+    )
+    chosen = section.modal.select
+
+    if chosen is not None:
+        saved = state.get(chosen.key)
+        options = tuple(
+            ChoiceOption(
+                option.label.get(locale),
+                str(option.value),
+                selected=saved not in EMPTY and str(option.value) == str(saved),
+                description=option.description.get(locale)
+                if option.description
+                else "",
+            )
+            for option in chosen.options
+        )
+        hint = chosen.placeholder.get(locale) if chosen.placeholder else None
+        components += (
+            SelectInput(
+                card.key,
+                chosen.label.get(locale),
+                chosen.key,
+                options,
+                hint,
+                slot=section.key,
+            ),
+        )
+    upload = section.modal.upload
+
+    if upload is not None:
+        image = FileInput(
+            card.key,
+            text("texts.file_upload_optional", locale),
+            slot=section.key,
+            check=upload.validation,
+            required=False,
+        )
+        components += (image,)
     return Screen(
         modal_title=_modal_title(section, locale),
-        components=(TextInputs(card.key, tuple(inputs), slot=section.key),),
+        components=components,
         flavour="modal",
     ), None
 
@@ -1474,6 +1638,9 @@ def _fields_change(
             joined.append(value)
     if any(field.key is None for field in fields):
         changes[key] = ";".join(joined) or None
+    picked = _modal_choice(section, payload)
+    changes.update(picked)
+    retyped = tuple(str(value) for value in (*typed, *picked.values()))
     declared = section.modal.validation
     check = validator(declared.name) if declared else None
 
@@ -1481,20 +1648,51 @@ def _fields_change(
         error = check.check(
             changes.get(key) or "",
             ValidationContext(
-                answers=state,
+                answers={**state, **changes},
                 items=other_items(session, context.items),
                 external=context.external,
                 params=declared.params,
             ),
         )
         if error:
-            return Refusal(error, inputs=tuple(str(value) for value in typed))
+            return Refusal(error, check.facts, inputs=retyped)
+    image = _modal_image(section, payload)
+
+    if isinstance(image, Refusal):
+        return replace(image, inputs=retyped)
+    changes.update(image)
     for answer, path in section.lookup_answers.items():
         service, _, name = path.partition(".")
         found = context.external.get(service, {})
         if name in found:
             changes[answer] = found[name]
     return {**changes, **_filled(section, state, changes)}
+
+
+def _modal_choice(section: ModalInputSection, payload: Any) -> Changes:
+    chosen = section.modal.select
+    sent = payload.get("chosen") if isinstance(payload, Mapping) else None
+
+    if chosen is None or not isinstance(sent, Mapping):
+        return {}
+    value = sent.get(chosen.key)
+    option = next(
+        (option for option in chosen.options if str(option.value) == str(value)),
+        None,
+    )
+    return {chosen.key: option.value} if option is not None else {}
+
+
+def _modal_image(section: ModalInputSection, payload: Any) -> Changes | Refusal:
+    upload = section.modal.upload
+    sent = payload if isinstance(payload, Mapping) else {}
+
+    if upload is None or not (sent.get("url") or sent.get("upload")):
+        return {}
+    url = _checked_upload(upload.validation, sent)
+    if isinstance(url, Refusal) or not url:
+        return url or {}
+    return {section.keys.image or "": url}
 
 
 def _filled(

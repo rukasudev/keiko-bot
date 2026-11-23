@@ -171,7 +171,7 @@ def texts(
         if isinstance(value, list):
             continue
         if not isinstance(value, dict):
-            if key in setting_keys() and isinstance(value, str):
+            if key in setting_keys() and isinstance(value, (str, bool)):
                 continue
             raise CopyError(f"{name}: {full} is a text with no locale")
         if any(LOCALE_NAME.fullmatch(str(entry)) for entry in value):
@@ -182,8 +182,8 @@ def texts(
 
 @cache
 def setting_keys() -> frozenset[str]:
-    """The keys copy writes as a closed setting, not as words (a response's `tone`):
-    every field of a copy block typed as a closed set of values."""
+    """The keys copy writes as a closed setting, not as words (`tone`, `card`): every
+    field of a copy block typed as a closed set of values or as a yes or no."""
     import app.core.copy_schema  # noqa: F401
 
     found: set[str] = set()
@@ -192,7 +192,7 @@ def setting_keys() -> frozenset[str]:
         model = pending.pop()
         pending.extend(model.__subclasses__())
         for field_name, info in model.model_fields.items():
-            if get_origin(info.annotation) is Literal:
+            if info.annotation is bool or get_origin(info.annotation) is Literal:
                 found.add(field_name)
     return frozenset(found)
 

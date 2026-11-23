@@ -75,6 +75,23 @@ CONSUMERS = [
         ["<#100>", "gaules"],
         id="notifications_twitch-composition",
     ),
+    pytest.param(
+        "reaction_roles",
+        {
+            "guild_id": GUILD_ID, "enabled": True,
+            "menus": {
+                "style": "composition",
+                "values": [{
+                    "channel": {"value": "100", "style": "channel"},
+                    "title": {"value": "🏷️ Escolha seus cargos"},
+                    "roles": {"value": ["201"], "style": "role"},
+                    "state": {"menu_id": "0123456789abcdef0123456789abcdef"},
+                }],
+            },
+        },
+        ["<#100>", "🏷️ Escolha seus cargos", "<@&201>"],
+        id="reaction_roles-composition-with-item-state",
+    ),
 ]
 
 

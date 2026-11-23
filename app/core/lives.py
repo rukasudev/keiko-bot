@@ -23,6 +23,7 @@ from app.core.conditions import Override
 from app.core.facts import facts
 from app.core.i18n import CopyBlock, CopyText
 from app.core.mentions import mention_of
+from app.core.posted import posted_message
 from app.core.servers import server_language
 from app.core.threads import to_thread
 from app.core.trace import Outcome, as_utc, fan_out
@@ -196,7 +197,7 @@ async def send_notifications(
             (guild_data.get("guild_id"), announce_live(notices, live, guild_data, item))
             for guild_data, item in notices_of(notices, followers, live.name)
         ),
-        **{notices.item_key: live.name},
+        **_named(notices, live.name),
     )
     count = sum(1 for share in served if share.outcome is Outcome.DELIVERED)
     logger.info(
@@ -308,7 +309,7 @@ async def update_notification_status(
             )
             for guild_data, item in notices_of(notices, followers, name)
         ),
-        **{notices.item_key: name},
+        **_named(notices, name),
     )
     return sum(1 for share in served if share.value)
 
@@ -325,7 +326,7 @@ async def show_status(
     guild, channel = destination(
         guild_data.get("guild_id"), item_values(notification).get("channel")
     )
-    message = await fetch_notification_message(notices.key, guild, channel, subject)
+    message = await posted_message(notices.key, guild, channel, subject)
     if not message:
         return False
 
@@ -397,16 +398,5 @@ async def send_preview(
     await MessagePreviewView(texts, interaction.locale, drawn).send(interaction)
 
 
-async def fetch_notification_message(
-    key: str, guild: Any, channel: Any, subject: str
-) -> discord.Message | None:
-    """The notice Keiko posted for a live in a channel, None once gone."""
-    saved = await data().guild_messages.find_message(guild.id, channel.id, key, subject)
-    if not saved:
-        return None
-
-    try:
-        message: discord.Message = await channel.fetch_message(saved["message_id"])
-    except (discord.NotFound, discord.Forbidden):
-        return None
-    return message
+def _named(notices: LiveNotices, name: str) -> dict[str, Any]:
+    return {notices.item_key: name}

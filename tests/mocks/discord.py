@@ -8,9 +8,11 @@ Estes mocks simulam o comportamento dos objetos Discord reais
 e fornecem helpers para assertions em testes.
 """
 
+import asyncio
 import functools
 import re
 from dataclasses import dataclass, field
+from datetime import datetime
 from types import SimpleNamespace
 from typing import List, Optional, Any, Dict, Set
 from unittest.mock import AsyncMock, MagicMock
@@ -26,6 +28,7 @@ class MockRole:
     managed: bool = False
     guild: "MockGuild" = None
     bot_id: Optional[int] = None
+    permissions: discord.Permissions = field(default_factory=discord.Permissions.none)
 
     @property
     def mention(self) -> str:
@@ -147,6 +150,7 @@ class MockMember:
     roles: List[MockRole] = field(default_factory=list)
     bot: bool = False
     display_name: str = None
+    joined_at: Optional[datetime] = None
 
     def __post_init__(self):
         if self.display_name is None:
@@ -175,7 +179,7 @@ class MockMember:
         self.roles.extend(roles)
 
     async def remove_roles(self, *roles, reason=None):
-        self._remove_roles(*roles, reason=reason)
+        await self._remove_roles(*roles, reason=reason)
         for role in roles:
             if role in self.roles:
                 self.roles.remove(role)
@@ -191,6 +195,43 @@ class MockMember:
     def assert_no_roles_added(self):
         """Verifica que nenhuma role foi adicionada."""
         self._add_roles.assert_not_called()
+
+
+@dataclass
+class ApiMember(MockMember):
+    """A member whose role changes reach Discord after a round trip, as the API's do,
+    so another click may run in between."""
+
+    async def add_roles(self, *roles, reason=None):
+        await asyncio.sleep(0)
+        await super().add_roles(*roles, reason=reason)
+
+    async def remove_roles(self, *roles, reason=None):
+        await asyncio.sleep(0)
+        await super().remove_roles(*roles, reason=reason)
+
+
+@dataclass
+class ClickedMember(MockMember):
+    """The member a click carries: the roles held when it was clicked, its role
+    changes sent to the server's member, as Discord's payload and API do."""
+
+    server: Optional[MockMember] = None
+
+    async def add_roles(self, *roles, reason=None):
+        await self.server.add_roles(*roles, reason=reason)
+
+    async def remove_roles(self, *roles, reason=None):
+        await self.server.remove_roles(*roles, reason=reason)
+
+
+def clicked_by(member: MockMember) -> ClickedMember:
+    """`member` as a click carries them: the roles they hold now, a copy that the
+    click's own changes never update."""
+    return ClickedMember(
+        id=member.id, name=member.name, guild=member.guild, roles=list(member.roles),
+        bot=member.bot, joined_at=member.joined_at, server=member,
+    )
 
 
 @dataclass
@@ -506,7 +547,7 @@ def create_guild(
         id=999,
         name="Keiko",
         guild=guild,
-        roles=[MockRole(id=999, name="Bot", position=5)]
+        roles=[MockRole(id=999, name="Bot", position=8)]
     )
     guild.me.guild_permissions = discord.Permissions.all()
 
@@ -520,9 +561,12 @@ def create_member(
     roles: List[str] = None,
     bot: bool = False,
     cached: bool = True,
+    joined_at: Optional[datetime] = None,
+    round_trip: bool = False,
 ) -> MockMember:
     """
-    Cria um MockMember vinculado ao guild.
+    Cria um MockMember vinculado ao guild; `round_trip` makes its role changes wait
+    for Discord's answer, as an `ApiMember`.
 
     Uso:
         member = create_member(guild, roles=["Member"])
@@ -534,12 +578,14 @@ def create_member(
             if role:
                 role_list.append(role)
 
-    member = MockMember(
+    member_type = ApiMember if round_trip else MockMember
+    member = member_type(
         id=id,
         name=name,
         guild=guild,
         roles=role_list,
-        bot=bot
+        bot=bot,
+        joined_at=joined_at,
     )
 
     guild.server_members[member.id] = member

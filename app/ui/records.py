@@ -1,15 +1,17 @@
 """Generic records browser: fetch records, format them into pagination
-fields, and optionally filter by member through a select round trip."""
+fields, and optionally filter by a member or one of its options through a select
+round trip."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 import discord
 from pydantic import Field
 
+from app.constants import DiscordLimits
 from app.constants import KeikoIcons as icons
 from app.constants import ViewConstants as view_constants
 from app.core import i18n
@@ -37,8 +39,8 @@ class RecordsDetail(CopyBlock):
 
 
 class RecordsFilter(CopyBlock):
-    """The member filter of a records list: its button, its picker and its empty
-    state."""
+    """The filter of a records list, by member or by one of its options: its button,
+    its picker and its empty state."""
 
     label: CopyText = Field(
         description="The filter button while the whole list shows.",
@@ -46,20 +48,27 @@ class RecordsFilter(CopyBlock):
         json_schema_extra={"role": "copy"},
     )
     clear_label: CopyText = Field(
-        description="The same button once the list shows one member, which brings "
-        "every record back.",
+        description="The same button once the list shows one member or option, which "
+        "brings every record back.",
         json_schema_extra={"role": "copy"},
     )
     title: CopyText = Field(
-        description="The member picker's title.",
+        description="The picker's title.",
         json_schema_extra={"role": "copy"},
     )
     description: CopyText = Field(
-        description="The member picker's intro.",
+        description="The picker's intro.",
         json_schema_extra={"role": "copy"},
     )
     empty: CopyText = Field(
-        description="Drawn alone when the member picked has no record.",
+        description="Drawn alone when the member or the option picked has no record.",
+        json_schema_extra={"role": "copy"},
+    )
+    every: CopyText | None = Field(
+        None,
+        description="The first option of a filter by option, which brings every record "
+        "back; a filter by member draws none.",
+        examples=[{"en-us": "All roles", "pt-br": "Todos os cargos"}],
         json_schema_extra={"role": "copy"},
     )
 
@@ -115,7 +124,8 @@ class Records(CopyBlock):
     )
     filter: RecordsFilter | None = Field(
         None,
-        description="The member filter; absent, the list has no filter button.",
+        description="The filter by member, or by option when the code offers options; "
+        "absent, the list has no filter button.",
         json_schema_extra={"role": "structure"},
     )
     overrides: tuple[RecordsOverride, ...] = Field(
@@ -140,6 +150,7 @@ class _Filter:
     title: str
     description: str
     empty: str
+    every: str
 
 
 @dataclass(frozen=True)
@@ -153,10 +164,12 @@ class _Shown:
 class RecordsBrowser:
     """Browse screen for a command's records.
 
-    `fetch(interaction, user_id)` is awaited for the raw records and `to_fields`
-    turns them into the `{name: value}` dict `PaginationView` renders. `copy` names
-    the Records block every text comes from, its `$name`s filled from `facts`, in
-    `locale` when given, else in the language of each interaction.
+    `fetch(interaction, chosen)` is awaited for the raw records, `chosen` the member
+    or the option the filter picked, and `to_fields` turns them into the
+    `{name: value}` dict `PaginationView` renders, under blank names when `named` is
+    off. `copy` names the Records block every text comes from, its `$name`s filled
+    from `facts`, in `locale` when given, else in the language of each interaction.
+    Its filter picks a member, or one of `options` (value to label) when given.
     """
 
     def __init__(
@@ -169,6 +182,8 @@ class RecordsBrowser:
         copy: str,
         facts: Optional[Facts] = None,
         locale: str = "",
+        options: Optional[Mapping[str, str]] = None,
+        named: bool = True,
     ) -> None:
         self.fetch = fetch
         self.to_fields = to_fields
@@ -177,16 +192,24 @@ class RecordsBrowser:
         self.copy = copy
         self.facts = dict(facts or {})
         self.locale = locale
+        self.options = dict(options or {})
+        self.named = named
 
     async def send(
         self, interaction: discord.Interaction, user_id: Optional[str] = None
     ) -> None:
-        """The list, or its empty state, as the answer to `interaction`."""
+        """The list, or its empty state, as the answer to `interaction`: only the
+        records of the member `user_id` when given."""
+        await self._listed(interaction, user_id)
+
+    async def _listed(
+        self, interaction: discord.Interaction, chosen: Optional[str]
+    ) -> None:
         shown = self._shown(interaction.locale)
-        records = await self.fetch(interaction, user_id)
+        records = await self.fetch(interaction, chosen)
 
         if not records:
-            empty = self._empty_copy(shown, filtered=bool(user_id))
+            empty = self._empty_copy(shown, filtered=bool(chosen))
             if empty:
                 await interaction.response.send_message(
                     embed=base_embed(shown.title, empty), ephemeral=self.ephemeral
@@ -199,9 +222,10 @@ class RecordsBrowser:
             description=shown.description,
             data=self.to_fields(records, interaction),
             sep=self.sep,
+            named=self.named,
         )
         if shown.filter:
-            view.add_item(self._filter_button(shown.filter, filtered=bool(user_id)))
+            view.add_item(self._filter_button(shown.filter, filtered=bool(chosen)))
         await view.send(ephemeral=self.ephemeral)
 
     async def reply(
@@ -244,6 +268,7 @@ class RecordsBrowser:
                 title=said(written.title),
                 description=said(written.description),
                 empty=said(written.empty),
+                every=said(written.every),
             )
             if written
             else None
@@ -260,44 +285,60 @@ class RecordsBrowser:
         """Row 1 keeps the filter off the pagination-arrows row."""
         return GenericButton(
             label=found.clear_label if filtered else found.label,
-            callback=self.send if filtered else self._open_member_picker,
+            callback=self.send if filtered else self._open_picker,
             style=discord.ButtonStyle.grey,
             emoji="🔎",
             row=1,
         )
 
-    async def _open_member_picker(self, interaction: discord.Interaction) -> None:
+    async def _open_picker(self, interaction: discord.Interaction) -> None:
         locale = parse_locale(self.locale or interaction.locale)
         found = self._shown(locale).filter
         assert found is not None
+        every = [(None, found.every)] if found.every else []
+        choices = [*every, *self.options.items()] if self.options else []
 
         async def on_selected(select_interaction: discord.Interaction) -> None:
-            selected = picker.get_response()
-            if isinstance(selected, (list, tuple)):
-                selected = selected[0] if selected else None
-            user_id = str(selected) if selected else None
+            picked = picker.get_response()
+            if isinstance(picked, (list, tuple)):
+                picked = picked[0] if picked else None
+            chosen = str(picked) if picked else None
+            if choices and chosen is not None:
+                chosen = choices[int(chosen)][0]
 
-            await self.send(select_interaction, user_id=user_id)
+            await self._listed(select_interaction, chosen)
 
-        picker = MemberPicker(on_selected, locale)
+        labels = [label for _, label in choices]
+        picker = FilterPicker(on_selected, locale, labels, placeholder=found.label)
         embed = base_embed(found.title, found.description)
         await interaction.response.edit_message(embed=embed, view=picker)
 
 
-class MemberPicker(discord.ui.View):
-    """One member select and a confirm button, for the records filter."""
+class FilterPicker(discord.ui.View):
+    """One member select, or a select of `options` reporting their positions, and a
+    confirm button, for the records filter."""
 
-    def __init__(self, callback: Callable[[discord.Interaction], Any], locale: str):
+    def __init__(
+        self,
+        callback: Callable[[discord.Interaction], Any],
+        locale: str,
+        options: Sequence[str] = (),
+        placeholder: str = "",
+    ):
         super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.chosen: Callable[[discord.Interaction], Any] = callback
-        self.response: Dict[str, str] = {}
-        self.user_select: discord.ui.UserSelect[Any] = discord.ui.UserSelect(
-            placeholder=ml("texts.placeholders.user", locale=locale),
-            min_values=0,
-            max_values=1,
+        self.response: List[str] = []
+        self.select: discord.ui.UserSelect[Any] | discord.ui.Select[Any] = (
+            _option_select(options, placeholder)
+            if options
+            else discord.ui.UserSelect(
+                placeholder=ml("texts.placeholders.user", locale=locale),
+                min_values=0,
+                max_values=1,
+            )
         )
-        self.user_select.callback = self._on_select  # type: ignore[method-assign]
-        self.add_item(self.user_select)
+        self.select.callback = self._on_select  # type: ignore[method-assign]
+        self.add_item(self.select)
         self.add_item(
             GenericButton(
                 ml("buttons.confirm.label", locale=locale),
@@ -314,19 +355,33 @@ class MemberPicker(discord.ui.View):
         )
 
     async def _on_select(self, interaction: discord.Interaction) -> None:
-        self.response = {
-            str(user.id): user.display_name for user in self.user_select.values
-        }
+        self.response = [
+            picked if isinstance(picked, str) else str(picked.id)
+            for picked in self.select.values
+        ]
         await interaction.response.defer()
 
     async def _on_confirm(self, interaction: discord.Interaction) -> None:
         await self.chosen(interaction)
 
     async def _on_cancel(self, interaction: discord.Interaction) -> None:
-        self.response = {}
+        self.response = []
         await self.chosen(interaction)
 
     def get_response(self) -> Any:
-        """The member picked, or every member picked when there is more than one."""
-        keys = list(self.response.keys())
-        return keys[0] if len(keys) == 1 else keys
+        """The member or the option's position picked, or every one picked when there
+        is more than one."""
+        return self.response[0] if len(self.response) == 1 else self.response
+
+
+def _option_select(options: Sequence[str], placeholder: str) -> discord.ui.Select[Any]:
+    text = DiscordLimits.SELECT_OPTION_TEXT
+    return discord.ui.Select(
+        options=[
+            discord.SelectOption(label=label[:text], value=str(position))
+            for position, label in enumerate(options[: DiscordLimits.SELECT_OPTIONS])
+        ],
+        placeholder=placeholder[:text],
+        min_values=0,
+        max_values=1,
+    )
