@@ -159,7 +159,8 @@ anything by it: the reminders API fires each reminder. A kind a command declares
 `Command.schedules` is run by Keiko itself: every `Commands.SCHEDULES_CHECK_SECONDS`
 the loop reads the entries of those kinds with `due_at <= now`
 (`find_due_schedules`, the `kind, due_at` index of `schema/0003`) and hands each
-kind's batch to its command, which deletes or moves each entry. The schedules
+kind's batch to its command, as a task of its own (a kind still running is left out
+of the next tick), which deletes or moves each entry. The schedules
 `data/0004` copied hold `due_at: null` until Keiko writes them again.
 
 `youtube_live` is the first kind the loop runs: a live YouTube says is scheduled is
@@ -175,6 +176,14 @@ that does not answer leaves every due entry for the next pass.
 (`count_messages`, the index of `schema/0007`) to know whether a command posted
 anything about a subject in any server: a YouTube live's end edits only the notices
 of a live Keiko announced, saved under its video id.
+
+A reaction roles menu is a `guild.messages` document too, its subject the menu's id, a
+hex string Keiko writes in the saved menu's own `state` (`{menu_id}`, never an answer
+of the form) when the menu is added and keeps when it is edited. A save posts the
+menu, or edits its message where it still is and posts it again when someone deleted
+it; removing the menu or turning the feature off deletes the message and its
+document. `posted_message` and `delete_posted` (`app/core/posted.py`) find and
+delete such a message for any command, by its key and subject.
 
 One schedule per server and date holds the reminder every birthday on that date
 shares, so a date cannot get a second reminder. A reminder from before each server
@@ -269,10 +278,11 @@ its indexes (`docs/migrations.md`), and the query-plan test proves every query o
 | XP and levels | `guild.cogs`: XP per message, ignored channels, roles per level | `guild.levels` (hot): xp, level; index `{guild_id, xp: -1}` for the ranking | `activity`: `level.reached` | the cooldown and the XP summed in memory, one batched `$inc` about every 10 s |
 | Server blacklist | `guild.cogs`: words, members, the action | none | `activity`: `message.blocked` | the rules compiled in memory, as Block Links does |
 | Keiko blacklist | none | `keiko.blocklist`: `user:{id}` or `guild:{id}`, the reason, until when | `changes`: who blocked | the whole list in memory, reloaded every minute |
-| Role by time | `guild.cogs` | `guild.members`: the temporary roles | `activity`: role given, role taken | `keiko.schedules`: take the role on a date |
+| Role by time (inside Auto Roles, `default_roles`) | `guild.cogs`: the rungs in `options.role_ladder` (up to 5, a time and one role each, the time an amount of days, weeks, months or years stored as the span `time` (`P7D`, `P3W`, `P5M`, `P1Y`), kept shortest first and one per calendar span), each with its own start in the item's `state.since`, the moment from which a member who reaches it counts: written as the rung is saved (a setup, an Add, or an edit that changes its time, kept by any other edit), cleared when the admin says yes to giving it at once, kept when they say no; a rung with no start counts every member, and `data/0009` gives a document from before the ladder its empty `role_ladder` | none: the time counts calendar days, weeks, months and years from Discord's `joined_at` in the server's zone (a month too short for the day ending on its last day), so a member who leaves and comes back starts again | `activity`: `value.delivered` per member moved to a rung | `keiko.schedules`: `role_ladder:{guild_id}`, due at the server's next midnight in its time zone, moved there by each pass and on every save (a save keeps a pass already due, so one just after midnight never puts off the day's pass), dropped when paused, deleted or left without rungs; the passes due together run `Commands.DEFAULT_ROLES_LADDER_SERVERS_AT_ONCE` servers at a time |
 | Warnings | `guild.cogs` | `guild.members`: the warning count | `activity`: a warning, with the reason | `keiko.schedules` when a warning expires |
 | Giveaways | `guild.cogs` | `guild.messages`: the post; `guild.entries` (hot): who entered | `activity`: the winner drawn | `keiko.schedules`: the end |
 | Tickets | `guild.cogs` | `guild.messages`: the panel; `guild.tickets`: the open tickets | `activity`: opened, closed | none |
+| Reaction roles | `guild.cogs`: up to three menus (channel, title, text, mode, roles), each with its id in its `state` | `guild.messages`: each posted menu, by menu id | `value.delivered`: a role given | none |
 
 Notifications for a new streaming platform follow Twitch. Take Kick
 (`notifications_kick`, `app/commands/kick/`):

@@ -1277,3 +1277,88 @@ entries:
   broke: the webhook answered 204 for a video the Data API could not see once its notice came
     more than 5 minutes after the video was published, so a private scheduled live made public
     when it started, while the API still lagged, was dropped and never announced.
+- id: pb-186
+  test: tests/behavioral/regressions/test_card.py::test_a_role_keiko_cannot_give_is_refused_with_a_notice
+  guarantee: of the roles picked, the card keeps the ones Keiko can give, a pick of only roles
+    it cannot give leaves the card as it was, and a private message names every role it refused.
+  broke: a select that offers only the roles Keiko can give took any role the native select
+    returned, a role above Keiko's own included, and the card saved it; Keiko left that role
+    out only when it gave the roles to a member, so the admin learned it from the panel's
+    warning after the save, or never.
+- id: pb-187
+  test: tests/behavioral/regressions/test_card.py::test_roles_that_share_a_name_are_each_given_or_refused_on_their_own
+  guarantee: of roles that share a name, the card keeps every one Keiko can give and names
+    only the one it cannot.
+  broke: the roles Keiko can give were read as a map keyed by their name, so of two roles
+    Keiko could give under one name only the last one listed counted, and the card refused
+    the other as a role Keiko cannot give.
+- id: pb-188
+  test: tests/behavioral/scenarios/test_roles_flow.py::test_a_rung_added_later_asks_about_who_is_already_past_it
+  guarantee: a rung added on the panel asks with the members already past it; yes gives it
+    to all of them now, no to none of them, now or on a later pass.
+  broke: one start, written when the first rung asked, stood for every rung, so a rung added
+    later asked nothing and the next pass gave its role to whoever reached it after that first
+    start (Ana) and never to whoever reached it before (Bruno).
+- id: pb-189
+  test: tests/behavioral/scenarios/test_roles_flow.py::test_a_save_just_after_midnight_keeps_the_pass_of_the_day
+  guarantee: a save keeps a pass already due, and the loop runs it on its next tick.
+  broke: every save moved the daily pass to the next midnight, so a save in the seconds between
+    midnight and the loop's next tick put off that day's pass to the day after.
+- id: pb-190
+  test: tests/behavioral/scenarios/test_roles_flow.py::test_the_yes_says_it_is_giving_and_then_how_it_went
+  guarantee: the yes answers that the roles are on their way, then the generic error when
+    the start cannot be written, and a paused feature answers its own roles by time error.
+  broke: the yes gave every role inside the click, with no word until it ended, a failed write
+    of the rung's start left "Dando os cargos..." on screen for good, and a feature paused
+    before the yes answered the Sync's error.
+- id: pb-191
+  test: tests/core/test_jobs.py::test_a_slow_kind_never_holds_back_another_nor_runs_twice
+  guarantee: a slow kind never delays a kind due in the same tick, it is not started again
+    while it runs, and stopping the loop stops it.
+  broke: the loop awaited each kind's batch in turn, so a daily roles by time pass walking
+    a big server held every YouTube live due in the same tick, and every tick after it, until
+    the pass ended.
+- id: pb-192
+  test: tests/test_commands.py::test_commands_that_share_a_subgroup_name_it_alike_in_every_locale
+  guarantee: within a group, one localized subgroup name maps to one subgroup, in every locale.
+  broke: reaction roles kept the en-us subgroup `default` of the old default roles while auto
+    roles moved to `roles`, both `cargos` in pt-br, so `/moderations` held two siblings, `default
+    reaction` and `roles auto`, and `/moderações` two subgroups both named `cargos`.
+- id: pb-193
+  test: tests/test_default_roles.py::TestTheRolesByTime::test_a_member_holds_one_ladder_role_after_a_rung_moved_up
+  guarantee: after a pass a member holds only the role of the rung they reach, and no other
+    role of the ladder.
+  broke: a pass took only the roles of the rungs below the one reached, so a member who held
+    the role of a rung whose days the admin raised past theirs kept it beside the new one,
+    two ladder roles.
+- id: pb-194
+  test: tests/test_reaction_roles.py::test_quick_clicks_on_a_menu_each_see_what_the_one_before_did
+  guarantee: each click reads the member's roles again once the click before it ended, so
+    the roles the menu leaves are those of the clicks in order.
+  broke: 'a click read the member''s roles from the copy its own payload carried, so a second
+    click sent before the first one''s change landed read the roles as they were before it:
+    two quick clicks on an "only one" menu gave both roles, and a double click on a role gave
+    it twice and never took it back.'
+- id: pb-195
+  test: tests/behavioral/contracts/test_components_v2_limits.py::test_the_time_roles_question_with_every_role_full_fits_its_card
+  guarantee: the question is a card within Discord's forty components and 4000 characters,
+    naming three roles of five members at most and how many more, with See all below it,
+    which opens the rest, each page within a field.
+  broke: the question wrote up to ten lines and "and N more" for each of five time roles,
+    with no regard to the embed, so five roles of eleven members who joined years ago passed
+    Discord's 4096 characters (4398 in en-us); Discord refused the question after the save,
+    and the admin never saw it.
+- id: pb-196
+  test: tests/behavioral/regressions/test_card.py::test_a_role_a_bot_manages_is_refused_for_what_it_is
+  guarantee: a managed role reads the managed line, a role above Keiko the line about its
+    place, each a plain list line, and only a role above Keiko closes the warning with how
+    to drag Keiko's role above it.
+  broke: once each line said why its role was refused, the warning repeated ⚠️ on every line
+    under its ⚠️ title and no longer told the admin how to fix a role above Keiko's.
+- id: pb-197
+  test: tests/test_reaction_roles.py::test_a_menu_whose_image_link_expired_shows_it_from_a_fresh_link
+  guarantee: a menu posted again and a member's own copy show the picture from a link that
+    has not expired.
+  broke: the menu kept the signed link of its picture in the dump channel and drew it as saved
+    on every repost and every member's private copy, so once Discord's signature ran out (its
+    `ex=` time, a day later) the menu showed a broken picture.

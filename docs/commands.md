@@ -102,7 +102,7 @@ the helpers it calls, and the whole of `app/commands` is linted by ruff and type
 | `hooks` | A `Hooks`: what it does on the Discord events every command shares. |
 | `reminders` | Reminder title → sync handler, run on the Flask thread. |
 | `webhooks` | Webhook event name (`<service>.<event>`) → sync handler, run on the Flask thread (`kick.stream.online` and `kick.stream.offline` of `notifications_kick`, dispatched by `app/integrations/kick/webhook.py` with the lowercased channel slug as the subject). |
-| `schedules` | Schedule kind (the `kind` of a `keiko.schedules` entry) → async handler, run on the bot's loop with the entries of that kind that are due; the handler deletes or moves each one it took (`youtube_live` of `notifications_youtube_live`, a scheduled live read again at its time). |
+| `schedules` | Schedule kind (the `kind` of a `keiko.schedules` entry) → async handler, run on the bot's loop with the entries of that kind that are due; the handler deletes or moves each one it took (`youtube_live` of `notifications_youtube_live`, a scheduled live read again at its time; `role_ladder` of `default_roles`, one server's daily pass of the roles by time, due at the server's next midnight and moved there before the pass runs). |
 | `opens` | What a button on another command's screen opens of this one: `async (interaction, source)`. |
 | `group` | The parent slash group, a key of `PARENT_GROUPS` in `app/core/commands.py` (`moderations`, `notifications`, `integrations`, typed `ParentGroup`). |
 | `on_setup`, `emoji` | Its row on /setup and the greeting; a command without `on_setup` is not offered there. |
@@ -110,16 +110,19 @@ the helpers it calls, and the whole of `app/commands` is linted by ruff and type
 | `channel_permissions`, `server_permissions`, `assigns_roles` | What Keiko needs for it, checked by the feature health line. |
 | `lazy` | `True` for a command whose cogs load once Keiko is ready instead of at startup (admin, config). |
 
-A command may have no cog of its own when its slash command sits in another
-command's subgroup, since Discord takes one subgroup object per name: `/notifications
-youtube lives` is a method of the YouTube video command's `Youtube` subgroup
-(`app/commands/youtube/cog.py`) that opens `notifications_youtube_live`, the first
-declared exception of PR12. The method is named after the key it opens, and
-`app/core/app_commands.py` keys a leaf by its callback's name when that name is a
-declared key, so /help and /report file it under the right command. Its copy is still
-its own (`notifications_youtube_live.command.slash`).
+Discord takes one subgroup per name under a parent group, so `app/core/groups.py`
+keeps one subgroup per (parent group, subgroup name), shared by every command that
+declares it: the first command's subgroup is attached, and each later one adds its
+leaves to it. Each command still writes its own `Group` class in its own `cog.py`,
+named by its own `command.slash` copy, with only its own leaves: `/notifications
+youtube videos` and `/notifications youtube lives` are the `Youtube` and `YoutubeLive`
+subgroups of the video and the lives commands, one `youtube` subgroup on Discord,
+and default roles and reaction roles share one subgroup of `/moderations` (`cargos`).
+Commands that share a subgroup name it alike in every locale (`tests/test_commands.py`),
+a leaf name is taken once, and `app/core/app_commands.py` files a leaf under the
+command whose cog declares it, so /help and /report list each as before.
 
-The second declared exception of PR12 is the upkeep of YouTube's hub, which belongs
+The declared exception of PR12 is the upkeep of YouTube's hub, which belongs
 to the platform but lives in the video command. The hub follow is shared by every
 command that follows a YouTube channel (`app/integrations/youtube/hub.py`, its
 followers summed over every `SubscriptionFeature` of the platform), yet a reminder
@@ -131,10 +134,9 @@ resubscribe at start, `YoutubeRenewals`, is one of its cogs. Both call the hub a
 and serve the lives command exactly as the video one: a channel followed only for its
 lives keeps its subscription and its renewal. Isolation: one entry of the video
 command's `reminders` and one cog in its `cog.py`, neither reading anything of the
-video command. Debt: small, the same as the subgroup's; deleting the video command
-would take the hub's upkeep with it. Recommended later: let a platform declare its
-reminders and loops once in a shared place, with the shared subgroup in
-`app/core/groups.py`.
+video command. Debt: small; deleting the video command would take the hub's upkeep
+with it. Recommended later: let a platform declare its reminders and loops once in a
+shared place.
 
 `Command` lives in `app/core/commands.py`, and it carries what the command's row on
 /setup needs, so each command is declared once. Its copy and its form are not fields:
@@ -155,7 +157,7 @@ objects in it are typed `Any`.
 | `message_edited` | `MessageEdited(guild_id, channel_id, payload, client)` | On every edited message. |
 | `guild_joined` | `GuildJoined(guild_id, guild)` | When a server adds Keiko, after the join is recorded. |
 | `persistent_views` | none | On ready: the views Keiko keeps listening to after a restart. |
-| `dynamic_items` | none | At startup: the `DynamicItem` classes Keiko routes by custom id alone, on any message (the report's status buttons on the ticket and the Answer button of its author's DM). discord.py hands a dynamic item's exception to its own log and to nobody else, so its callback answers its own failures (`ReportStatusButton.on_error`, `ReportAnswerButton.on_error`: the error log and the generic error, privately). |
+| `dynamic_items` | none | At startup: the `DynamicItem` classes Keiko routes by custom id alone, on any message (the report's status buttons on the ticket and the Answer button of its author's DM, the role buttons of a reaction roles menu). discord.py hands a dynamic item's exception to its own log and to nobody else, so its callback answers its own failures (`ReportStatusButton.on_error`, `ReportAnswerButton.on_error`: the error log and the generic error, privately). |
 
 Reminder handlers take a `Reminder(id, title, notes)`; webhook handlers take a
 `WebhookEvent(name, subject, payload)` and return a `WebhookReply(status, body)`.
@@ -163,9 +165,11 @@ Both run on the Flask thread, so the reminders retry and the service's redeliver
 their outcome. A schedule handler is async and takes the due `keiko.schedules`
 entries of its kind, at most `Commands.SCHEDULES_DUE_LIMIT`, the longest overdue
 first: `DueSchedules` (`app/core/jobs.py`) reads them every
-`Commands.SCHEDULES_CHECK_SECONDS` and runs each kind's batch as a job of its own, so
-one that fails never stops the next. An entry the handler leaves due is handed again
-on the next pass.
+`Commands.SCHEDULES_CHECK_SECONDS` and starts each kind's batch as a task of its own,
+so one that fails or runs long never holds back the next; a kind whose batch still
+runs is left out of the ticks that come meanwhile, and unloading the cog cancels the
+batches still running. An entry the handler leaves due is handed again on the next
+pass.
 
 ## The registry
 
@@ -421,7 +425,7 @@ that writes no footer, as every form step does.
 | `ui.cards.<name>` | `Card` | `card_copy`, then `card_header`, `card_row`, `card_footer` | a Components V2 card |
 | `ui.texts.<name>` | `CopyText`, or one level of table | the command's own code | what no primitive draws |
 | `ui.records.<name>` | `Records` | `RecordsBrowser(copy=...)` | a browsable list, its empty state and its member filter |
-| `ui.responses.<name>` | `Response` | `response_embed`, `block_texts` (the form engine) | an answer, a confirmation question, an aside's result |
+| `ui.responses.<name>` | `Response` | `response_embed`, `response_card` (a question with `card: true`), `block_texts` (the form engine) | an answer, a confirmation question, an aside's result |
 | `ui.errors.<name>` | `ErrorBlock` | `response_error_embed`, `error_message`, a form's `error:` | a red error embed, or the plain line of a form |
 | `ui.buttons.<name>` | `ButtonCopy` | `panel_asides`, `panel_button`, the command's views | a button's label and its Help caption (`description`) |
 | `ui.announcement` | `Announcement` | `announcement_embed` and the command | `fields`, `samples`, `defaults` of what it posts in a channel |
@@ -439,7 +443,15 @@ that writes no footer, as every form step does.
   picks the colour: absent or `default`, Keiko's blue (`Style.BACKGROUND_COLOR`);
   `warning`, Discord's yellow (`Style.WARNING_COLOR`), for a message that tells the
   admin Keiko changed what they did (`commands.responses.mention_removed`). A closed
-  setting like `tone` is written as its word, with no locale (`i18n.setting_keys`).
+  setting like `tone` is written as its word, with no locale, and a yes or no like
+  `card` as `true` or `false` (`i18n.setting_keys`).
+- `response_card("<key>.ui.responses.<name>", locale, image=..., facts=...)` draws the
+  same block as a Components V2 card: the `## title` and the description beside
+  Keiko's picture, the block's `info` (and its overrides') after a divider, and the
+  footer the copy decides as the closing `-# • ` line. The adapter draws a question an
+  aside asks first this way when its block writes `card: true`, with
+  `ConfirmActionCard` (`app/ui/confirm_action.py`) holding Confirm, the See all and
+  Cancel in a row below the card; `info` is refused on a block without `card`.
 - `response_error_embed("<key>.ui.errors.<name>", locale, facts=...)` and, on the forms'
   plain path, `error_message("<key>.ui.errors.<name>", args, locale)` both take the
   `ErrorBlock` key, never its `.message` leaf (a short name is a block of
@@ -447,13 +459,18 @@ that writes no footer, as every form step does.
 - `RecordsBrowser(fetch, to_fields, copy="<key>.ui.records.<name>", facts=...,
   locale=...)` reads one `Records` block: its `title` and `description` above the
   page, `empty` alone when nothing is found (without one, the empty page is sent), and
-  `filter` for the member filter button and its picker; `lines` holds the line
-  templates the formatter fills; `overrides` replace the title or the description while
-  a rule on its `facts` holds. Its texts speak `locale` when given (a form's History
-  speaks the session's language), else the language of each interaction. `copy` is
-  required: the browser takes no title or description of its own. A command that draws
-  its own `PaginationView` from a `Records` block (/help) reads it through
-  `i18n.resolved_texts(key, facts, locale)`, overrides chosen alike.
+  `filter` for the filter button and its picker: a member select, or, when the browser
+  is handed `options` (value to label), a select of their labels led by the filter's
+  `every`, the value picked reaching `fetch` as the member's id does (the roles by
+  time's filter by role); `named=False` draws each field under a blank name, for
+  records whose text carries their own heading (a mention renders only in a field's
+  value); `lines` holds the line templates the formatter fills; `overrides` replace
+  the title or the description while a rule on its `facts` holds. Its texts speak
+  `locale` when given (a form's History speaks the session's language), else the
+  language of each interaction. `copy` is required: the browser takes no title or
+  description of its own. A command that draws its own `PaginationView` from a
+  `Records` block (/help) reads it through `i18n.resolved_texts(key, facts, locale)`,
+  overrides chosen alike.
 - A feature's panel: `GenericCogFeature.panel_asides = {"<aside>": "<emoji>"}` draws one
   panel button per aside from `ui.buttons.<aside>` (`ButtonCopy`, label and caption);
   `panel_button(aside, emoji, locale, copy="buttons.preview")` reads a shared button
