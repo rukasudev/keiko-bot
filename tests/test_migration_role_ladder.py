@@ -14,7 +14,7 @@ import pytest
 
 from tests.generators.moderations import ladder_rung
 from tests.helpers.migrations import migrate as migrated
-from tests.helpers.migrations import run_offline, throwaway_mongo
+from tests.helpers.migrations import forget_from, run_offline, throwaway_mongo
 from tests.mocks.database import MockMongoClient
 
 MIGRATION = importlib.import_module("app.migrations.data.0009_role_ladder")
@@ -98,7 +98,7 @@ def server():
 @pytest.mark.mongo
 def test_the_ladder_is_written_on_a_real_replica_set(server):
     migrated(server, "data/0009")
-    server.migrations.changelog.delete_one({"_id": "data/0009"})
+    forget_from(server, "data/0009")
     server.guild.cogs.insert_many(copy.deepcopy(list(SAVED)))
 
     counts = migrated(server, "data/0009")

@@ -21,6 +21,7 @@ from pymongo import MongoClient
 
 from app.constants import Commands, Migrations
 from app.migrations import runner
+from tests.helpers.migrations import forget_from
 
 MIGRATION = importlib.import_module("app.migrations.data.0007_analytics")
 MARKER = "keiko_migrations_test"
@@ -266,7 +267,7 @@ def test_production_numbers_land_in_the_analytics_database(server):
 def test_a_second_run_over_the_same_documents_writes_nothing_new(server):
     production_shaped(server)
     migrate(server)
-    server.migrations.changelog.delete_many({"_id": {"$in": ["data/0007", "data/0008"]}})
+    forget_from(server, "data/0007")
     server.analytics.lifetime.update_one({"_id": "1001"}, {"$set": {"admins_count": 7}})
 
     counts = migrate(server)

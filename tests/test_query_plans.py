@@ -14,6 +14,7 @@ or that an index now serves, fails as stale, naming the PR that was to remove it
 import asyncio
 import copy
 import functools
+import importlib
 import inspect
 import io
 import os
@@ -95,12 +96,14 @@ BY_DESIGN: Dict[Shape, str] = {
     ("guild.settings", ()): "the /admin overview counts every server Keiko recorded",
 }
 
+BASELINE = importlib.import_module("app.migrations.schema.0001_baseline")
+
 LEGACY: Dict[Shape, str] = {
     **{
         (f"events.{collection}", ("guild_id",)): (
             "the schema file that drops the audits of before PR 2"
         )
-        for collection in FEATURE_KEYS
+        for collection in BASELINE.STRUCTURE["events"]
     },
 }
 

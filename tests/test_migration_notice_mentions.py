@@ -27,7 +27,7 @@ import pytest
 
 from app.forms.form.form_yaml import shared_vocabulary
 from tests.helpers.migrations import migrate as migrated
-from tests.helpers.migrations import run_offline, throwaway_mongo
+from tests.helpers.migrations import forget_from, run_offline, throwaway_mongo
 from tests.mocks.database import MockMongoClient
 
 MIGRATION = importlib.import_module("app.migrations.data.0008_notice_mentions")
@@ -464,7 +464,7 @@ def test_from_empty_the_file_writes_nothing(server):
 @pytest.mark.mongo
 def test_production_notices_get_their_mention(server):
     migrate(server)
-    server.migrations.changelog.delete_one({"_id": "data/0008"})
+    forget_from(server, "data/0008")
     server.guild.cogs.insert_many(copy.deepcopy([TWITCH, YOUTUBE, *BIRTHDAYS]))
     server.guild.members.insert_one(copy.deepcopy(MEMBER))
     server.guild.settings.insert_many([

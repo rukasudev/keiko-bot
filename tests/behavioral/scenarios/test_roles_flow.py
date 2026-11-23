@@ -8,7 +8,6 @@ joins, and the answer is never saved with the settings. The first rung asks the
 same about the members already past it, and the join roles or a rung must stay.
 """
 
-import asyncio
 import re
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -16,6 +15,7 @@ from zoneinfo import ZoneInfo
 import discord
 import pytest
 
+from app.commands.roles import service
 from app.core.dates import elapsed_label, full_date_label
 from app.core.jobs import hand_due_schedules
 from app.core.utils import ml
@@ -30,11 +30,14 @@ from tests.mocks.discord import create_guild, create_member
 pytestmark = pytest.mark.behavioral
 
 QUESTION = "default_roles.form.steps.sync_existing"
+NOW = datetime(2026, 4, 10, 15, 0, tzinfo=timezone.utc)
 
 
-async def _settle():
-    for _ in range(20):
-        await asyncio.sleep(0)
+@pytest.fixture(autouse=True)
+def clock(monkeypatch):
+    """Keiko's roles read the moment the members of these tests are built from:
+    Apr 10 2026, noon in the server's zone."""
+    monkeypatch.setattr(service, "utc_now", lambda: NOW)
 
 
 async def _asked(scenario_factory, guild):
@@ -79,12 +82,11 @@ async def test_a_setup_that_says_yes_gives_the_roles_to_who_is_already_there(
 
     await scenario.click("pick:True")
     await scenario.confirm()
-    await _settle()
+    await scenario.finish()
 
     assert _member_role(guild) in friend.roles, "the member already there got the role"
     stored = scenario.get_persisted("guild", roles.FORM, {"guild_id": str(guild.id)})
     assert "sync_existing" not in stored
-    await scenario.finish()
 
 
 async def test_a_setup_left_on_no_gives_the_roles_only_to_whoever_joins(
@@ -96,10 +98,9 @@ async def test_a_setup_left_on_no_gives_the_roles_only_to_whoever_joins(
 
     await scenario.click("pick:False")
     await scenario.confirm()
-    await _settle()
+    await scenario.finish()
 
     assert _member_role(guild) not in friend.roles
-    await scenario.finish()
 
 
 LADDER_QUESTION = "default_roles.ui.responses.ladder_confirm"
@@ -107,11 +108,10 @@ LADDER_QUESTION = "default_roles.ui.responses.ladder_confirm"
 
 def _past_and_new(guild):
     """A member in the server for ten days and one for two."""
-    now = datetime.now(timezone.utc)
     past = create_member(
-        guild, id=771, name="Veterana", joined_at=now - timedelta(days=10)
+        guild, id=771, name="Veterana", joined_at=NOW - timedelta(days=10)
     )
-    new = create_member(guild, id=772, name="Novata", joined_at=now - timedelta(days=2))
+    new = create_member(guild, id=772, name="Novata", joined_at=NOW - timedelta(days=2))
     return past, new
 
 
@@ -148,7 +148,7 @@ def _member_line(member):
     """A member's line under a role: the mention, the day they joined and their time
     in the server, both in the server's time zone."""
     joined = member.joined_at.astimezone(SERVER_ZONE).date()
-    today = datetime.now(SERVER_ZONE).date()
+    today = NOW.astimezone(SERVER_ZONE).date()
     return copy_text(
         "default_roles.ui.texts.ladder_member",
         "pt-br",
@@ -197,11 +197,10 @@ async def test_a_setup_with_a_rung_asks_before_giving_it_to_who_is_already_past_
 
     assert _asked_how_many(scenario).startswith(_asked_about(_member_role(guild), past))
     await scenario.confirm()
-    await _settle()
+    await scenario.finish()
 
     assert _member_role(guild) in past.roles
     assert _member_role(guild) not in new.roles
-    await scenario.finish()
 
 
 async def test_a_rung_question_answered_no_gives_nothing_now_or_on_the_next_pass(
@@ -235,9 +234,8 @@ async def test_the_first_rung_added_on_the_panel_asks_the_same_question(
     moderator = next(role for role in guild.roles if role.name == "Moderator")
     assert _asked_how_many(scenario).startswith(_asked_about(moderator, past))
     await scenario.confirm()
-    await _settle()
-    assert moderator in past.roles
     await scenario.finish()
+    assert moderator in past.roles
 
 
 @pytest.mark.parametrize("with_a_rung", [True, False], ids=["a rung", "nothing"])
@@ -362,7 +360,6 @@ async def test_a_rung_added_later_asks_about_who_is_already_past_it(
     added on the panel asks with the members already past it; yes gives it to all of
     them now, no to none of them, now or on a later pass.
     """
-    now = datetime.now(timezone.utc)
     guild = roles.server_where_keiko_gives_every_role()
     deps.bot.get_guild = lambda guild_id: guild
     await moderations.default_roles(
@@ -370,11 +367,11 @@ async def test_a_rung_added_later_asks_about_who_is_already_past_it(
         GUILD_ID,
         user_roles=[],
         rungs=[(30, "202")],
-        ladder_since=now - timedelta(days=99),
+        ladder_since=NOW - timedelta(days=99),
     )
-    ana = create_member(guild, id=781, name="Ana", joined_at=now - timedelta(days=400))
+    ana = create_member(guild, id=781, name="Ana", joined_at=NOW - timedelta(days=400))
     bruno = create_member(
-        guild, id=782, name="Bruno", joined_at=now - timedelta(days=515)
+        guild, id=782, name="Bruno", joined_at=NOW - timedelta(days=515)
     )
     scenario = await scenario_factory(locale="pt-br", guild=guild).start_command(
         roles.FORM
@@ -389,12 +386,11 @@ async def test_a_rung_added_later_asks_about_who_is_already_past_it(
     else:
         await scenario.cancel()
         await hand_due_schedules(roles.daily_pass(scenario, guild)["due_at"])
-    await _settle()
+    await scenario.finish()
 
     moderator = _role(guild, "Moderator")
     given = [moderator in member.roles for member in (ana, bruno)]
     assert given == ([True, True] if answer == "yes" else [False, False])
-    await scenario.finish()
 
 
 async def test_a_save_just_after_midnight_keeps_the_pass_of_the_day(
@@ -408,7 +404,7 @@ async def test_a_save_just_after_midnight_keeps_the_pass_of_the_day(
     """
     guild = roles.server_where_keiko_gives_every_role()
     roles.seed_ladder_only(deps)
-    due = datetime.now(timezone.utc) - timedelta(seconds=10)
+    due = NOW - timedelta(seconds=10)
     await data().keiko_schedules.upsert_schedule(
         f"role_ladder:{guild.id}", "role_ladder", None, due_at=due
     )
@@ -457,7 +453,7 @@ async def test_the_yes_says_it_is_giving_and_then_how_it_went(
             setattr(data().guild_cogs, write, refused)
 
     await scenario.confirm()
-    await _settle()
+    await scenario.finish()
 
     if trouble == "paused":
         scenario.expect_error(
@@ -470,7 +466,6 @@ async def test_the_yes_says_it_is_giving_and_then_how_it_went(
             for event in scenario.outputs
         )
         scenario.expect_error(ml("errors.generic.title", "pt-br"))
-    await scenario.finish()
 
 
 def _ladder_line(count_text):
@@ -548,12 +543,11 @@ async def test_the_question_names_the_first_members_and_the_success_only_counts(
     from app.constants import ViewConstants
 
     limit = ViewConstants.QUESTION_GROUP_ITEMS_SHOWN
-    now = datetime.now(timezone.utc)
     guild = roles.server_where_keiko_gives_every_role()
     deps.bot.get_guild = lambda guild_id: guild
     veterans = [
         create_member(
-            guild, id=800 + n, name=f"V{n}", joined_at=now - timedelta(days=10)
+            guild, id=800 + n, name=f"V{n}", joined_at=NOW - timedelta(days=10)
         )
         for n in range(limit + 2)
     ]
@@ -561,7 +555,7 @@ async def test_the_question_names_the_first_members_and_the_success_only_counts(
 
     asked = _asked_about(_member_role(guild), *veterans, shown=limit)
     assert _asked_how_many(scenario).startswith(asked)
-    joined = (now - timedelta(days=10)).astimezone(SERVER_ZONE).strftime("%d/%m/%Y")
+    joined = (NOW - timedelta(days=10)).astimezone(SERVER_ZONE).strftime("%d/%m/%Y")
     block = _asked_how_many(scenario).split("\n\n")[1].split("\n")
     assert block[:2] == [
         f"<@&{_member_role(guild).id}> ({limit + 2})",
@@ -569,7 +563,7 @@ async def test_the_question_names_the_first_members_and_the_success_only_counts(
     ]
     assert block[-1] == "e mais 2"
     await scenario.confirm()
-    await _settle()
+    await scenario.finish()
 
     given = ml("default_roles.ui.responses.ladder_given.title", "pt-br")
     [told] = [
@@ -579,12 +573,11 @@ async def test_the_question_names_the_first_members_and_the_success_only_counts(
     ]
     assert f"**{limit + 2}**" in told["description"]
     assert "<@8" not in told["description"], "the success never names the members"
-    await scenario.finish()
 
 
 def _veterans(guild, count, days, first_id):
     """`count` members in the server for `days` days, their ids from `first_id`."""
-    joined = datetime.now(timezone.utc) - timedelta(days=days)
+    joined = NOW - timedelta(days=days)
     return [
         create_member(guild, id=first_id + n, name=f"V{first_id + n}", joined_at=joined)
         for n in range(count)

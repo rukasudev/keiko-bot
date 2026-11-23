@@ -22,6 +22,7 @@ from pymongo import MongoClient
 
 from app.constants import Migrations
 from app.migrations import runner
+from tests.helpers.migrations import forget_from
 
 MIGRATION = importlib.import_module("app.migrations.data.0004_members_and_schedules")
 MARKER = "keiko_migrations_test"
@@ -268,7 +269,7 @@ def test_production_rows_land_in_their_new_homes(server):
 def test_a_second_run_over_the_same_rows_writes_nothing_new(server):
     production_shaped(server)
     migrate(server)
-    server.migrations.changelog.delete_many({"_id": {"$gte": "data/0004", "$lt": "data/~"}})
+    forget_from(server, "data/0004")
     server.guild.members.update_one({"_id": "1:7"}, {"$set": {"state.display_name": "Ana"}})
 
     counts = migrate(server)
