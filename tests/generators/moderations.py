@@ -17,7 +17,8 @@ Uso:
     )
 """
 
-from typing import List, Optional, Any
+from datetime import datetime
+from typing import Any, List, Optional, Sequence, Tuple, Union
 
 from app.constants import DBConfigs
 from app.core.cache import forget_remembered
@@ -105,27 +106,48 @@ async def block_links(
     return doc
 
 
+def ladder_rung(
+    time: Union[int, str], role_id: str, since: Optional[datetime] = None
+) -> dict:
+    """One rung of the roles by time, as the form saves it: its time, a span such as
+    `P5M` (a bare number is that many days), its role and, when given, since when a
+    member who reaches it counts."""
+    span = f"P{time}D" if isinstance(time, int) else time
+    rung = {
+        "time": {"value": span, "title": "Tempo no servidor", "style": "time_span"},
+        "role": {"value": str(role_id), "title": "Cargo", "style": "role"},
+    }
+    if since is not None:
+        rung["state"] = {"since": since}
+    return rung
+
+
 async def default_roles(
     db,
     guild_id: str,
     *,
     enabled: bool = True,
     user_roles: List[str] = None,
-    bot_roles: List[str] = None
+    bot_roles: List[str] = None,
+    rungs: Sequence[Tuple[Union[int, str], str]] = (),
+    ladder_since: Optional[datetime] = None,
 ) -> dict:
     """
-    Insere configuracao de default_roles no banco.
+    Insere configuracao de default_roles no banco: the join roles, the rungs of the
+    roles by time as `(time, role id)`, the time a span such as `P5M` or a number of
+    days, and since when each rung counts a member.
     """
     doc = {
         "guild_id": guild_id,
         "enabled": enabled,
-        "default_roles": {
-            "values": user_roles or []
-        },
-        "default_roles_bot": {
-            "values": bot_roles or []
-        }
+        "default_roles": {"style": "role", "values": user_roles or []},
+        "default_roles_bot": {"style": "role", "values": bot_roles or []},
     }
+    if rungs:
+        doc["role_ladder"] = {
+            "style": "composition",
+            "values": [ladder_rung(time, role, ladder_since) for time, role in rungs],
+        }
 
     seed_cog(db, "default_roles", doc)
 

@@ -34,6 +34,7 @@ app/migrations/
     0006_events.py
     0007_analytics.py
     0008_notice_mentions.py
+    0009_role_ladder.py
 ```
 
 ## The CLI
@@ -392,6 +393,13 @@ v0.9.0 reads only the old collections (`guild.notifications_twitch` and the othe
 which 0008 never touches, so a rollback to it runs on the notices as they were. What a
 rollback costs is data/0003's: a change made under v0.9.0 never reaches `guild.cogs`,
 because 0003 is already in the ledger and does not copy again.
+
+`data/0009_role_ladder` gives every auto roles document (`cog: default_roles`) saved
+before the roles by time its empty `options.role_ladder`, the shape a setup saves now,
+so the database holds it explicitly and the normalize that fills it on read is only a
+safety net. A document that has a ladder keeps it, and the filter (`$exists: false`)
+makes a second run write nothing (`ladders_added` counts them). A rung saved without
+its own start (`state.since`) counts every member who reaches it.
 
 Nothing writes the operator ids: they are the admin server and channel ids, which
 have no neutral value. Set them by hand before the first boot, in `keiko.settings`

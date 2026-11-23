@@ -549,6 +549,7 @@ def test_the_shipped_files_form_a_clean_plan_from_an_empty_ledger():
         "data/0006_events",
         "data/0007_analytics",
         "data/0008_notice_mentions",
+        "data/0009_role_ladder",
     ]
 
 

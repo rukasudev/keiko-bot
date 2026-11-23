@@ -2,30 +2,28 @@ steps:
   - type: intro
     key: form
     title:
-      en-us: 👩‍🎓 Default Roles
-      pt-br: 👩‍🎓 Cargos Padrão
+      en-us: 👩‍🎓 Auto Roles
+      pt-br: 👩‍🎓 Cargos Automáticos
     description:
-      en-us: Enabling this feature allows me to automatically assign roles to new members when they join your server
-      pt-br: Ativar esta função faz com que eu atribua cargos automaticamente quando alguém entrar no seu servidor
+      en-us: Enabling this feature allows me to automatically give roles to new members when they join your server, and new roles as they spend time in it!
+      pt-br: Ativar esta função faz com que eu dê cargos automaticamente para quem entrar no seu servidor, e novos cargos conforme o tempo de cada um nele!
     panel:
       description:
-        en-us: I give these roles automatically to everyone who joins the server.
-        pt-br: Dou estes cargos automaticamente para quem entra no servidor.
+        en-us: I give these roles automatically to everyone who joins the server, and each time role once a member reaches its time in the server.
+        pt-br: Dou estes cargos automaticamente para quem entra no servidor, e cada cargo por tempo quando o membro completa o tempo dele no servidor.
 
   - type: card
     key: default_roles_config
     title:
-      en-us: Default Roles
-      pt-br: Cargos Padrão
+      en-us: Auto Roles
+      pt-br: Cargos Automáticos
     description:
-      en-us: Choose the roles I'll give automatically to whoever joins the server.
-      pt-br: Escolha os cargos que eu vou dar automaticamente para quem entrar no servidor.
+      en-us: Choose the roles I'll give automatically to whoever joins the server, and the roles by time in the server.
+      pt-br: Escolha os cargos que eu vou dar automaticamente para quem entrar no servidor, e os cargos por tempo no servidor.
     emoji: 👩‍🎓
     header:
       thumbnail: default
     edit: field
-    required:
-      any: [default_roles_bot, default_roles]
     fields:
       - key: default_roles_bot
         description:
@@ -68,6 +66,148 @@ steps:
             placeholder:
               en-us: Roles for members
               pt-br: Cargos para membros
+      - type: group
+        key: ladder_screen
+        emoji: ⏳
+        label: ${ref.roles_by_time}
+        appears_in: setup
+        screen:
+          description:
+            en-us: When a member reaches the time of a time role, I give them that role and take the time roles that come before it, so each member keeps only the highest one. You can add them later too!
+            pt-br: Quando um membro completa o tempo de um cargo por tempo, eu dou esse cargo e tiro os cargos por tempo que vêm antes dele, então cada membro fica só com o maior. Você pode adicionar depois também!
+        button:
+          label: ${ref.configure}
+        sections: [ladder]
+        collapsed: true
+      - type: list
+        key: ladder
+        emoji: ⏳
+        label: ${ref.roles_by_time}
+        appears_in: setup
+        list: role_ladder
+
+  - type: list
+    key: role_ladder
+    title: ${ref.roles_by_time}
+    description:
+      en-us: I give a role for each milestone of a member's time in the server. Up to 5!
+      pt-br: Eu dou um cargo para cada marco de tempo de um membro no servidor. Até 5!
+    emoji: ⏳
+    items:
+      max: 5
+      unique:
+        key: time
+        normalize:
+          name: calendar_span
+      name:
+        en-us: ${answer.role:role} → ${answer.time:time_span}
+        pt-br: ${answer.role:role} → ${answer.time:time_span}
+    counter: ${ref.set_up_counter}
+    group: ladder
+    steps:
+      - type: card
+        key: rung
+        title:
+          en-us: Time Role
+          pt-br: Cargo por tempo
+        description:
+          en-us: Choose how long a member must be in the server, and the role I give them once they get there.
+          pt-br: Escolha há quanto tempo o membro precisa estar no servidor, e o cargo que eu dou para ele quando completar esse tempo.
+        emoji: ⏳
+        header:
+          thumbnail: default
+        required:
+          all: [time, role]
+        transform:
+          name: time_span
+        fields:
+          - key: time
+            description:
+              en-us: How long a member must be in the server to get this role.
+              pt-br: Há quanto tempo o membro precisa estar no servidor para ganhar este cargo.
+          - key: role
+            description:
+              en-us: The role I give, taking the time roles that come before it.
+              pt-br: O cargo que eu dou, tirando os cargos por tempo que vêm antes dele.
+        sections:
+          - type: modal_input
+            key: time
+            emoji: 📅
+            label:
+              en-us: Time in the server
+              pt-br: Tempo no servidor
+            keys:
+              value: time
+            button:
+              label:
+                en-us: Choose the time
+                pt-br: Escolher o tempo
+            format: time_span
+            modal:
+              title:
+                en-us: Time in the server
+                pt-br: Tempo no servidor
+              validation:
+                name: time_span
+                # open: the validator's params -> an answer key or a value
+                params:
+                  amount: amount
+                  unit: unit
+              inputs:
+                - key: amount
+                  label:
+                    en-us: How long (just the number)
+                    pt-br: Quanto tempo (só o número)
+                  placeholder:
+                    en-us: "e.g. 3"
+                    pt-br: "ex: 3"
+                  max_length: 3
+              select:
+                key: unit
+                label:
+                  en-us: In days, weeks, months or years?
+                  pt-br: Em dias, semanas, meses ou anos?
+                placeholder:
+                  en-us: Choose the unit
+                  pt-br: Escolher a unidade
+                options:
+                  - label:
+                      en-us: Days
+                      pt-br: Dias
+                    value: days
+                  - label:
+                      en-us: Weeks
+                      pt-br: Semanas
+                    value: weeks
+                  - label:
+                      en-us: Months
+                      pt-br: Meses
+                    value: months
+                  - label:
+                      en-us: Years
+                      pt-br: Anos
+                    value: years
+          - type: selects
+            key: role
+            emoji: 🏷️
+            label:
+              en-us: Role
+              pt-br: Cargo
+            screen:
+              description:
+                en-us: I give this role to every member who reaches this time in the server.
+                pt-br: Eu dou este cargo para cada membro que completar esse tempo no servidor.
+            selects:
+              - type: assignable_roles
+                key: role
+                emoji: 🏷️
+                label:
+                  en-us: Role
+                  pt-br: Cargo
+                placeholder:
+                  en-us: Choose the role
+                  pt-br: Escolher o cargo
+                max: 1
 
   - type: single_choice
     key: sync_existing
@@ -79,6 +219,12 @@ steps:
       pt-br: "Os seguintes membros atuais irão receber os cargos:\n\n👥 **Membros**\n- Quantidade: **${context.members_count}**\n- ${plural.default_roles|Cargo a ser atribuído a esses membros|Cargos a serem atribuídos a esses membros}: ${answer.default_roles:role|Em branco}\n\n🤖 **Bots**\n- Quantidade: **${context.bots_count}**\n- ${plural.default_roles_bot|Cargo a ser atribuído a esses bots|Cargos a serem atribuídos a esses bots}: ${answer.default_roles_bot:role|Em branco}"
     emoji: 🔄
     hidden: true
+    when:
+      any:
+        - key: default_roles
+          present: true
+        - key: default_roles_bot
+          present: true
     options:
       - label:
           en-us: "Yes"
@@ -95,3 +241,17 @@ steps:
 
   - type: review
     key: confirm
+    required:
+      any: [default_roles, default_roles_bot, role_ladder]
+
+# open: group ids -> a panel group
+groups:
+  ladder:
+    title: ${ref.roles_by_time}
+    emoji: ⏳
+    screen:
+      description:
+        en-us: When a member reaches the time of a time role, I give them that role and take the time roles that come before it, so each member keeps only the highest one.
+        pt-br: Quando um membro completa o tempo de um cargo por tempo, eu dou esse cargo e tiro os cargos por tempo que vêm antes dele, então cada membro fica só com o maior.
+    opens: screen
+    collapsed: true
