@@ -1,0 +1,184 @@
+steps:
+  - type: intro
+    key: form
+    title:
+      en-us: 🏷️ Reaction Roles
+      pt-br: 🏷️ Cargos por Reação
+    description:
+      en-us: Enabling this feature allows me to post a role menu in a channel. Each button on the menu gives a role to whoever clicks it!
+      pt-br: Ativar esta função faz com que eu publique um menu de cargos num canal. Cada botão do menu dá um cargo para quem clicar nele!
+    panel:
+      description:
+        en-us: I keep these menus posted, and each click on a button gives or takes its role.
+        pt-br: Mantenho estes menus publicados, e cada clique num botão dá ou tira o cargo dele.
+
+  - type: list
+    key: menus
+    title:
+      en-us: Menus
+      pt-br: Menus
+    description:
+      en-us: "Do you want to add more menus? Each menu is one message with its role buttons, in the channel you pick! (Max: 3)"
+      pt-br: "Deseja adicionar mais menus? Cada menu é uma mensagem com os botões dos cargos, no canal que você escolher! (Máx: 3)"
+    emoji: 🏷️
+    items:
+      max: 3
+      min: 1
+    edit: item
+    remove: item
+    counter: ${ref.set_up_counter}
+    last_item_warning:
+      en-us: "You only have **1** menu set up.\n\n$item\n\nIf you remove it now, **$feature** will be **turned off**, I'll delete the menu from its channel and you'll need to set it up again. Are you sure you want to continue?"
+      pt-br: "Você só tem **1** menu configurado.\n\n$item\n\nSe você removê-lo agora, a função **$feature** será **desativada**, eu apago o menu do canal e você vai precisar configurá-la de novo. Tem certeza de que quer continuar?"
+    steps:
+      - type: card
+        key: menu
+        title:
+          en-us: Role Menu
+          pt-br: Menu de Cargos
+        description:
+          en-us: Choose the channel and the roles, and I'll post the menu for the members! The message content already comes set, change it if you want.
+          pt-br: Escolha o canal e os cargos, e eu publico o menu para os membros! O conteúdo da mensagem já vem pronto, mude se quiser.
+        emoji: 🏷️
+        header:
+          thumbnail: default
+        required:
+          all: [channel, roles]
+        fields:
+          - key: channel
+            description:
+              en-us: Where I'll post the menu.
+              pt-br: Onde vou publicar o menu.
+          - key: title
+            label: ${ref.message_content}
+            description:
+              en-us: The title, the text, the footer and the image of the menu.
+              pt-br: O título, o texto, o rodapé e a imagem do menu.
+          - key: text
+            hidden: true
+          - key: footer
+            hidden: true
+          - key: image
+            hidden: true
+          - key: mode
+            description:
+              en-us: Whether a member takes several roles of the menu or only one.
+              pt-br: Se o membro pega vários cargos do menu ou só um.
+          - key: roles
+            description:
+              en-us: Up to 10 roles, one button each.
+              pt-br: Até 10 cargos, um botão para cada.
+        sections:
+          - type: channel_select
+            key: channel
+            emoji: 📺
+            label: ${ref.channel}
+            keys:
+              value: channel
+            screen:
+              title:
+                en-us: Where should I post the menu?
+                pt-br: Onde devo publicar o menu?
+          - type: modal_input
+            key: message
+            emoji: 💬
+            label: ${ref.message_content}
+            keys:
+              value: text
+              image: image
+            image: image
+            button:
+              label:
+                en-us: Edit content
+                pt-br: Editar conteúdo
+            modal:
+              title: ${ref.message_content}
+              inputs:
+                - key: title
+                  label: ${ref.title}
+                  placeholder:
+                    en-us: "e.g. 🎮 Game roles"
+                    pt-br: "ex: 🎮 Cargos de jogos"
+                  max_length: 50
+                - key: text
+                  label:
+                    en-us: Text
+                    pt-br: Texto
+                  placeholder:
+                    en-us: "e.g. Pick the games you play!"
+                    pt-br: "ex: Escolha os jogos que você joga!"
+                  max_length: 100
+                  multiline: true
+                - key: footer
+                  label: ${ref.footer}
+                  placeholder:
+                    en-us: "e.g. You can change your roles anytime!"
+                    pt-br: "ex: Você pode trocar seus cargos quando quiser!"
+                  max_length: 100
+                  required: false
+              upload:
+                validation:
+                  name: image
+          - type: value_select
+            key: mode
+            emoji: 🔢
+            label:
+              en-us: Mode
+              pt-br: Modo
+            description:
+              en-us: Choose whether a member can take several roles or only one.
+              pt-br: Escolha se um membro pode pegar vários cargos ou só um.
+            keys:
+              value: mode
+            screen:
+              title:
+                en-us: How many roles of the menu can a member have?
+                pt-br: Quantos cargos do menu um membro pode ter?
+            placeholder:
+              en-us: Choose how many roles
+              pt-br: Escolher quantos cargos
+            options:
+              - label:
+                  en-us: ✅ Several roles
+                  pt-br: ✅ Vários cargos
+                value: several
+                description:
+                  en-us: A member takes as many roles of the menu as they want.
+                  pt-br: O membro pega quantos cargos do menu quiser.
+              - label:
+                  en-us: 🎯 Only one
+                  pt-br: 🎯 Só um
+                value: one
+                description:
+                  en-us: Picking a role takes the menu's other roles away.
+                  pt-br: Escolher um cargo tira os outros cargos do menu.
+          - type: selects
+            key: roles
+            emoji: 🎭
+            label:
+              en-us: Roles
+              pt-br: Cargos
+            selects:
+              - type: assignable_roles
+                key: roles
+                emoji: 🎭
+                label:
+                  en-us: Roles
+                  pt-br: Cargos
+                placeholder: ${ref.roles_placeholder}
+                max: 10
+                powerful_roles_warning:
+                  en-us: With this menu, I'll give $roles to any member who clicks its button, and that lets them moderate or manage the server. If that's not what you want, change the roles right here on the card.
+                  pt-br: Com este menu, eu dou $roles para qualquer membro que clicar no botão, e isso deixa a pessoa moderar ou gerenciar o servidor. Se não é isso que você quer, mude os cargos aqui mesmo no card.
+        # open: state keys of the card -> a value or a text
+        defaults:
+          title:
+            en-us: 🏷️ Pick your roles
+            pt-br: 🏷️ Escolha seus cargos
+          text:
+            en-us: Click the buttons to take or drop a role!
+            pt-br: Clique nos botões para pegar ou largar um cargo!
+          mode: several
+
+  - type: review
+    key: confirm

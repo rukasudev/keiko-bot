@@ -1,0 +1,965 @@
+screens:
+  form.panel:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - type: section
+        children:
+        - {type: text, content: '## ⟨reaction_roles.form.steps.form.title⟩'}
+        - {type: text, content: ⟨reaction_roles.form.steps.form.panel.description⟩}
+        - {type: thumbnail, media: KEIKO_DEFAULT.png}
+      - type: section
+        children:
+        - {type: text, content: '🏷️ **⟨reaction_roles.form.steps.menus.title⟩:** ⟨vocabulary.texts.set_up_counter: count=«2»; max=«3»⟩'}
+        - {type: button, label: ⟨buttons.add.label⟩, style: secondary, disabled: false}
+      - type: text
+        content: |-
+          ### ⟨reaction_roles.form.steps.menus.title⟩ #1
+          📺 **⟨vocabulary.texts.channel⟩:** <#103>
+          💬 **⟨vocabulary.texts.message_content⟩:** 🏷️ Escolha seus cargos
+          🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩:** ✅ Vários cargos
+          🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩:** <@&210>, <@&211>
+      - type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+        - {type: button, label: ⟨buttons.remove.label⟩, style: danger, disabled: false}
+      - type: text
+        content: |-
+          ### ⟨reaction_roles.form.steps.menus.title⟩ #2
+          📺 **⟨vocabulary.texts.channel⟩:** <#104>
+          💬 **⟨vocabulary.texts.message_content⟩:** 🎨 Escolha sua cor
+          🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩:** 🎯 Só um
+          🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩:** <@&213>, <@&214>
+      - type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+        - {type: button, label: ⟨buttons.remove.label⟩, style: danger, disabled: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.pause.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨buttons.disable.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨buttons.history.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨buttons.stats.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨buttons.help.label⟩, style: secondary, disabled: false}
+    components_v2: true
+    rendered:
+      pt-br:
+      - '## 🏷️ Cargos por Reação'
+      - Mantenho estes menus publicados, e cada clique num botão dá ou tira o cargo dele.
+      - 🏷️ **Menus:** 2 de 3 configurados
+      - Adicionar
+      - |-
+        ### Menus #1
+        📺 **Canal:** <#103>
+        💬 **Conteúdo da mensagem:** 🏷️ Escolha seus cargos
+        🔢 **Modo:** ✅ Vários cargos
+        🎭 **Cargos:** <@&210>, <@&211>
+      - Editar
+      - Remover
+      - |-
+        ### Menus #2
+        📺 **Canal:** <#104>
+        💬 **Conteúdo da mensagem:** 🎨 Escolha sua cor
+        🔢 **Modo:** 🎯 Só um
+        🎭 **Cargos:** <@&213>, <@&214>
+      - Editar
+      - Remover
+      - -# • Use o comando `/reportar` para me contar um bug
+      - Pausar
+      - Desativar
+      - Histórico
+      - Estatísticas
+      - Ajuda
+  form.panel+pause:
+    from: form.panel
+    changes:
+    - set components.0.children.0.children.0.content: '## ⟨reaction_roles.form.steps.form.title⟩ (⟨texts.paused_suffix⟩)'
+    - set components.1.children.0.label: ⟨buttons.unpause.label⟩
+  form.panel+continue:
+    from: form.panel
+    changes:
+    - set components.0.children.1.children.0.content: '🏷️ **⟨reaction_roles.form.steps.menus.title⟩:** ⟨vocabulary.texts.set_up_counter: count=«1»; max=«3»⟩'
+    - set components.0.children.2.content: |-
+        ### ⟨reaction_roles.form.steps.menus.title⟩ #1
+        📺 **⟨vocabulary.texts.channel⟩:** <#103>
+        💬 **⟨vocabulary.texts.message_content⟩:** ⟨reaction_roles.form.steps.menus.steps.menu.defaults.title⟩
+        🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩:** ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.several.label⟩
+        🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩:** <@&210>, <@&211>
+    - drop components.0.children.3: null
+    - drop components.0.children.3: null
+    rendered:
+      en-us:
+      - '## 🏷️ Reaction Roles'
+      - I keep these menus posted, and each click on a button gives or takes its role.
+      - 🏷️ **Menus:** 1 of 3 set up
+      - Add
+      - |-
+        ### Menus #1
+        📺 **Channel:** <#103>
+        💬 **Message content:** 🏷️ Pick your roles
+        🔢 **Mode:** ✅ Several roles
+        🎭 **Roles:** <@&210>, <@&211>
+      - Edit
+      - Remove
+      - -# • Use the `/report` command to tell me a bug
+      - Pause
+      - Disable
+      - History
+      - Statistics
+      - Help
+  form.panel+continue@setup_happy:
+    from: form.panel
+    changes:
+    - set components.0.children.1.children.0.content: '🏷️ **⟨reaction_roles.form.steps.menus.title⟩:** ⟨vocabulary.texts.set_up_counter: count=«1»; max=«3»⟩'
+    - set components.0.children.2.content: |-
+        ### ⟨reaction_roles.form.steps.menus.title⟩ #1
+        📺 **⟨vocabulary.texts.channel⟩:** <#100>
+        💬 **⟨vocabulary.texts.message_content⟩:** ⟨reaction_roles.form.steps.menus.steps.menu.defaults.title⟩
+        🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩:** ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.several.label⟩
+        🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩:** <@&210>, <@&211>
+    - drop components.0.children.3: null
+    - drop components.0.children.3: null
+  form.panel+start_command:
+    from: form.panel
+    changes:
+    - set components.0.children.2.content: |-
+        ### ⟨reaction_roles.form.steps.menus.title⟩ #1
+        📺 **⟨vocabulary.texts.channel⟩:** <#103>
+        💬 **⟨vocabulary.texts.message_content⟩:** ⟨reaction_roles.form.steps.menus.steps.menu.defaults.title⟩
+        🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩:** ✅ ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.several.label (no emoji)⟩
+        🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩:** <@&210>, <@&211>
+    - set components.0.children.4.content: |-
+        ### ⟨reaction_roles.form.steps.menus.title⟩ #2
+        📺 **⟨vocabulary.texts.channel⟩:** <#104>
+        💬 **⟨vocabulary.texts.message_content⟩:** 🎨 Escolha sua cor
+        🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩:** 🎯 ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.one.label (no emoji)⟩
+        🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩:** <@&213>, <@&214>
+  form.panel+done:
+    from: form.panel
+    changes:
+    - set components.0.children.1.children.0.content: '🏷️ **⟨reaction_roles.form.steps.menus.title⟩:** ⟨vocabulary.texts.set_up_counter: count=«3»; max=«3»⟩'
+    - set components.0.children.1.children.1.disabled: true
+    - set components.0.children.2.content: |-
+        ### ⟨reaction_roles.form.steps.menus.title⟩ #1
+        📺 **⟨vocabulary.texts.channel⟩:** <#103>
+        💬 **⟨vocabulary.texts.message_content⟩:** ⟨reaction_roles.form.steps.menus.steps.menu.defaults.title⟩
+        🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩:** ✅ ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.several.label (no emoji)⟩
+        🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩:** <@&210>, <@&211>
+    - set components.0.children.4.content: |-
+        ### ⟨reaction_roles.form.steps.menus.title⟩ #2
+        📺 **⟨vocabulary.texts.channel⟩:** <#104>
+        💬 **⟨vocabulary.texts.message_content⟩:** 🎨 Escolha sua cor
+        🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩:** 🎯 ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.one.label (no emoji)⟩
+        🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩:** <@&213>, <@&214>
+    - add components.0.children.5:
+        type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+        - {type: button, label: ⟨buttons.remove.label⟩, style: danger, disabled: false}
+    - add components.0.children.6:
+        type: text
+        content: |-
+          ### ⟨reaction_roles.form.steps.menus.title⟩ #3
+          📺 **⟨vocabulary.texts.channel⟩:** <#103>
+          💬 **⟨vocabulary.texts.message_content⟩:** ⟨reaction_roles.form.steps.menus.steps.menu.defaults.title⟩
+          🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩:** ✅ ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.several.label (no emoji)⟩
+          🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩:** <@&212>
+  form.panel+start_command@manager_edit_one_step:
+    from: form.panel
+    changes:
+    - set components.0.children.2.content: |-
+        ### ⟨reaction_roles.form.steps.menus.title⟩ #1
+        📺 **⟨vocabulary.texts.channel⟩:** <#103>
+        💬 **⟨vocabulary.texts.message_content⟩:** 🏷️ Escolha seus cargos
+        🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩:** ✅ ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.several.label (no emoji)⟩
+        🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩:** <@&210>, <@&211>
+    - set components.0.children.4.content: |-
+        ### ⟨reaction_roles.form.steps.menus.title⟩ #2
+        📺 **⟨vocabulary.texts.channel⟩:** <#104>
+        💬 **⟨vocabulary.texts.message_content⟩:** 🎨 Escolha sua cor
+        🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩:** 🎯 ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.one.label (no emoji)⟩
+        🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩:** <@&213>, <@&214>
+  form.panel+done@manager_edit_one_step:
+    from: form.panel
+    changes:
+    - set components.0.children.2.content: |-
+        ### ⟨reaction_roles.form.steps.menus.title⟩ #1
+        📺 **⟨vocabulary.texts.channel⟩:** <#103>
+        💬 **⟨vocabulary.texts.message_content⟩:** 🎮 Jogos
+        🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩:** ✅ ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.several.label (no emoji)⟩
+        🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩:** <@&210>, <@&211>
+    - set components.0.children.4.content: |-
+        ### ⟨reaction_roles.form.steps.menus.title⟩ #2
+        📺 **⟨vocabulary.texts.channel⟩:** <#104>
+        💬 **⟨vocabulary.texts.message_content⟩:** 🎨 Escolha sua cor
+        🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩:** 🎯 ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.one.label (no emoji)⟩
+        🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩:** <@&213>, <@&214>
+  form.panel+remove_items:
+    from: form.panel
+    changes:
+    - set components.0.children.1.children.0.content: '🏷️ **⟨reaction_roles.form.steps.menus.title⟩:** ⟨vocabulary.texts.set_up_counter: count=«1»; max=«3»⟩'
+    - drop components.0.children.4: null
+    - drop components.0.children.4: null
+  form.panel+continue@setup_only_one_with_its_own_message:
+    from: form.panel
+    changes:
+    - set components.0.children.1.children.0.content: '🏷️ **⟨reaction_roles.form.steps.menus.title⟩:** ⟨vocabulary.texts.set_up_counter: count=«1»; max=«3»⟩'
+    - set components.0.children.2.content: |-
+        ### ⟨reaction_roles.form.steps.menus.title⟩ #1
+        📺 **⟨vocabulary.texts.channel⟩:** <#104>
+        💬 **⟨vocabulary.texts.message_content⟩:** 🎨 Escolha sua cor
+        🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩:** ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.one.label⟩
+        🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩:** <@&213>, <@&214>
+    - drop components.0.children.3: null
+    - drop components.0.children.3: null
+  menu:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - type: section
+        children:
+        - {type: text, content: '## 🏷️ ⟨reaction_roles.form.steps.menus.steps.menu.title⟩'}
+        - {type: text, content: ⟨reaction_roles.form.steps.menus.steps.menu.description⟩}
+        - {type: thumbnail, media: KEIKO_DEFAULT.png}
+      - type: text
+        content: |-
+          📺 **⟨vocabulary.texts.channel⟩**
+          > ⟨texts.empty_value⟩
+      - type: actionrow
+        children:
+        - {type: channel_select, placeholder: ⟨texts.placeholders.channel⟩, min: 1, max: 1, disabled: false}
+      - type: text
+        content: |-
+          💬 **⟨vocabulary.texts.message_content⟩**
+          > **⟨vocabulary.texts.title⟩:** ⟨reaction_roles.form.steps.menus.steps.menu.defaults.title⟩
+          ⟨reaction_roles.form.steps.menus.steps.menu.defaults.text⟩
+      - type: actionrow
+        children:
+        - {type: button, label: ⟨reaction_roles.form.steps.menus.steps.menu.sections.message.button.label⟩, style: secondary, disabled: false}
+      - type: text
+        content: |-
+          🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩**
+          ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.description⟩
+          > ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.several.label⟩
+      - type: actionrow
+        children:
+        - type: select
+          placeholder: ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.placeholder⟩
+          min: 1
+          max: 1
+          disabled: false
+          options:
+          - {label: ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.several.label⟩, value: several, default: true}
+          - {label: ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.one.label⟩, value: one, default: false}
+      - type: text
+        content: |-
+          🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩**
+          > ⟨texts.empty_value⟩
+      - type: actionrow
+        children:
+        - {type: role_select, placeholder: ⟨vocabulary.texts.roles_placeholder⟩, min: 1, max: 10, disabled: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.done.label⟩, style: success, disabled: false}
+      - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
+    components_v2: true
+  menu+channel=cargos:
+    from: menu
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.channel⟩**
+        > <#103>
+  menu+roles=Gamer,Artista:
+    from: menu
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.channel⟩**
+        > <#103>
+    - set components.0.children.7.content: |-
+        🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩**
+        > <@&210>, <@&211>
+  menu+channel=general:
+    from: menu
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.channel⟩**
+        > <#100>
+  menu+roles=Gamer,Artista@setup_happy:
+    from: menu
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.channel⟩**
+        > <#100>
+    - set components.0.children.7.content: |-
+        🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩**
+        > <@&210>, <@&211>
+  menu+add:
+    from: menu
+    changes:
+    - set components.0.children.3.content: |-
+        💬 **⟨vocabulary.texts.message_content⟩**
+        > **⟨vocabulary.texts.title⟩:** ⟨reaction_roles.form.steps.menus.steps.menu.defaults.title⟩
+        Clique nos botões para pegar ou largar um cargo!
+    - set components.0.children.5.content: |-
+        🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩**
+        ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.description⟩
+        > ✅ ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.several.label (no emoji)⟩
+    - set components.0.children.6.children.0.options.0.label: ✅ ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.several.label (no emoji)⟩
+    - set components.0.children.6.children.0.options.1.label: 🎯 ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.one.label (no emoji)⟩
+    - set components.1.children.0.label: ⟨buttons.confirm.label⟩
+  menu+channel=cargos@manager_add_item:
+    from: menu
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.channel⟩**
+        > <#103>
+    - set components.0.children.3.content: |-
+        💬 **⟨vocabulary.texts.message_content⟩**
+        > **⟨vocabulary.texts.title⟩:** ⟨reaction_roles.form.steps.menus.steps.menu.defaults.title⟩
+        Clique nos botões para pegar ou largar um cargo!
+    - set components.0.children.5.content: |-
+        🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩**
+        ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.description⟩
+        > ✅ ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.several.label (no emoji)⟩
+    - set components.0.children.6.children.0.options.0.label: ✅ ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.several.label (no emoji)⟩
+    - set components.0.children.6.children.0.options.1.label: 🎯 ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.one.label (no emoji)⟩
+    - set components.1.children.0.label: ⟨buttons.confirm.label⟩
+  menu+roles=Leitor:
+    from: menu
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.channel⟩**
+        > <#103>
+    - set components.0.children.3.content: |-
+        💬 **⟨vocabulary.texts.message_content⟩**
+        > **⟨vocabulary.texts.title⟩:** ⟨reaction_roles.form.steps.menus.steps.menu.defaults.title⟩
+        Clique nos botões para pegar ou largar um cargo!
+    - set components.0.children.5.content: |-
+        🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩**
+        ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.description⟩
+        > ✅ ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.several.label (no emoji)⟩
+    - set components.0.children.6.children.0.options.0.label: ✅ ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.several.label (no emoji)⟩
+    - set components.0.children.6.children.0.options.1.label: 🎯 ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.one.label (no emoji)⟩
+    - set components.0.children.7.content: |-
+        🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩**
+        > <@&212>
+    - set components.1.children.0.label: ⟨buttons.confirm.label⟩
+  menu+section:menus$0:
+    from: menu
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.channel⟩**
+        > <#103>
+    - set components.0.children.3.content: |-
+        💬 **⟨vocabulary.texts.message_content⟩**
+        > **⟨vocabulary.texts.title⟩:** 🏷️ Escolha seus cargos
+        Clique nos botões para pegar ou largar um cargo!
+    - set components.0.children.5.content: |-
+        🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩**
+        ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.description⟩
+        > ✅ ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.several.label (no emoji)⟩
+    - set components.0.children.6.children.0.options.0.label: ✅ ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.several.label (no emoji)⟩
+    - set components.0.children.6.children.0.options.1.label: 🎯 ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.one.label (no emoji)⟩
+    - set components.0.children.7.content: |-
+        🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩**
+        > <@&210>, <@&211>
+    - set components.1.children.0.label: ⟨buttons.confirm.label⟩
+  menu+modal_submit:
+    from: menu
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.channel⟩**
+        > <#103>
+    - set components.0.children.3.content: |-
+        💬 **⟨vocabulary.texts.message_content⟩**
+        > **⟨vocabulary.texts.title⟩:** 🎮 Jogos
+        Escolha seus jogos!
+    - set components.0.children.5.content: |-
+        🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩**
+        ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.description⟩
+        > ✅ ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.several.label (no emoji)⟩
+    - set components.0.children.6.children.0.options.0.label: ✅ ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.several.label (no emoji)⟩
+    - set components.0.children.6.children.0.options.1.label: 🎯 ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.one.label (no emoji)⟩
+    - set components.0.children.7.content: |-
+        🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩**
+        > <@&210>, <@&211>
+    - set components.1.children.0.label: ⟨buttons.confirm.label⟩
+  menu+Descartar_tudo:
+    from: menu
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.channel⟩**
+        > <#103>
+    - drop components.0.children.2: null
+    - drop components.0.children.3: null
+    - drop components.0.children.4: null
+    - drop components.0.children.5: null
+    - drop components.1: null
+  menu+channel=cores:
+    from: menu
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.channel⟩**
+        > <#104>
+  menu+modal_submit@setup_only_one_with_its_own_message:
+    from: menu
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.channel⟩**
+        > <#104>
+    - set components.0.children.3.content: |-
+        💬 **⟨vocabulary.texts.message_content⟩**
+        > **⟨vocabulary.texts.title⟩:** 🎨 Escolha sua cor
+        Uma cor por membro!
+  menu+mode=one:
+    from: menu
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.channel⟩**
+        > <#104>
+    - set components.0.children.3.content: |-
+        💬 **⟨vocabulary.texts.message_content⟩**
+        > **⟨vocabulary.texts.title⟩:** 🎨 Escolha sua cor
+        Uma cor por membro!
+    - set components.0.children.5.content: |-
+        🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩**
+        ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.description⟩
+        > ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.one.label⟩
+    - set components.0.children.6.children.0.options.0.default: false
+    - set components.0.children.6.children.0.options.1.default: true
+  menu+roles=Azul,Verde:
+    from: menu
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.channel⟩**
+        > <#104>
+    - set components.0.children.3.content: |-
+        💬 **⟨vocabulary.texts.message_content⟩**
+        > **⟨vocabulary.texts.title⟩:** 🎨 Escolha sua cor
+        Uma cor por membro!
+    - set components.0.children.5.content: |-
+        🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩**
+        ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.description⟩
+        > ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.one.label⟩
+    - set components.0.children.6.children.0.options.0.default: false
+    - set components.0.children.6.children.0.options.1.default: true
+    - set components.0.children.7.content: |-
+        🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩**
+        > <@&213>, <@&214>
+  defaults:
+    ephemeral: false
+    components:
+    - type: container
+      children:
+      - {type: text, content: '## ⟨reaction_roles.form.steps.menus.steps.menu.defaults.title⟩'}
+      - {type: text, content: ⟨reaction_roles.form.steps.menus.steps.menu.defaults.text⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: Gamer, style: secondary, disabled: false}
+      - {type: button, label: Artista, style: secondary, disabled: false}
+    components_v2: true
+  defaults+click_after_restart:
+    from: defaults
+    changes:
+    - set ephemeral: true
+    - set components.1.children.0.style: primary
+  defaults+click_after_restart@member_takes_and_drops_roles:
+    from: defaults
+    changes:
+    - set ephemeral: true
+    - set components.1.children.0.style: primary
+    - set components.1.children.1.style: primary
+  defaults+click_after_restart@member_takes_and_drops_roles#2:
+    from: defaults
+    changes:
+    - set ephemeral: true
+    - set components.1.children.1.style: primary
+  defaults+done:
+    from: defaults
+    changes:
+    - set components.0.children.1.content: Clique nos botões para pegar ou largar um cargo!
+    - set components.1.children.0.label: Leitor
+    - drop components.1.children.1: null
+  delete:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.delete.title⟩
+      description: '⟨commands.responses.delete.description: command_name=«⟨texts.groups.moderations⟩ ⟨reaction_roles.command.slash.subgroup⟩ ⟨reaction_roles.command.slash.name⟩»⟩'
+      fields: []
+      footer: null
+      color: 16711680
+      thumbnail: null
+      image: null
+    components:
+    - {type: button, label: ⟨buttons.delete_all.label⟩, style: danger, disabled: false}
+    - {type: button, label: ⟨buttons.back.label⟩, style: secondary, disabled: false}
+    components_v2: false
+  disabled:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.disabled.title⟩
+      description: |-
+        ⟨commands.responses.disabled.description: command_name=«⟨texts.groups.moderations⟩ ⟨reaction_roles.command.slash.subgroup⟩ ⟨reaction_roles.command.slash.name⟩»; date=«<t:1767268800:f>»; user=«<@555>»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+  message_content.texts:
+    modal:
+      title: 💬 ⟨vocabulary.texts.message_content⟩
+      fields:
+      - {label: ⟨vocabulary.texts.title⟩, required: true, style: short, max_length: 50, default: 🏷️ Escolha seus cargos}
+      - {label: ⟨reaction_roles.form.steps.menus.steps.menu.sections.message.modal.inputs.text.label⟩, required: true, style: paragraph, max_length: 100, default: Clique nos botões para pegar ou largar um cargo!}
+      - {label: ⟨vocabulary.texts.footer⟩, required: false, style: short, max_length: 100, default: ''}
+      - type: fileupload
+  message_content.texts+customize:message:
+    from: message_content.texts
+    changes:
+    - set modal.fields.0.default: ⟨reaction_roles.form.steps.menus.steps.menu.defaults.title⟩
+    - set modal.fields.1.default: ⟨reaction_roles.form.steps.menus.steps.menu.defaults.text⟩
+  screen:
+    ephemeral: false
+    components:
+    - type: container
+      children:
+      - {type: text, content: '## 🎮 Jogos'}
+      - {type: text, content: Escolha seus jogos!}
+    - type: actionrow
+      children:
+      - {type: button, label: Gamer, style: secondary, disabled: false}
+      - {type: button, label: Artista, style: secondary, disabled: false}
+    components_v2: true
+  screen+continue:
+    from: screen
+    changes:
+    - set components.0.children.0.content: '## 🎨 Escolha sua cor'
+    - set components.0.children.1.content: Uma cor por membro!
+    - set components.1.children.0.label: Azul
+    - set components.1.children.1.label: Verde
+  screen.message:
+    ephemeral: true
+  screen.message+history:
+    ephemeral: true
+    components:
+    - {type: button, label: '|<', style: success, disabled: false}
+    - {type: button, label: <, style: primary, disabled: false}
+    - {type: button, label: '>', style: primary, disabled: false}
+    - {type: button, label: '>|', style: success, disabled: false}
+    components_v2: false
+  changes.history:
+    ephemeral: true
+    embed:
+      title: ⟨commands.records.changes.title⟩
+      description: '⟨commands.records.history.description: command_name=«⟨texts.groups.moderations⟩ ⟨reaction_roles.command.slash.subgroup⟩ ⟨reaction_roles.command.slash.name⟩»⟩'
+      fields:
+      - {name: 1. ⟨commands.records.history.lines.edited⟩, value: '<@555> · <t:1767263400:f>', inline: false}
+      - {name: 2. ⟨commands.records.history.lines.enabled⟩, value: '<@555> · <t:1767259800:f>', inline: false}
+      footer: • ⟨texts.page⟩ 1 / 1
+      color: 5216249
+      thumbnail: KEIKO_NERD.png
+      image: null
+    components:
+    - {type: button, label: '|<', style: success, disabled: true}
+    - {type: button, label: <, style: primary, disabled: true}
+    - {type: button, label: '>', style: primary, disabled: true}
+    - {type: button, label: '>|', style: success, disabled: true}
+    components_v2: false
+  paused:
+    ephemeral: true
+    embed:
+      title: 🚨 ⟨reaction_roles.ui.errors.paused.title⟩
+      description: |-
+        ⟨reaction_roles.ui.errors.paused.message⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 16711680
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+  paused+pause:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.paused.title⟩
+      description: |-
+        ⟨commands.responses.paused.description: command_name=«⟨texts.groups.moderations⟩ ⟨reaction_roles.command.slash.subgroup⟩ ⟨reaction_roles.command.slash.name⟩»; date=«<t:1767268800:f>»; user=«<@555>»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+  remove:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.remove.title⟩
+      description: '⟨commands.responses.remove.description: items=«- ⟨reaction_roles.form.steps.menus.title⟩ #2»⟩'
+      fields: []
+      footer: null
+      color: 16711680
+      thumbnail: null
+      image: null
+    components:
+    - {type: button, label: ⟨buttons.remove.label⟩, style: danger, disabled: false}
+    - {type: button, label: ⟨buttons.back.label⟩, style: secondary, disabled: false}
+    components_v2: false
+  unpaused:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.unpaused.title⟩
+      description: |-
+        ⟨commands.responses.unpaused.description: command_name=«⟨texts.groups.moderations⟩ ⟨reaction_roles.command.slash.subgroup⟩ ⟨reaction_roles.command.slash.name⟩»; date=«<t:1767268800:f>»; user=«<@555>»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+  form:
+    ephemeral: true
+    embed:
+      title: ⟨reaction_roles.form.steps.form.title⟩
+      description: |-
+        ⟨reaction_roles.form.steps.form.description⟩
+
+        :pencil: **⟨texts.settings_heading⟩**
+
+        :flying_disc: **⟨vocabulary.texts.channel⟩:** ⟨reaction_roles.form.steps.menus.steps.menu.fields.channel.description⟩
+        :flying_disc: **⟨vocabulary.texts.message_content⟩:** ⟨reaction_roles.form.steps.menus.steps.menu.fields.title.description⟩
+        :flying_disc: **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩:** ⟨reaction_roles.form.steps.menus.steps.menu.fields.mode.description⟩
+        :flying_disc: **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩:** ⟨reaction_roles.form.steps.menus.steps.menu.fields.roles.description⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: KEIKO_DEFAULT.png
+      image: null
+    components:
+    - {type: button, label: ⟨buttons.confirm.label⟩, style: success, disabled: false}
+    - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
+    components_v2: false
+  form.review:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - type: section
+        children:
+        - {type: text, content: '## ⟨reaction_roles.form.steps.form.title⟩'}
+        - {type: text, content: '⟨vocabulary.fallbacks.review_description: command=«⟨texts.groups.moderations⟩ ⟨reaction_roles.command.slash.subgroup⟩ ⟨reaction_roles.command.slash.name⟩»⟩'}
+        - {type: thumbnail, media: KEIKO_BOLO.png}
+      - type: section
+        children:
+        - {type: text, content: '🏷️ **⟨reaction_roles.form.steps.menus.title⟩:** ⟨vocabulary.texts.set_up_counter: count=«1»; max=«3»⟩'}
+        - {type: button, label: ⟨buttons.add.label⟩, style: secondary, disabled: false}
+      - type: text
+        content: |-
+          ### ⟨reaction_roles.form.steps.menus.title⟩ #1
+          📺 **⟨vocabulary.texts.channel⟩:** <#103>
+          💬 **⟨vocabulary.texts.message_content⟩:** ⟨reaction_roles.form.steps.menus.steps.menu.defaults.title⟩
+          🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩:** ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.several.label⟩
+          🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩:** <@&210>, <@&211>
+      - type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.confirm.label⟩, style: success, disabled: false}
+      - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
+    components_v2: true
+    rendered:
+      en-us:
+      - '## 🏷️ Reaction Roles'
+      - Here's a summary of your choices so far. All set for me to turn on the `/moderations roles reaction` command with the settings below? ✅
+      - 🏷️ **Menus:** 1 of 3 set up
+      - Add
+      - |-
+        ### Menus #1
+        📺 **Channel:** <#103>
+        💬 **Message content:** 🏷️ Pick your roles
+        🔢 **Mode:** ✅ Several roles
+        🎭 **Roles:** <@&210>, <@&211>
+      - Edit
+      - -# • Use the `/report` command to tell me a bug
+      - Confirm
+      - Cancel
+      pt-br:
+      - '## 🏷️ Cargos por Reação'
+      - Esse é o resumo das suas escolhas até aqui. Tudo certo para eu ativar o comando `/moderações cargos reação` com as configurações abaixo? ✅
+      - 🏷️ **Menus:** 1 de 3 configurados
+      - Adicionar
+      - |-
+        ### Menus #1
+        📺 **Canal:** <#103>
+        💬 **Conteúdo da mensagem:** 🏷️ Escolha seus cargos
+        🔢 **Modo:** ✅ Vários cargos
+        🎭 **Cargos:** <@&210>, <@&211>
+      - Editar
+      - -# • Use o comando `/reportar` para me contar um bug
+      - Confirmar
+      - Cancelar
+  form.review+done:
+    from: form.review
+    changes:
+    - set components.0.children.2.content: |-
+        ### ⟨reaction_roles.form.steps.menus.title⟩ #1
+        📺 **⟨vocabulary.texts.channel⟩:** <#100>
+        💬 **⟨vocabulary.texts.message_content⟩:** ⟨reaction_roles.form.steps.menus.steps.menu.defaults.title⟩
+        🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩:** ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.several.label⟩
+        🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩:** <@&210>, <@&211>
+  form.review+done@setup_only_one_with_its_own_message:
+    from: form.review
+    changes:
+    - set components.0.children.2.content: |-
+        ### ⟨reaction_roles.form.steps.menus.title⟩ #1
+        📺 **⟨vocabulary.texts.channel⟩:** <#104>
+        💬 **⟨vocabulary.texts.message_content⟩:** 🎨 Escolha sua cor
+        🔢 **⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.label⟩:** ⟨reaction_roles.form.steps.menus.steps.menu.sections.mode.options.one.label⟩
+        🎭 **⟨reaction_roles.form.steps.menus.steps.menu.sections.roles.label⟩:** <@&213>, <@&214>
+  enabled:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.enabled.title⟩
+      description: |-
+        ⟨commands.responses.enabled.description: command_name=«⟨texts.groups.moderations⟩ ⟨reaction_roles.command.slash.subgroup⟩ ⟨reaction_roles.command.slash.name⟩»; date=«<t:1767268800:f>»; user=«<@555>»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+  discard:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.discard.title⟩
+      description: ⟨commands.responses.discard.description⟩
+      fields: []
+      footer: null
+      color: 16711680
+      thumbnail: null
+      image: null
+    components:
+    - {type: button, label: ⟨buttons.keep.label⟩, style: secondary, disabled: false}
+    - {type: button, label: ⟨buttons.discard.label⟩, style: danger, disabled: false}
+    components_v2: false
+flows:
+  manager_add_item.pt-br:
+  - start_command reaction_roles "pt-br":
+    - send M1 form.panel+start_command
+  - click add:
+    - send M2 menu+add
+    - delete M1
+  - select channel ["cargos"]:
+    - edit M2 menu+channel=cargos@manager_add_item
+  - select roles ["Leitor"]:
+    - edit M2 menu+roles=Leitor
+  - click done:
+    - channel_send M3 defaults+done
+    - edit M2 form.panel+done
+  manager_disable.pt-br:
+  - start_command reaction_roles "pt-br":
+    - send M1 form.panel
+  - click disable:
+    - send M2 delete
+    - delete M1
+  - click delete_all:
+    - send M3 disabled
+    - delete M2
+  manager_edit_one_step.pt-br:
+  - start_command reaction_roles "pt-br":
+    - send M1 form.panel+start_command@manager_edit_one_step
+  - click section:menus$0:
+    - send M2 menu+section:menus$0
+    - delete M1
+  - click customize:message:
+    - modal message_content.texts
+  - 'modal_submit {"Título": "🎮 Jogos", "Texto": "Escolha seus jogos!", "Rodapé": ""}':
+    - edit M2 menu+modal_submit
+  - click done:
+    - channel_send M3 screen
+    - edit M2 form.panel+done@manager_edit_one_step
+  manager_history.pt-br:
+  - start_command reaction_roles "pt-br":
+    - send M1 form.panel
+  - click history:
+    - send M2 screen.message+history
+    - edit M2 changes.history
+  manager_pause.pt-br:
+  - start_command reaction_roles "pt-br":
+    - send M1 form.panel
+  - click pause:
+    - edit M1 form.panel+pause
+    - send M2 paused+pause (delete_after 5)
+  manager_remove_item.pt-br:
+  - start_command reaction_roles "pt-br":
+    - send M1 form.panel
+  - click remove_this:menus$1:
+    - send M2 remove
+    - delete M1
+  - click remove_items:
+    - send M3 form.panel+remove_items
+    - delete M2
+  manager_unpause.pt-br:
+  - start_command reaction_roles "pt-br":
+    - send M1 form.panel+pause
+  - click unpause:
+    - edit M1 form.panel
+    - send M2 unpaused (delete_after 5)
+  member_refused_while_paused.en-us:
+  - click_custom_id:
+    - defer screen.message (thinking true)
+    - send M1 paused
+  member_refused_while_paused.pt-br:
+  - click_custom_id:
+    - defer screen.message (thinking true)
+    - send M1 paused
+  member_takes_and_drops_roles.en-us:
+  - start_command reaction_roles "en-us":
+    - send M1 form
+  - click continue:
+    - send M2 menu
+    - delete M1
+  - select channel ["cargos"]:
+    - edit M2 menu+channel=cargos
+  - select roles ["Gamer", "Artista"]:
+    - edit M2 menu+roles=Gamer,Artista
+  - click done:
+    - edit M2 form.review
+  - click continue:
+    - channel_send M3 defaults
+    - send M4 enabled
+    - delete M2
+    - send M5 form.panel+continue
+  - click_after_restart Gamer:
+    - defer screen.message (thinking true)
+    - send M6 defaults+click_after_restart
+  - click_after_restart Artista:
+    - edit M6 defaults+click_after_restart@member_takes_and_drops_roles
+  - click_after_restart Gamer:
+    - edit M6 defaults+click_after_restart@member_takes_and_drops_roles#2
+  member_takes_and_drops_roles.pt-br:
+  - start_command reaction_roles "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 menu
+    - delete M1
+  - select channel ["cargos"]:
+    - edit M2 menu+channel=cargos
+  - select roles ["Gamer", "Artista"]:
+    - edit M2 menu+roles=Gamer,Artista
+  - click done:
+    - edit M2 form.review
+  - click continue:
+    - channel_send M3 defaults
+    - send M4 enabled
+    - delete M2
+    - send M5 form.panel+continue
+  - click_after_restart Gamer:
+    - defer screen.message (thinking true)
+    - send M6 defaults+click_after_restart
+  - click_after_restart Artista:
+    - edit M6 defaults+click_after_restart@member_takes_and_drops_roles
+  - click_after_restart Gamer:
+    - edit M6 defaults+click_after_restart@member_takes_and_drops_roles#2
+  setup_cancel_discard.pt-br:
+  - start_command reaction_roles "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 menu
+    - delete M1
+  - select channel ["cargos"]:
+    - edit M2 menu+channel=cargos
+  - click cancel:
+    - send M3 discard
+  - click Descartar tudo:
+    - edit M2 menu+Descartar_tudo
+    - delete M3
+  setup_cancel_keep.pt-br:
+  - start_command reaction_roles "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 menu
+    - delete M1
+  - select channel ["cargos"]:
+    - edit M2 menu+channel=cargos
+  - click cancel:
+    - send M3 discard
+  - click Continuar configurando:
+    - delete M3
+  setup_happy.en-us:
+  - start_command reaction_roles "en-us":
+    - send M1 form
+  - click continue:
+    - send M2 menu
+    - delete M1
+  - select channel ["general"]:
+    - edit M2 menu+channel=general
+  - select roles ["Gamer", "Artista"]:
+    - edit M2 menu+roles=Gamer,Artista@setup_happy
+  - click done:
+    - edit M2 form.review+done
+  - click continue:
+    - send M3 enabled
+    - delete M2
+    - send M4 form.panel+continue@setup_happy
+  setup_happy.pt-br:
+  - start_command reaction_roles "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 menu
+    - delete M1
+  - select channel ["general"]:
+    - edit M2 menu+channel=general
+  - select roles ["Gamer", "Artista"]:
+    - edit M2 menu+roles=Gamer,Artista@setup_happy
+  - click done:
+    - edit M2 form.review+done
+  - click continue:
+    - send M3 enabled
+    - delete M2
+    - send M4 form.panel+continue@setup_happy
+  setup_only_one_with_its_own_message.pt-br:
+  - start_command reaction_roles "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 menu
+    - delete M1
+  - select channel ["cores"]:
+    - edit M2 menu+channel=cores
+  - click customize:message:
+    - modal message_content.texts+customize:message
+  - 'modal_submit {"Título": "🎨 Escolha sua cor", "Texto": "Uma cor por membro!", "Rodapé": ""}':
+    - edit M2 menu+modal_submit@setup_only_one_with_its_own_message
+  - select mode ["one"]:
+    - edit M2 menu+mode=one
+  - select roles ["Azul", "Verde"]:
+    - edit M2 menu+roles=Azul,Verde
+  - click done:
+    - edit M2 form.review+done@setup_only_one_with_its_own_message
+  - click continue:
+    - channel_send M3 screen+continue
+    - send M4 enabled
+    - delete M2
+    - send M5 form.panel+continue@setup_only_one_with_its_own_message
